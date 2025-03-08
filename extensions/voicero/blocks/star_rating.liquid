@@ -1,0 +1,130 @@
+{% comment %}
+  VoiceroAI Conversational Interface
+{% endcomment %}
+
+<script>
+  // Initialize voicero with shop data
+  window.voiceroConfig = {
+    shop: "{{ shop.permanent_domain }}",
+    accessKey: "{{ block.settings.access_key | default: shop.metafields.voicero.access_key }}"
+  };
+  
+  console.log("VoiceroAI initializing with shop: " + window.voiceroConfig.shop);
+  console.log("Access key available: " + (window.voiceroConfig.accessKey ? "Yes" : "No"));
+  
+  // Check if we have a saved state
+  try {
+    const savedState = localStorage.getItem('voiceroAppState');
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      // Store last interface for quick access
+      window.voiceroConfig.lastInterface = parsedState.activeInterface;
+      window.voiceroConfig.wasOpen = parsedState.isOpen;
+      
+      // Set flag to indicate we should auto-open and hide chooser
+      if (parsedState.isOpen && parsedState.activeInterface) {
+        window.voiceroConfig.autoOpenInterface = true;
+      }
+      
+      console.log("Found saved interface state:", parsedState.activeInterface, parsedState.isOpen);
+    }
+  } catch (e) {
+    console.error("Error checking saved state:", e);
+  }
+  
+  // Function to load scripts sequentially
+  function loadScript(src, callback) {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = callback;
+    script.onerror = function() {
+      console.error("Failed to load script: " + src);
+    };
+    document.body.appendChild(script);
+  }
+  
+  // Load all scripts on DOM content loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, loading VoiceroAI scripts...");
+    
+    // First load the core script
+    loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+      console.log("Core script loaded");
+      
+      // Then load voice module
+      loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
+        console.log("Voice module loaded");
+        
+        // Auto-open voice interface if it was the last active one
+        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
+          console.log("Auto-opening voice interface");
+          setTimeout(function() {
+            if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
+              window.VoiceroVoice.openVoiceChat();
+            }
+          }, 300);
+        }
+      });
+      
+      // Load text module in parallel
+      loadScript("{{ 'voicero-text.js' | asset_url }}", function() {
+        console.log("Text module loaded");
+        
+        // Auto-open text interface if it was the last active one
+        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'text') {
+          console.log("Auto-opening text interface");
+          setTimeout(function() {
+            if (window.VoiceroText && window.VoiceroText.openTextChat) {
+              window.VoiceroText.openTextChat();
+            }
+          }, 300);
+        }
+      });
+    });
+  });
+  
+  // Also try to load immediately if DOM is already loaded
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    console.log("DOM already loaded, loading scripts immediately");
+    loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+      console.log("Core script loaded immediately");
+      loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
+        // Auto-open voice interface if it was the last active one
+        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
+          console.log("Auto-opening voice interface immediately");
+          setTimeout(function() {
+            if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
+              window.VoiceroVoice.openVoiceChat();
+            }
+          }, 300);
+        }
+      });
+      loadScript("{{ 'voicero-text.js' | asset_url }}", function() {
+        // Auto-open text interface if it was the last active one
+        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'text') {
+          console.log("Auto-opening text interface immediately");
+          setTimeout(function() {
+            if (window.VoiceroText && window.VoiceroText.openTextChat) {
+              window.VoiceroText.openTextChat();
+            }
+          }, 300);
+        }
+      });
+    });
+  }
+</script>
+
+{% schema %}
+{
+  "name": "VoiceroAI",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "access_key",
+      "label": "Access Key",
+      "info": "Enter your VoiceroAI access key here. If left blank, the system will try to use the access key from your shop settings."
+    }
+  ]
+}
+{% endschema %} 
