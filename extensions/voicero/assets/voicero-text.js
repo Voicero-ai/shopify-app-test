@@ -19,10 +19,8 @@ const VoiceroText = {
 
   // Initialize the text module
   init: function () {
-    console.log("VoiceroText initializing...");
     // Check if already initialized to prevent double initialization
     if (this.initialized) {
-      console.log("VoiceroText already initialized");
       return;
     }
     // Initialize messages array
@@ -33,41 +31,30 @@ const VoiceroText = {
     // Get API URL from Core if available
     if (window.VoiceroCore && window.VoiceroCore.getApiBaseUrl) {
       this.apiBaseUrl = VoiceroCore.getApiBaseUrl();
-      console.log("Using API base URL from VoiceroCore:", this.apiBaseUrl);
       // Store access key for later use
       if (window.voiceroConfig && window.voiceroConfig.accessKey) {
         this.accessKey = window.voiceroConfig.accessKey;
         // Fetch website data including popup questions
-        console.log("Fetching website data with access key:", this.accessKey);
         this.fetchWebsiteData(this.accessKey);
       }
     } else {
-      console.warn(
-        "VoiceroCore API URL not available, using default or env var",
-      );
       // Try to get from environment or use a reasonable default
       this.apiBaseUrl =
         this.apiBaseUrl || window.API_URL || "http://localhost:3000";
     }
 
     // Create HTML structure for the chat interface
-    console.log("Creating chat interface...");
     this.createChatInterface();
 
     // Verify the interface was created successfully
     const chatInterface = document.getElementById("text-chat-interface");
     if (chatInterface) {
-      console.log("Text chat interface successfully created");
     } else {
-      console.error("Failed to create text chat interface");
     }
-
-    console.log("VoiceroText initialization complete");
   },
 
   // Open text chat interface
   openTextChat: function () {
-    console.log("Opening text chat interface");
     // Hide the core buttons container
     const coreButtonsContainer = document.getElementById(
       "voice-toggle-container",
@@ -78,18 +65,15 @@ const VoiceroText = {
 
     // Check if we already initialized
     if (!this.initialized) {
-      console.log("VoiceroText not initialized, initializing now");
       this.init();
       // If still not initialized after trying, report error and stop
       if (!this.initialized) {
-        console.error("Failed to initialize VoiceroText, cannot open chat");
         return;
       }
     }
 
     // Set active interface
     if (VoiceroCore && VoiceroCore.appState) {
-      console.log("Setting active interface to text in VoiceroCore");
       VoiceroCore.appState.isOpen = true;
       VoiceroCore.appState.activeInterface = "text";
       VoiceroCore.isAnyInterfaceOpen = true;
@@ -97,31 +81,22 @@ const VoiceroText = {
 
     // Create isolated chat frame if not exists
     if (!this.shadowRoot) {
-      console.log("Creating new shadow DOM interface");
       this.createIsolatedChatFrame();
     } else {
-      console.log("Reusing existing shadow DOM interface");
     }
 
     // Check if we have popup questions data
-    console.log(
-      "Checking popup questions data before displaying chat:",
-      this.websiteData?.website?.popUpQuestions || "none available",
-    );
 
     // Make chat visible
     const shadowHost = document.getElementById("voicero-shadow-host");
     if (shadowHost) {
-      console.log("Making shadow host visible");
       shadowHost.style.display = "block";
     }
 
     // Set up input and button listeners
-    console.log("Setting up event listeners for chat interface");
     this.setupEventListeners();
 
     // Check if we should show welcome message
-    console.log("Checking if welcome message should be shown");
     const hasMessages = this.messages && this.messages.length > 0;
     const hasShownWelcome =
       window.VoiceroCore &&
@@ -129,7 +104,6 @@ const VoiceroText = {
       window.VoiceroCore.appState.hasShownTextWelcome;
 
     if (!hasMessages && !hasShownWelcome) {
-      console.log("Showing welcome message");
       const welcomeMessage = "Hi there! How can I help you with this website?";
       this.addMessage(welcomeMessage, "ai", false, true);
 
@@ -146,66 +120,49 @@ const VoiceroText = {
       this.websiteData.website &&
       this.websiteData.website.popUpQuestions
     ) {
-      console.log(
-        "We have popup questions to display:",
-        this.websiteData.website.popUpQuestions,
-      );
       // Check if we already have messages (don't show suggestions if we do)
       if (this.messages && this.messages.length > 0) {
-        console.log("Chat already has messages, not showing suggestions");
         // Hide suggestions in both DOM contexts
         if (this.shadowRoot) {
           const suggestions = this.shadowRoot.getElementById(
             "initial-suggestions",
           );
           if (suggestions) {
-            console.log("Hiding suggestions in shadow DOM");
             suggestions.style.display = "none";
           }
         }
         const suggestions = document.getElementById("initial-suggestions");
         if (suggestions) {
-          console.log("Hiding suggestions in regular DOM");
           suggestions.style.display = "none";
         }
       } else {
-        console.log("No existing messages, showing popup questions");
         // Show and update suggestions
         if (this.shadowRoot) {
           const suggestions = this.shadowRoot.getElementById(
             "initial-suggestions",
           );
           if (suggestions) {
-            console.log("Making suggestions visible in shadow DOM");
             suggestions.style.display = "block";
             suggestions.style.opacity = "1";
           }
         }
         // Update with the latest popup questions
-        console.log("Updating popup questions in the interface");
         this.updatePopupQuestions();
       }
     } else {
-      console.log("No popup questions data available, fetching from API");
       this.fetchWebsiteData(this.accessKey);
     }
-
-    console.log("Text chat interface opened successfully");
   },
 
   // Fetch website data from /api/connect endpoint
   fetchWebsiteData: function (accessKey) {
-    console.log("Fetching website data from /api/connect...");
     if (!this.apiBaseUrl) {
-      console.error("No API URL available, cannot fetch website data");
       return;
     }
     if (!accessKey) {
-      console.error("No access key provided, cannot fetch website data");
       return;
     }
     const apiUrl = `${this.apiBaseUrl}/api/connect`;
-    console.log("API URL for fetch:", apiUrl);
 
     fetch(apiUrl, {
       method: "GET",
@@ -216,44 +173,29 @@ const VoiceroText = {
     })
       .then((response) => {
         if (!response.ok) {
-          console.error(
-            `API validation failed: ${response.status} ${response.statusText}`,
-          );
           throw new Error(`API validation failed: ${response.status}`);
         }
-        console.log("API response received, parsing JSON...");
         return response.json();
       })
       .then((data) => {
-        console.log("Website data fetched successfully");
         if (!data || typeof data !== "object") {
-          console.error("Invalid data format received:", data);
           return;
         }
         this.websiteData = data;
-        console.log("Website data stored in VoiceroText:", this.websiteData);
-        console.log(
-          "Popup questions in data:",
-          data.website?.popUpQuestions || "none",
-        );
         // Store custom instructions if available
         if (data.website && data.website.customInstructions) {
           this.customInstructions = data.website.customInstructions;
-          console.log("Custom instructions set:", this.customInstructions);
         }
         // Update popup questions in the interface if it exists
-        console.log("Attempting to update popup questions...");
         this.updatePopupQuestions();
       })
       .catch((error) => {
-        console.error("Error fetching website data:", error);
         // Create fallback popup questions if they don't exist
         if (
           !this.websiteData ||
           !this.websiteData.website ||
           !this.websiteData.website.popUpQuestions
         ) {
-          console.log("Creating fallback popup questions");
           this.websiteData = this.websiteData || {};
           this.websiteData.website = this.websiteData.website || {};
           this.websiteData.website.popUpQuestions = [
@@ -268,111 +210,66 @@ const VoiceroText = {
 
   // Update popup questions in the interface with data from API
   updatePopupQuestions: function () {
-    console.log(
-      "updatePopupQuestions called. Checking for popup questions data...",
-    );
     if (
       !this.websiteData ||
       !this.websiteData.website ||
       !this.websiteData.website.popUpQuestions
     ) {
-      console.log("No popup questions available in website data");
-      console.log("websiteData:", this.websiteData);
-      console.log("website property:", this.websiteData?.website);
-      console.log(
-        "popUpQuestions property:",
-        this.websiteData?.website?.popUpQuestions,
-      );
       return;
     }
 
     const popupQuestions = this.websiteData.website.popUpQuestions;
-    console.log(
-      "Updating popup questions with data:",
-      JSON.stringify(popupQuestions),
-    );
 
     // Store reference to this for event handlers
     const self = this;
 
     // Debug function to log DOM structure of suggestions
     const debugSuggestions = function (container, context) {
-      console.log("----- Debug suggestions in " + context + " -----");
       if (!container) {
-        console.log("Container is null");
         return;
       }
       const initialSuggestions = container.querySelector(
         "#initial-suggestions",
       );
       if (!initialSuggestions) {
-        console.log("No #initial-suggestions element found");
         return;
       }
-      console.log("Initial suggestions element:", initialSuggestions.tagName);
-      console.log("Display style:", initialSuggestions.style.display);
-      console.log("Opacity:", initialSuggestions.style.opacity);
 
       const suggestionContainer =
         initialSuggestions.querySelector("div:nth-child(2)");
       if (!suggestionContainer) {
-        console.log("No suggestions container div found");
         return;
       }
       const suggestions = suggestionContainer.querySelectorAll(".suggestion");
-      console.log("Found " + suggestions.length + " suggestion elements");
-      suggestions.forEach(function (s, i) {
-        console.log("  Suggestion " + (i + 1) + ": " + s.textContent.trim());
-      });
-      console.log("----- End debug suggestions -----");
+      suggestions.forEach(function (s, i) {});
     };
 
     // Find initial suggestions container in both shadow DOM and regular DOM
     const updateSuggestions = function (container) {
-      console.log(
-        "updateSuggestions called with container:",
-        container ? container.tagName : "null",
-      );
       if (!container) {
-        console.log("Container is null, skipping");
         return;
       }
       const suggestionsContainer = container.querySelector(
         "#initial-suggestions",
       );
-      console.log(
-        "Found suggestions container:",
-        suggestionsContainer ? "yes" : "no",
-      );
       if (!suggestionsContainer) {
-        console.log("Could not find #initial-suggestions in the container");
         // Debug the container's HTML to help diagnose issues
-        console.log(
-          "Container contents:",
-          container.innerHTML.substring(0, 100) + "...",
-        );
+
         return;
       }
       // Get the div that contains the suggestions
       const suggestionsDiv =
         suggestionsContainer.querySelector("div:nth-child(2)");
-      console.log("Found suggestions div:", suggestionsDiv ? "yes" : "no");
       if (!suggestionsDiv) {
-        console.log("No suggestions div found (div:nth-child(2))");
-        console.log(
-          "Suggestions container HTML:",
-          suggestionsContainer.innerHTML.substring(0, 100) + "...",
-        );
         return;
       }
       // Clear existing suggestions
       suggestionsDiv.innerHTML = "";
-      console.log("Cleared existing suggestions");
 
       // Add new suggestions from API
       popupQuestions.forEach(function (item, index) {
         const questionText = item.question || "Ask me a question";
-        console.log("Adding question " + (index + 1) + ":", questionText);
+
         suggestionsDiv.innerHTML +=
           '<div class="suggestion" style="' +
           "background: #882be6;" +
@@ -392,18 +289,13 @@ const VoiceroText = {
 
       // Re-attach event listeners to the new suggestions
       const suggestions = suggestionsDiv.querySelectorAll(".suggestion");
-      console.log(
-        "Attaching event listeners to " + suggestions.length + " suggestions",
-      );
       suggestions.forEach(function (suggestion) {
         suggestion.addEventListener("click", function () {
           const text = this.textContent.trim();
-          console.log("Suggestion clicked:", text);
           // Use self to reference the VoiceroText object
           if (self.sendChatMessage) {
             self.sendChatMessage(text);
           } else {
-            console.error("sendChatMessage function not found");
           }
           // Hide suggestions
           suggestionsContainer.style.display = "none";
@@ -414,48 +306,34 @@ const VoiceroText = {
       suggestionsContainer.style.display = "block";
       suggestionsContainer.style.opacity = "1";
       suggestionsContainer.style.height = "auto";
-      console.log("Popup questions updated in interface successfully");
     };
 
     // Update in regular DOM
-    console.log("Updating suggestions in regular DOM");
     updateSuggestions(document);
     debugSuggestions(document, "regular DOM");
 
     // Update in shadow DOM if it exists
     if (this.shadowRoot) {
-      console.log("Updating suggestions in shadow DOM");
       updateSuggestions(this.shadowRoot);
       debugSuggestions(this.shadowRoot, "shadow DOM");
     } else {
-      console.log("Shadow DOM not available, skipping update there");
     }
   },
 
   // Create the chat interface HTML structure
   createChatInterface: function () {
-    console.log("Creating text chat interface HTML...");
     try {
       // First check if elements already exist
       const existingInterface = document.getElementById("text-chat-interface");
       if (existingInterface) {
-        console.log(
-          "Text chat interface already exists, checking for messages container",
-        );
         const messagesContainer = document.getElementById("chat-messages");
         if (messagesContainer) {
-          console.log("Chat messages container already exists");
           return;
         } else {
-          console.log(
-            "Chat interface exists but messages container is missing, will create a new one",
-          );
           // Remove existing interface to rebuild it completely
           existingInterface.remove();
         }
       }
-
-      console.log("Building new chat interface elements...");
 
       // Add CSS styles
       const styleEl = document.createElement("style");
@@ -546,7 +424,6 @@ const VoiceroText = {
         }
       `;
       document.head.appendChild(styleEl);
-      console.log("Chat CSS styles added");
 
       // Create interface container first
       const interfaceContainer = document.createElement("div");
@@ -866,19 +743,6 @@ const VoiceroText = {
       interfaceContainer.appendChild(messagesContainer);
       interfaceContainer.appendChild(inputContainer);
       document.body.appendChild(interfaceContainer);
-      console.log("Text chat interface HTML created successfully");
-      console.log(
-        "Interface element created:",
-        document.getElementById("text-chat-interface") !== null,
-      );
-      console.log(
-        "Messages container created:",
-        document.getElementById("chat-messages") !== null,
-      );
-      console.log(
-        "Input field created:",
-        document.getElementById("chat-input") !== null,
-      );
 
       // Set up event listeners
       this.setupEventListeners();
@@ -891,14 +755,11 @@ const VoiceroText = {
       ) {
         this.updatePopupQuestions();
       }
-    } catch (error) {
-      console.error("Error creating chat interface:", error);
-    }
+    } catch (error) {}
   },
 
   // Set up event listeners for chat interface
   setupEventListeners: function () {
-    console.log("Setting up input listeners for chat interface");
     // Setup for shadow DOM
     if (this.shadowRoot) {
       // Add keydown listener to chat input
@@ -910,7 +771,6 @@ const VoiceroText = {
             this.sendMessage();
           }
         });
-        console.log("Added keydown listener to chat input");
       }
 
       // Add click listener to send button
@@ -919,7 +779,6 @@ const VoiceroText = {
         sendBtn.addEventListener("click", () => {
           this.sendMessage();
         });
-        console.log("Added click listener to send button");
       }
 
       // Set up suggestion click listeners
@@ -929,7 +788,6 @@ const VoiceroText = {
 
   // Set up listeners for suggestion clicks
   setupSuggestionListeners: function () {
-    console.log("Setting up suggestion click listeners");
     // For shadow DOM
     if (this.shadowRoot) {
       const initialSuggestions = this.shadowRoot.getElementById(
@@ -937,20 +795,16 @@ const VoiceroText = {
       );
       if (initialSuggestions) {
         const suggestions = initialSuggestions.querySelectorAll(".suggestion");
-        console.log(`Found ${suggestions.length} suggestions in shadow DOM`);
         suggestions.forEach((suggestion, index) => {
           suggestion.addEventListener("click", () => {
             const text = suggestion.textContent.trim();
-            console.log(`Suggestion ${index + 1} clicked: "${text}"`);
             // Send the message
             this.sendChatMessage(text);
             // Hide suggestions
             initialSuggestions.style.display = "none";
           });
         });
-        console.log("Set up suggestion click listeners");
       } else {
-        console.log("No suggestions container found in shadow DOM");
       }
     }
   },
@@ -974,7 +828,6 @@ const VoiceroText = {
 
   // Close text chat interface
   closeTextChat: function () {
-    console.log("Closing text chat interface");
     // Show the core buttons container
     const coreButtonsContainer = document.getElementById(
       "voice-toggle-container",
@@ -1002,7 +855,6 @@ const VoiceroText = {
       VoiceroCore.saveState();
 
       // Reopen the chooser interface
-      console.log("Reopening chooser interface");
 
       // Use the VoiceroCore method to show the chooser
       if (VoiceroCore.showChooser) {
@@ -1029,14 +881,12 @@ const VoiceroText = {
 
   // Completely revamp the minimizeChat function to ensure the maximize button is visible
   minimizeChat: function () {
-    console.log("Minimizing text chat interface");
     const messagesContainer = this.shadowRoot
       ? this.shadowRoot.getElementById("chat-messages")
       : document.getElementById("chat-messages");
     const chatInterface = document.getElementById("voicero-shadow-host");
 
     if (!messagesContainer || !chatInterface) {
-      console.error("Required elements not found for minimizing chat");
       return;
     }
 
@@ -1107,8 +957,6 @@ const VoiceroText = {
     // Add to document body
     document.body.appendChild(newMaxBtn);
 
-    console.log("Created new maximize button outside shadow DOM");
-
     // Update state
     if (VoiceroCore) {
       VoiceroCore.appState.isTextMinimized = true;
@@ -1118,8 +966,6 @@ const VoiceroText = {
 
   // Update the maximizeChat function to handle the new button
   maximizeChat: function () {
-    console.log("Maximizing text chat interface");
-
     // Remove any standalone maximize button
     const standaloneMaxBtn = document.getElementById("voicero-maximize-fixed");
     if (standaloneMaxBtn) {
@@ -1132,7 +978,6 @@ const VoiceroText = {
     const chatInterface = document.getElementById("voicero-shadow-host");
 
     if (!messagesContainer) {
-      console.error("Messages container not found when trying to maximize");
       return;
     }
 
@@ -1197,13 +1042,11 @@ const VoiceroText = {
     keepSuggestions = false,
     saveToHistory = true,
   ) {
-    console.log(`Adding ${role} message, keepSuggestions=${keepSuggestions}`);
     // Get messages container (check Shadow DOM first)
     const messagesContainer = this.shadowRoot
       ? this.shadowRoot.getElementById("chat-messages")
       : document.getElementById("chat-messages");
     if (!messagesContainer) {
-      console.error("Messages container not found");
       return;
     }
 
@@ -1319,7 +1162,6 @@ const VoiceroText = {
       );
       return messageHistory;
     } catch (e) {
-      console.error("Error loading text message history:", e);
       return [];
     }
   },
@@ -1418,7 +1260,6 @@ const VoiceroText = {
       VoiceroCore.appState.hasUserMessage = true;
       // Update the saved message history to remove duplicates
       if (filteredHistory.length !== messageHistory.length) {
-        console.log("Updating message history to remove duplicates");
         localStorage.setItem(
           "voicero_text_message_history",
           JSON.stringify(filteredHistory),
@@ -1439,7 +1280,6 @@ const VoiceroText = {
       ? this.shadowRoot.getElementById("chat-messages")
       : document.getElementById("chat-messages");
     if (!messagesContainer) {
-      console.error("Messages container not found");
       return;
     }
 
@@ -1507,14 +1347,11 @@ const VoiceroText = {
       ? this.shadowRoot.getElementById("chat-messages")
       : document.getElementById("chat-messages");
     if (!messagesContainer) {
-      console.error("Messages container not found for restoring messages");
       return;
     }
 
-    console.log("Restoring messages from state");
     // Check if we have any messages to restore
     if (VoiceroCore.appState.messages.length === 0) {
-      console.log("No messages to restore, ensuring suggestions are visible");
       const initialSuggestions = messagesContainer.querySelector(
         "#initial-suggestions",
       );
@@ -1573,7 +1410,6 @@ const VoiceroText = {
       }
     } else if (!VoiceroCore.appState.hasUserMessage) {
       // If no user messages were added and we haven't marked hasUserMessage, make sure suggestions are visible
-      console.log("No user messages found, ensuring suggestions are visible");
       const initialSuggestions = messagesContainer.querySelector(
         "#initial-suggestions",
       );
@@ -1614,9 +1450,7 @@ const VoiceroText = {
           // Test if it's a valid URL before adding
           new URL(formattedUrl);
           extractedUrls.push(formattedUrl);
-        } catch (e) {
-          console.warn("Invalid URL found in markdown:", url);
-        }
+        } catch (e) {}
       }
       // Replace the markdown link with just the text
       cleanedText = cleanedText.replace(markdownMatch[0], linkText);
@@ -1641,9 +1475,7 @@ const VoiceroText = {
         if (!extractedUrls.includes(formattedUrl)) {
           extractedUrls.push(formattedUrl);
         }
-      } catch (e) {
-        console.warn("Invalid URL found in regular text:", url);
-      }
+      } catch (e) {}
     }
 
     // Replace URL patterns with natural language alternatives
@@ -1687,7 +1519,6 @@ const VoiceroText = {
     try {
       // Test if the URL is valid
       new URL(url);
-      console.log("Redirecting to URL:", url);
 
       // Before redirecting, save state that we were in text chat mode
       if (VoiceroCore) {
@@ -1703,17 +1534,11 @@ const VoiceroText = {
           VoiceroCore.appState.isTextMinimized = false;
           // Explicitly save the state to ensure message history is preserved
           VoiceroCore.saveState();
-          console.log(
-            "Saved text chat state before redirect with message history:",
-            VoiceroCore.appState.messages.length,
-            "messages",
-          );
         }
       }
       // Navigate in the same tab instead of opening a new one
       window.location.href = url;
     } catch (error) {
-      console.error("Invalid URL, cannot redirect:", url, error);
       // Add a fallback notification if URL is invalid
       if (this.shadowRoot) {
         const aiMessageDiv = this.shadowRoot.querySelector(".ai-message");
@@ -1789,29 +1614,23 @@ const VoiceroText = {
 
   // Send a message to the backend API
   sendMessage: async function () {
-    console.log("Attempting to send message");
     // Get chat input element (check Shadow DOM first)
     const chatInput = this.shadowRoot
       ? this.shadowRoot.getElementById("chat-input")
       : document.getElementById("chat-input");
     // Exit if chat input not found
     if (!chatInput) {
-      console.error("Chat input element not found");
       return;
     }
     // Get message from input
     const message = chatInput.value.trim();
     // Exit if message is empty
     if (!message) {
-      console.log("Empty message, not sending");
       return;
     }
 
-    console.log("Sending message:", message);
-
     // If the chat is minimized, maximize it first
     if (VoiceroCore && VoiceroCore.appState.isTextMinimized) {
-      console.log("Chat was minimized, maximizing before sending message");
       this.maximizeChat();
     }
 
@@ -1867,7 +1686,6 @@ const VoiceroText = {
 
       // Parse response
       const data = await response.json();
-      console.log("API response:", data);
 
       // Remove typing indicator
       this.removeTypingIndicator();
@@ -1909,7 +1727,6 @@ const VoiceroText = {
         }, 1500);
       }
     } catch (error) {
-      console.error("Error sending message:", error);
       // Remove typing indicator
       this.removeTypingIndicator();
       // Add error message
@@ -1925,7 +1742,6 @@ const VoiceroText = {
 
   // Start a visibility guard to ensure the interface stays visible
   startVisibilityGuard: function () {
-    console.log("Starting visibility guard for Shadow DOM interface");
     // Clear any existing guard interval
     if (this.visibilityGuardInterval) {
       clearInterval(this.visibilityGuardInterval);
@@ -1952,7 +1768,6 @@ const VoiceroText = {
   ensureChatVisibility: function () {
     const shadowHost = document.getElementById("voicero-shadow-host");
     if (!shadowHost) {
-      console.log("Shadow host not found, cannot check visibility");
       return;
     }
     // Check if shadow host is visible
@@ -1961,7 +1776,6 @@ const VoiceroText = {
       style.display === "none" || parseFloat(style.opacity) < 0.1;
 
     if (isHidden) {
-      console.log("Shadow host visibility compromised, restoring...");
       shadowHost.style.display = "block";
       shadowHost.style.opacity = "1";
     }
@@ -1978,7 +1792,6 @@ const VoiceroText = {
           inputStyle.display === "none" ||
           parseFloat(inputStyle.opacity) < 0.1
         ) {
-          console.log("Input wrapper hidden, restoring...");
           inputWrapper.style.display = "block";
           inputWrapper.style.opacity = "1";
           if (VoiceroCore && VoiceroCore.appState.isTextMinimized) {
@@ -1997,9 +1810,6 @@ const VoiceroText = {
             messageStyle.display === "none" ||
             parseFloat(messageStyle.opacity) < 0.1
           ) {
-            console.log(
-              "Messages container hidden but should be visible, restoring...",
-            );
             messagesContainer.style.display = "block";
             messagesContainer.style.opacity = "1";
           }
@@ -2021,9 +1831,6 @@ const VoiceroText = {
                   window.getComputedStyle(initialSuggestions).opacity,
                 ) < 0.1
               ) {
-                console.log(
-                  "Initial suggestions hidden but should be visible, restoring...",
-                );
                 initialSuggestions.style.display = "block";
                 initialSuggestions.style.opacity = "1";
               }
@@ -2046,9 +1853,6 @@ const VoiceroText = {
           btnStyle.opacity === "0" ||
           parseFloat(btnStyle.opacity) < 0.5
         ) {
-          console.log(
-            "Maximize button hidden but should be visible, restoring...",
-          );
           maximizeButton.style.position = "absolute";
           maximizeButton.style.display = "flex";
           maximizeButton.style.opacity = "1";
@@ -2064,7 +1868,6 @@ const VoiceroText = {
           maximizeButton.style.transform = "none"; // Remove any transforms
         }
       } else {
-        console.log("Maximize button not found, creating it");
         // If button doesn't exist, we could create it here
       }
     }
@@ -2072,11 +1875,9 @@ const VoiceroText = {
 
   // Create an isolated iframe to host the chat interface
   createIsolatedChatFrame: function () {
-    console.log("Creating Shadow DOM for chat interface");
     // First check if shadow host already exists
     let shadowHost = document.getElementById("voicero-shadow-host");
     if (shadowHost) {
-      console.log("Shadow host already exists, will reuse it");
     } else {
       // Create shadow DOM host element
       shadowHost = document.createElement("div");
@@ -2095,12 +1896,10 @@ const VoiceroText = {
         overflow: hidden;
       `;
       document.body.appendChild(shadowHost);
-      console.log("Created new shadow host element");
     }
 
     // Create shadow root
     this.shadowRoot = shadowHost.attachShadow({ mode: "open" });
-    console.log("Attached shadow root to host");
 
     // Add styles and HTML content to shadow root
     this.shadowRoot.innerHTML = `
@@ -2416,7 +2215,6 @@ const VoiceroText = {
         </div>
       </div>
     `;
-    console.log("Ensuring initial suggestions are visible in new interface");
     const initialSuggestions = this.shadowRoot.getElementById(
       "initial-suggestions",
     );
@@ -2425,27 +2223,20 @@ const VoiceroText = {
       initialSuggestions.style.opacity = "1";
     }
 
-    console.log(
-      "Checking if popup questions are already available to display in new interface",
-    );
     if (
       this.websiteData &&
       this.websiteData.website &&
       this.websiteData.website.popUpQuestions
     ) {
-      console.log("Popup questions available, updating in new interface");
       this.updatePopupQuestions();
     } else {
-      console.log("No popup questions available yet for new interface");
     }
 
-    console.log("Shadow DOM interface created successfully");
     return this.shadowRoot;
   },
 
   // Clear chat history
   clearChatHistory: function () {
-    console.log("Clearing text chat history");
     // Clear localStorage message history
     localStorage.removeItem("voicero_text_message_history");
 
@@ -2489,9 +2280,7 @@ const VoiceroText = {
 
   // Send chat message to API
   sendChatToApi: function (messageText, threadId) {
-    console.log(`Sending message to API: ${messageText}`);
     if (!this.apiBaseUrl) {
-      console.error("No API URL available, cannot send message");
       return Promise.reject("API URL not available");
     }
 
@@ -2532,8 +2321,6 @@ const VoiceroText = {
     if (this.customInstructions) {
       requestBody.customInstructions = this.customInstructions;
     }
-
-    console.log("Sending API request with body:", requestBody);
 
     return fetch(`${this.apiBaseUrl}/api/shopify/chat`, {
       method: "POST",
@@ -2580,7 +2367,6 @@ const VoiceroText = {
 
   // Set loading indicator state
   setLoadingIndicator: function (isLoading) {
-    console.log("Setting loading indicator:", isLoading ? "visible" : "hidden");
     // Find loading bar in shadow DOM or regular DOM
     const getLoadingBar = () => {
       if (this.shadowRoot) {
@@ -2590,7 +2376,6 @@ const VoiceroText = {
     };
     const loadingBar = getLoadingBar();
     if (!loadingBar) {
-      console.warn("Loading bar element not found");
       return;
     }
 
@@ -2607,10 +2392,8 @@ const VoiceroText = {
 
   // Send a chat message from the suggestion or input
   sendChatMessage: function (text) {
-    console.log("sendChatMessage called with text:", text);
     // If no text provided, get from input field
     if (!text) {
-      console.log("No text provided, getting from input field");
       if (this.shadowRoot) {
         const chatInput = this.shadowRoot.getElementById("chat-input");
         if (chatInput) {
@@ -2621,10 +2404,8 @@ const VoiceroText = {
     }
     // Exit if no text to send
     if (!text || text.length === 0) {
-      console.log("No text to send, exiting sendChatMessage");
       return;
     }
-    console.log("Sending chat message:", text);
 
     // Add user message to UI
     this.addMessage(text, "user");
@@ -2633,7 +2414,6 @@ const VoiceroText = {
     if (this.shadowRoot) {
       const suggestions = this.shadowRoot.getElementById("initial-suggestions");
       if (suggestions) {
-        console.log("Hiding suggestions after message send");
         suggestions.style.display = "none";
       }
     }
@@ -2644,7 +2424,6 @@ const VoiceroText = {
 
   // Send message to API (extracted for clarity)
   sendMessageToAPI: function (text) {
-    console.log("Sending message to API:", text);
     // Set loading state
     this.isWaitingForResponse = true;
 
@@ -2673,7 +2452,6 @@ const VoiceroText = {
 
     // Send to API
     if (this.sendChatToApi) {
-      console.log("Calling sendChatToApi function");
       this.sendChatToApi(text)
         .then((response) => {
           if (!response.ok) {
@@ -2682,7 +2460,6 @@ const VoiceroText = {
           return response.json();
         })
         .then((data) => {
-          console.log("API response received:", data);
           // Turn off loading indicator
           this.setLoadingIndicator(false);
           // Remove typing indicator before showing response
@@ -2742,7 +2519,6 @@ const VoiceroText = {
           this.isWaitingForResponse = false;
         })
         .catch((error) => {
-          console.error("Error sending message to API:", error);
           // Turn off loading indicator
           this.setLoadingIndicator(false);
           // Remove typing indicator
@@ -2758,7 +2534,6 @@ const VoiceroText = {
           this.isWaitingForResponse = false;
         });
     } else {
-      console.error("sendChatToApi function not found");
       // Turn off loading indicator
       this.setLoadingIndicator(false);
       // Remove typing indicator
@@ -2773,15 +2548,12 @@ const VoiceroText = {
 
   // Send message from input field
   sendMessage: function () {
-    console.log("sendMessage called");
-
     // Auto-maximize if minimized
     if (
       VoiceroCore &&
       VoiceroCore.appState &&
       VoiceroCore.appState.isTextMinimized
     ) {
-      console.log("Chat is minimized, maximizing before sending message");
       this.maximizeChat();
 
       // Small delay to ensure UI is updated before continuing
@@ -2811,15 +2583,12 @@ const VoiceroText = {
 
   // Update the sendChatMessage function to auto-maximize
   sendChatMessage: function (text) {
-    console.log("sendChatMessage called with text:", text);
-
     // Check if chat is minimized
     if (
       VoiceroCore &&
       VoiceroCore.appState &&
       VoiceroCore.appState.isTextMinimized
     ) {
-      console.log("Chat is minimized, maximizing before sending message");
       this.maximizeChat();
 
       // Small delay to ensure UI is updated before continuing
@@ -2836,7 +2605,6 @@ const VoiceroText = {
   sendChatMessageLogic: function (text) {
     // If no text provided, get from input field
     if (!text) {
-      console.log("No text provided, getting from input field");
       if (this.shadowRoot) {
         const chatInput = this.shadowRoot.getElementById("chat-input");
         if (chatInput) {
@@ -2847,10 +2615,8 @@ const VoiceroText = {
     }
     // Exit if no text to send
     if (!text || text.length === 0) {
-      console.log("No text to send, exiting sendChatMessage");
       return;
     }
-    console.log("Sending chat message:", text);
 
     // Add user message to UI
     this.addMessage(text, "user");
@@ -2859,7 +2625,6 @@ const VoiceroText = {
     if (this.shadowRoot) {
       const suggestions = this.shadowRoot.getElementById("initial-suggestions");
       if (suggestions) {
-        console.log("Hiding suggestions after message send");
         suggestions.style.display = "none";
       }
     }
@@ -2871,19 +2636,13 @@ const VoiceroText = {
 
 // Initialize when core is ready
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOMContentLoaded event triggered for VoiceroText");
   // Check if VoiceroCore is already loaded
   if (typeof VoiceroCore !== "undefined") {
-    console.log(
-      "VoiceroCore is already available, initializing VoiceroText now",
-    );
     VoiceroText.init();
   } else {
     // Wait for core to be available
-    console.log("Waiting for VoiceroCore to become available...");
     const checkCoreInterval = setInterval(() => {
       if (typeof VoiceroCore !== "undefined") {
-        console.log("VoiceroCore detected, initializing VoiceroText now");
         clearInterval(checkCoreInterval);
         VoiceroText.init();
       }
@@ -2892,9 +2651,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Stop checking after 10 seconds
     setTimeout(() => {
       clearInterval(checkCoreInterval);
-      console.error("VoiceroCore not available after 10 seconds");
       // Initialize anyway to at least have the interface elements ready
-      console.log("Initializing VoiceroText without VoiceroCore");
       VoiceroText.init();
     }, 10000);
   }

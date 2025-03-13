@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page,
@@ -14,6 +14,7 @@ import {
   Icon,
   Box,
   Divider,
+  Spinner,
 } from "@shopify/polaris";
 import {
   KeyIcon,
@@ -32,11 +33,13 @@ import {
   InfoIcon,
   CalendarIcon,
   DataPresentationIcon,
+  CheckIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
+import urls from "../config/urls";
 
 export const dynamic = "force-dynamic";
 
@@ -94,20 +97,11 @@ export const loader = async ({ request }) => {
   if (savedKey) {
     try {
       const trimmedKey = savedKey.trim();
-      console.log("Raw saved key:", savedKey);
-      console.log("Trimmed key:", trimmedKey);
-      console.log("Key length before trim:", savedKey.length);
-      console.log("Key length after trim:", trimmedKey.length);
 
       // Create headers with URLSearchParams to ensure proper formatting
       const headers = new Headers();
       headers.append("Accept", "application/json");
       headers.append("Authorization", `Bearer ${trimmedKey}`);
-
-      // Log each header individually
-      headers.forEach((value, name) => {
-        console.log(`Header ${name}:`, value);
-      });
 
       if (trimmedKey) {
         const testResponse = await fetch("http://localhost:3000/api/connect", {
@@ -120,29 +114,19 @@ export const loader = async ({ request }) => {
           mode: "cors",
         });
 
-        // Log complete response information
-        console.log("Response status:", testResponse.status);
-        console.log("Response status text:", testResponse.statusText);
-
         const responseText = await testResponse.text();
-        console.log("Raw response body:", responseText);
 
         try {
           const responseData = JSON.parse(responseText);
-          console.log("Parsed response:", responseData);
           // Only set isConnected to true if we have valid website data
           isConnected = testResponse.ok && responseData.website;
         } catch (e) {
-          console.log("Could not parse response as JSON:", e);
           isConnected = false;
         }
       }
     } catch (error) {
-      console.error("Detailed connection error:", error);
       isConnected = false;
     }
-  } else {
-    console.log("No saved key found in metafields");
   }
 
   return json({
@@ -172,30 +156,17 @@ export const action = async ({ request }) => {
         redirectUrl: `http://localhost:3000/app/connect?site_url=${site_url}&redirect_url=${admin_url}&type=Shopify`,
       };
     } else if (action === "manual_connect") {
-      console.log("Starting manual connect with raw access key:", accessKey);
-
       try {
         const trimmedKey = accessKey?.trim();
-        console.log("Raw key:", accessKey);
-        console.log("Trimmed key:", trimmedKey);
-        console.log("Key length before trim:", accessKey?.length);
-        console.log("Key length after trim:", trimmedKey?.length);
 
         if (!trimmedKey) {
           throw new Error("No access key provided");
         }
 
-        // Create headers with Headers API
         const headers = new Headers();
         headers.append("Accept", "application/json");
         headers.append("Authorization", `Bearer ${trimmedKey}`);
 
-        // Log each header individually
-        headers.forEach((value, name) => {
-          console.log(`Header ${name}:`, value);
-        });
-
-        console.log("Making API request to verify connection...");
         const response = await fetch("http://localhost:3000/api/connect", {
           method: "GET",
           headers: {
@@ -206,29 +177,15 @@ export const action = async ({ request }) => {
           mode: "cors",
         });
 
-        // Log complete response information
-        console.log("Response status:", response.status);
-        console.log("Response status text:", response.statusText);
-
         const responseText = await response.text();
-        console.log("Raw response body:", responseText);
-
-        try {
-          const responseData = JSON.parse(responseText);
-          console.log("Parsed response:", responseData);
-        } catch (e) {
-          console.log("Could not parse response as JSON:", e);
-        }
 
         if (!response.ok) {
           throw new Error(`Connection failed with status: ${response.status}`);
         }
 
         const data = JSON.parse(responseText);
-        console.log("API connection response:", data);
 
         // Update theme settings directly using the admin API
-        // First get the shop ID
         const shopResponse = await admin.graphql(`
           query {
             shop {
@@ -238,10 +195,7 @@ export const action = async ({ request }) => {
         `);
 
         const shopData = await shopResponse.json();
-        console.log("Shop data:", shopData);
-
         const shopId = shopData.data.shop.id;
-        console.log("Shop ID:", shopId);
 
         const metafieldResponse = await admin.graphql(
           `
@@ -273,13 +227,8 @@ export const action = async ({ request }) => {
         );
 
         const metafieldData = await metafieldResponse.json();
-        console.log("Metafield update response:", metafieldData);
 
         if (metafieldData.data?.metafieldsSet?.userErrors?.length > 0) {
-          console.error(
-            "Failed to save access key:",
-            metafieldData.data.metafieldsSet.userErrors,
-          );
           throw new Error("Failed to save access key to store");
         }
 
@@ -288,9 +237,9 @@ export const action = async ({ request }) => {
           accessKey: accessKey,
           message: `Successfully connected to ${data.website?.name || "website"}!`,
           websiteData: data.website,
+          namespace: data.website?.VectorDbConfig?.namespace || data.namespace,
         };
       } catch (error) {
-        console.error("Detailed connection error:", error);
         return {
           success: false,
           error: error.message,
@@ -298,7 +247,6 @@ export const action = async ({ request }) => {
       }
     }
   } catch (error) {
-    console.error("Connection error:", error);
     let errorMessage = error.message;
 
     if (error.response) {
@@ -331,10 +279,6 @@ async function getActiveThemeId(admin) {
     }
   `);
   const data = await response.json();
-  console.log(
-    "All themes data:",
-    JSON.stringify(data.data.themes.nodes, null, 2),
-  );
 
   // Find the main theme
   const mainTheme = data.data.themes.nodes.find(
@@ -346,35 +290,24 @@ async function getActiveThemeId(admin) {
     const publishedTheme = data.data.themes.nodes.find(
       (theme) => theme.role === "PUBLISHED",
     );
-    console.log("Found published theme:", publishedTheme);
     return publishedTheme?.id;
   }
 
-  console.log("Found main theme:", mainTheme);
   return mainTheme?.id;
 }
 
 async function updateThemeSettings(admin, themeId, accessKey) {
   if (!themeId) {
-    console.error("No main theme found");
     return;
   }
 
-  console.log("Attempting to update theme settings with:", {
-    themeId,
-    accessKey,
-  });
-
   try {
     const themeIdNumber = themeId.split("/").pop();
-    console.log("Getting theme assets for theme ID:", themeIdNumber);
 
     // Use standard REST API format
     const response = await admin.rest.get({
       path: `/themes/${themeIdNumber}/assets.json`,
     });
-
-    console.log("Theme assets response:", response);
 
     let settingsData = {
       current: {
@@ -391,8 +324,6 @@ async function updateThemeSettings(admin, themeId, accessKey) {
         query: { "asset[key]": "config/settings_data.json" },
       });
 
-      console.log("Existing settings asset:", settingsAsset);
-
       if (settingsAsset?.body?.asset?.value) {
         const currentSettings = JSON.parse(settingsAsset.body.asset.value);
         settingsData = {
@@ -406,12 +337,10 @@ async function updateThemeSettings(admin, themeId, accessKey) {
         };
       }
     } catch (e) {
-      console.log("No existing settings_data.json found, creating new one:", e);
+      // Handle error silently
     }
 
     // Update settings_data.json
-    console.log("Updating settings_data.json with:", settingsData);
-
     const updateResponse = await admin.rest.put({
       path: `/themes/${themeIdNumber}/assets.json`,
       data: {
@@ -422,20 +351,30 @@ async function updateThemeSettings(admin, themeId, accessKey) {
       },
     });
 
-    console.log("Settings update response:", updateResponse);
-
     if (updateResponse?.body?.asset) {
-      console.log("Successfully updated theme settings");
+      // Successfully updated theme settings
     } else {
-      console.error("Failed to update theme settings");
+      throw new Error("Failed to update theme settings");
     }
   } catch (error) {
-    console.error("Error updating theme settings:", error);
+    // Handle error silently
   }
 }
 
 export default function Index() {
   const { savedKey } = useLoaderData();
+
+  // State to track active training process
+  const [trainingData, setTrainingData] = useState(null);
+  const [trainingInterval, setTrainingInterval] = useState(null);
+  // Track consecutive failures
+  const [failureCount, setFailureCount] = useState(0);
+  const MAX_FAILURES = 5; // Stop after 5 consecutive failures
+
+  // Get API key from saved key (from loader data)
+  const apiKey = savedKey;
+
+  // State for UI and data
   const [accessKey, setAccessKey] = useState(savedKey || "");
   const fetcher = useFetcher();
   const app = useAppBridge();
@@ -448,26 +387,113 @@ export default function Index() {
   const [loadingText, setLoadingText] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
-
-  // Check URL parameters on mount for access key
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const returnedAccessKey = params.get("access_key");
-    if (returnedAccessKey) {
-      window.localStorage?.setItem("voiceroAccessKey", returnedAccessKey);
-      setAccessKey(returnedAccessKey);
-      // Clean up the URL
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
+  const [namespace, setNamespace] = useState(null);
+  const [statusData, setStatusData] = useState(null);
+  const [trainingStatus, setTrainingStatus] = useState(null);
+  const [statusCheckCount, setStatusCheckCount] = useState(0);
 
   // Handle successful connection response
   useEffect(() => {
     if (fetcher.data?.success && fetcher.data.accessKey) {
-      window.localStorage?.setItem("voiceroAccessKey", fetcher.data.accessKey);
       setAccessKey(fetcher.data.accessKey);
     }
+
+    // Check if we got a response with namespace data
+    if (fetcher.data?.namespace) {
+      setNamespace(fetcher.data.namespace);
+    }
+    // Check if we have namespace in VectorDbConfig
+    else if (fetcher.data?.websiteData?.VectorDbConfig?.namespace) {
+      const websiteNamespace =
+        fetcher.data.websiteData.VectorDbConfig.namespace;
+      setNamespace(websiteNamespace);
+    }
   }, [fetcher.data]);
+
+  // Single useEffect for status checking - runs when component mounts or namespace changes
+  useEffect(() => {
+    if (namespace) {
+      checkTrainingStatus();
+    }
+
+    return () => {
+      if (trainingInterval) {
+        clearInterval(trainingInterval);
+      }
+    };
+  }, [namespace]); // Run when namespace changes
+
+  // Function to check training status
+  const checkTrainingStatus = useCallback(() => {
+    // Check if we have the necessary credentials
+    if (!apiKey) {
+      return;
+    }
+
+    // Use the user's namespace
+    const namespaceToUse = namespace;
+
+    if (!namespaceToUse) {
+      return;
+    }
+
+    fetch(`${urls.trainingApiStatus}/${namespaceToUse}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Status API returned ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        // Reset failure count on success
+        if (failureCount > 0) setFailureCount(0);
+
+        // Store the training data in state
+        setTrainingData(data.data);
+
+        // If process is complete or not running, clear the interval
+        if (
+          data.data?.status === "complete" ||
+          data.data?.status === "done" ||
+          data.data?.status === "success" ||
+          data.data?.status === "finished" ||
+          data.data?.status === "not_running"
+        ) {
+          if (trainingInterval) {
+            clearInterval(trainingInterval);
+            setTrainingInterval(null);
+          }
+        }
+      })
+      .catch((err) => {
+        // Increment failure count
+        const newFailureCount = failureCount + 1;
+        setFailureCount(newFailureCount);
+
+        // Stop checking after MAX_FAILURES consecutive failures
+        if (newFailureCount >= MAX_FAILURES) {
+          if (trainingInterval) {
+            clearInterval(trainingInterval);
+            setTrainingInterval(null);
+
+            // Show error message to user
+            setError(
+              <Banner status="critical" onDismiss={() => setError("")}>
+                <p>
+                  Status checking has been paused due to repeated connection
+                  failures.
+                </p>
+                <p>Click "View Status" to try again manually.</p>
+              </Banner>,
+            );
+          }
+        }
+      });
+  }, [apiKey, trainingInterval, namespace, failureCount]);
 
   // Auto-connect when we have an access key
   useEffect(() => {
@@ -481,7 +507,7 @@ export default function Index() {
     }
   }, [accessKey]);
 
-  // Reset data loading state when we get data
+  // Reset data loading state when we get data back from fetcher
   useEffect(() => {
     if (fetcher.data) {
       setIsDataLoading(false);
@@ -500,13 +526,10 @@ export default function Index() {
   }, [fetcher.data]);
 
   const handleManualConnect = () => {
-    console.log("Manual connect button clicked");
     if (!accessKey) {
-      console.log("No access key provided");
       setError("Please enter an access key");
       return;
     }
-    console.log("Submitting manual connect with key:", accessKey);
     setError("");
     setIsConnecting(true);
     fetcher.submit(
@@ -518,59 +541,40 @@ export default function Index() {
     );
   };
 
+  // Function to manually refresh status without setting up an interval
+  const handleRefreshStatus = useCallback(() => {
+    checkTrainingStatus();
+  }, [checkTrainingStatus]);
+
   const handleQuickConnect = () => {
     fetcher.submit({ action: "quick_connect" }, { method: "POST" });
   };
 
   const handleDisconnect = () => {
-    console.log("Disconnect initiated");
-
     try {
-      // 1. Clear the main access key
-      console.log("Removing voiceroAccessKey from localStorage");
-      window.localStorage?.removeItem("voiceroAccessKey");
-
-      // 2. Clear all voicero-related data from localStorage
-      if (window.localStorage) {
-        console.log("Clearing all Voicero data from localStorage");
-        const keysToRemove = [];
-        // Collect keys first to avoid modification during iteration
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i);
-          if (key && key.startsWith("voicero")) {
-            keysToRemove.push(key);
-          }
-        }
-        // Then remove them
-        keysToRemove.forEach((key) => {
-          console.log(`Removing localStorage key: ${key}`);
-          window.localStorage.removeItem(key);
-        });
+      // Reset all state
+      setAccessKey("");
+      setNamespace(null);
+      setTrainingData(null);
+      if (trainingInterval) {
+        clearInterval(trainingInterval);
+        setTrainingInterval(null);
       }
 
-      // 3. Reset state
-      console.log("Resetting access key state");
-      setAccessKey("");
-
-      // 4. Clear any in-memory data
+      // Clear any in-memory data
       if (fetcher) {
-        console.log("Clearing fetcher data");
         if (fetcher.data) fetcher.data = null;
 
-        // 5. Submit the disconnect action to the server
-        console.log("Submitting disconnect action to server");
+        // Submit the disconnect action to the server
         fetcher.submit({ action: "disconnect" }, { method: "POST" });
 
-        // 6. Navigate to home page after sufficient delay to allow server to process
-        console.log("Setting up navigation delay");
+        // Navigate to home page after sufficient delay to allow server to process
         setTimeout(() => {
-          console.log("Executing navigation to home page");
           // Use absolute path to ensure we get a full page load
           window.location.href = "/app";
         }, 2000); // 2-second delay to allow server processing
       }
     } catch (error) {
-      console.error("Error during disconnect:", error);
       // Even if there's an error, try to reload
       window.location.href = "/app";
     }
@@ -582,24 +586,19 @@ export default function Index() {
       setError(""); // Clear any previous errors
 
       // Step 1: Initial sync
-      console.log("Starting sync request...");
       const syncInitResponse = await fetch("/api/sync", {
         method: "GET",
       });
 
       const responseText = await syncInitResponse.text();
-      console.log("Raw response:", responseText);
-
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        console.error("Failed to parse response:", e);
         throw new Error(`Invalid JSON response: ${responseText}`);
       }
 
       if (!syncInitResponse.ok) {
-        console.error("Sync response error:", data);
         throw new Error(
           `HTTP error! status: ${syncInitResponse.status}, details: ${
             data.details || "unknown error"
@@ -610,7 +609,6 @@ export default function Index() {
           }`,
         );
       }
-      console.log("Sync data received:", data);
 
       // Step 2: Send data to backend
       const syncResponse = await fetch(
@@ -631,17 +629,18 @@ export default function Index() {
 
       if (!syncResponse.ok) {
         const errorData = await syncResponse.json();
-        console.error("Backend sync error:", errorData);
         throw new Error(
           `Sync error! status: ${syncResponse.status}, details: ${
             errorData.error || "unknown error"
           }`,
         );
       }
-      console.log("Sync response:", syncResponse);
 
       // Step 3: Start vectorization
-      console.log("Starting vectorization...");
+      setLoadingText(
+        "Vectorizing your store content... This may take a few minutes.",
+      );
+
       const vectorizeResponse = await fetch(
         "http://localhost:3000/api/shopify/vectorize",
         {
@@ -656,7 +655,6 @@ export default function Index() {
 
       if (!vectorizeResponse.ok) {
         const errorData = await vectorizeResponse.json();
-        console.error("Vectorization error:", errorData);
         throw new Error(
           `Vectorization error! status: ${vectorizeResponse.status}, details: ${
             errorData.error || "unknown error"
@@ -664,10 +662,27 @@ export default function Index() {
         );
       }
 
-      console.log("Vectorization response:", vectorizeResponse);
+      // Process the regular JSON response
+      const vectorizeData = await vectorizeResponse.json();
+
+      // Check if the vectorization was successful
+      if (!vectorizeData.success) {
+        throw new Error(
+          `Vectorization failed: ${vectorizeData.error || "Unknown error"}`,
+        );
+      }
+
+      // Show some stats if available
+      if (vectorizeData.stats) {
+        setLoadingText(
+          `Vectorization complete! Added ${vectorizeData.stats.added} items to the vector database.`,
+        );
+      } else {
+        setLoadingText("Vectorization completed successfully!");
+      }
 
       // Step 4: Create or get assistant
-      console.log("Setting up AI assistant...");
+      setLoadingText("Setting up your AI assistant...");
       const assistantResponse = await fetch(
         "http://localhost:3000/api/shopify/assistant",
         {
@@ -682,7 +697,6 @@ export default function Index() {
 
       if (!assistantResponse.ok) {
         const errorData = await assistantResponse.json();
-        console.error("Assistant setup error:", errorData);
         throw new Error(
           `Assistant setup error! status: ${assistantResponse.status}, details: ${
             errorData.error || "unknown error"
@@ -691,17 +705,13 @@ export default function Index() {
       }
 
       // Step 5: Start auto-training process
-      console.log("Starting auto-training process...");
       setIsTraining(true);
       setLoadingText(
         "Starting auto-training process. This typically takes 10-20 minutes to complete.",
       );
 
-      // Get the namespace from the website data
-      console.log("Full data structure:", JSON.stringify(data));
-
       // Try different approaches to find the namespace
-      let namespace = null;
+      let foundNamespace = null;
 
       // 1. Check from the original data structure
       if (
@@ -710,34 +720,30 @@ export default function Index() {
         data.website.VectorDbConfig &&
         data.website.VectorDbConfig.namespace
       ) {
-        namespace = data.website.VectorDbConfig.namespace;
-        console.log("Found namespace in website data:", namespace);
+        foundNamespace = data.website.VectorDbConfig.namespace;
+        setNamespace(foundNamespace);
       }
       // 2. If not in website data, try from assistantResponse
       else if (assistantResponse && assistantResponse.ok) {
         try {
           const assistantData = await assistantResponse.json();
-          console.log("Assistant response data:", assistantData);
 
           if (
             assistantData &&
             assistantData.website &&
             assistantData.website.VectorDbConfig
           ) {
-            namespace = assistantData.website.VectorDbConfig.namespace;
-            console.log("Found namespace in assistant response:", namespace);
+            foundNamespace = assistantData.website.VectorDbConfig.namespace;
+            setNamespace(foundNamespace);
           }
         } catch (err) {
-          console.error("Error parsing assistant response:", err);
+          // Handle error silently
         }
       }
 
       // 3. As a last resort, try to get it from backend directly
-      if (!namespace) {
+      if (!foundNamespace) {
         try {
-          console.log(
-            "Attempting to fetch website data directly for namespace",
-          );
           const websiteResponse = await fetch(
             "http://localhost:3000/api/connect",
             {
@@ -751,40 +757,36 @@ export default function Index() {
 
           if (websiteResponse.ok) {
             const websiteData = await websiteResponse.json();
-            console.log("Website data response:", websiteData);
 
             if (
               websiteData &&
               websiteData.website &&
               websiteData.website.VectorDbConfig
             ) {
-              namespace = websiteData.website.VectorDbConfig.namespace;
-              console.log("Found namespace in website response:", namespace);
+              foundNamespace = websiteData.website.VectorDbConfig.namespace;
+              setNamespace(foundNamespace);
             } else if (
               websiteData &&
               websiteData.website &&
               websiteData.website.id
             ) {
-              // Use website ID as namespace as a fallback (since in your data they're the same)
-              namespace = websiteData.website.id;
-              console.log("Using website ID as namespace fallback:", namespace);
+              // Use website ID as namespace as a fallback
+              foundNamespace = websiteData.website.id;
+              setNamespace(foundNamespace);
             }
           }
         } catch (err) {
-          console.error("Error fetching website data for namespace:", err);
+          // Handle error silently
         }
       }
 
-      if (!namespace) {
-        console.error("No namespace found in website data");
+      if (!foundNamespace) {
         throw new Error("No namespace found for auto-training");
       }
 
-      console.log("Using namespace for auto-training:", namespace);
-
       // Start the auto-training process
       const autoTrainResponse = await fetch(
-        `http://localhost:4000/auto/${namespace}`,
+        `${urls.trainingApiAuto}/${foundNamespace}`,
         {
           method: "POST",
           headers: {
@@ -797,7 +799,6 @@ export default function Index() {
 
       if (!autoTrainResponse.ok) {
         const errorData = await autoTrainResponse.json();
-        console.error("Auto-training initiation error:", errorData);
         throw new Error(
           `Auto-training initiation error! status: ${autoTrainResponse.status}, details: ${
             errorData.error || "unknown error"
@@ -805,117 +806,233 @@ export default function Index() {
         );
       }
 
-      console.log("Auto-training started successfully");
+      // Clear any existing interval
+      if (trainingInterval) {
+        clearInterval(trainingInterval);
+        setTrainingInterval(null);
+      }
 
-      // Poll for status until completion
+      // Set up new status check interval
+      const newInterval = setInterval(checkTrainingStatus, 30000);
+      setTrainingInterval(newInterval);
+
+      // Do an immediate check to update UI
+      checkTrainingStatus();
+
+      // Show training in progress message
       setLoadingText(
-        "Auto-training in progress. This typically takes 10-20 minutes to complete. Please do not close this window.",
+        "Auto-training in progress. This typically takes 10-20 minutes to complete. You can now navigate away from this page - the process will continue in the background.",
       );
 
-      let isComplete = false;
-      let pollCount = 0;
-      const maxPolls = 120; // 20 minutes at 10-second intervals
-
-      while (!isComplete && pollCount < maxPolls) {
-        await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
-
-        try {
-          const statusResponse = await fetch(
-            `http://localhost:4000/status/${namespace}`,
-            {
-              method: "GET",
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${accessKey}`,
-              },
-            },
-          );
-
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            console.log("Training status:", statusData);
-
-            // Update loading text with progress information if available
-            if (statusData.progress) {
-              setLoadingText(
-                `Auto-training in progress: ${statusData.progress}. Please do not close this window.`,
-              );
-            }
-
-            // Check if the process is complete
-            if (
-              statusData.status === "success" ||
-              statusData.status === "completed"
-            ) {
-              isComplete = true;
-              console.log("Auto-training completed successfully");
-            } else if (
-              statusData.status === "failed" ||
-              statusData.status === "error"
-            ) {
-              throw new Error(
-                `Auto-training failed: ${statusData.message || "unknown error"}`,
-              );
-            }
-          } else {
-            console.warn("Failed to get training status, will retry");
-          }
-        } catch (error) {
-          console.error("Error checking training status:", error);
-          // Continue polling despite errors
-        }
-
-        pollCount++;
-      }
-
-      if (!isComplete) {
-        console.warn(
-          "Auto-training did not complete within the expected time frame",
-        );
-        setLoadingText(
-          "Auto-training is taking longer than expected. You can check back later as the process will continue in the background.",
-        );
-      } else {
-        setLoadingText("Auto-training completed successfully!");
-      }
-
-      setIsTraining(false);
+      setIsTraining(true);
       setIsSuccess(true);
       setIsSyncing(false);
-
-      // Show success message
-      setError(
-        <Banner status="success" onDismiss={() => setError("")}>
-          <p>
-            Content synced successfully! We are finalizing your AI assistant on
-            our backend. This will take between 15-30 minutes for completion. In
-            the mean time you can activate your assistant by clicking the button
-            below for your customers to start using it. You can leave this page
-            if you need to.
-          </p>
-          <p>
-            For immediate use, you can activate it now. For best results, we
-            recommend waiting for the process to complete in 15-30 minutes.
-            Click the button below to see the status of your assistant.
-          </p>
-          <Button primary fullWidth>
-            View Assistant Status
-          </Button>
-        </Banner>,
-      );
     } catch (error) {
-      console.error("Detailed sync error:", error);
       setError(
         <Banner status="critical" onDismiss={() => setError("")}>
           <p>Failed to sync content: {error.message}</p>
         </Banner>,
       );
+      setIsSyncing(false);
+    }
+  };
+
+  // Helper to get training progress
+  const getTrainingProgress = useCallback(() => {
+    if (!trainingData) return 0;
+
+    // Use progress directly if available
+    if (trainingData.progress) {
+      const progressValue = parseInt(trainingData.progress);
+      if (!isNaN(progressValue)) {
+        return progressValue;
+      }
+    }
+
+    // Fall back to category calculation if available
+    const { currentCategory, categories } = trainingData;
+    if (currentCategory === undefined || !categories || !categories.length)
+      return 0;
+
+    return Math.round((currentCategory / categories.length) * 100);
+  }, [trainingData]);
+
+  // Helper to get formatted training status message
+  const getTrainingStatusMessage = useCallback(() => {
+    if (!trainingData) return "No training data available";
+
+    // If there's a message, use it
+    if (trainingData.message) {
+      return trainingData.message;
+    }
+
+    const { status, steps, currentCategory, categories } = trainingData;
+
+    if (
+      status === "complete" ||
+      status === "done" ||
+      status === "success" ||
+      status === "finished"
+    ) {
+      return "Training process complete! Your AI assistant is ready.";
+    }
+
+    if (!steps || !steps.length) return "Training in progress...";
+
+    // Get the latest step message
+    const latestStep = steps[steps.length - 1];
+
+    // Format a more descriptive message
+    let progressMessage = latestStep.message;
+
+    // Add category progress if available
+    if (currentCategory !== undefined && categories && categories.length) {
+      progressMessage += ` (${currentCategory + 1}/${categories.length} categories)`;
+    }
+
+    return progressMessage;
+  }, [trainingData]);
+
+  const handleViewStatus = async () => {
+    try {
+      setIsDataLoading(true);
+      setError("");
+
+      // Reset failure count when manually checking
+      setFailureCount(0);
+
+      // Check if we have the namespace
+      if (!namespace) {
+        setError("No namespace found. Please connect to your website first.");
+        setIsDataLoading(false);
+        return;
+      }
+
+      // If interval was stopped due to failures or not_running, restart it for manual check
+      if (!trainingInterval) {
+        checkTrainingStatus(); // Do an immediate check
+
+        // Only set up a new interval if the check doesn't immediately return not_running
+        // The interval will be cleared automatically if status is not_running
+        const interval = setInterval(checkTrainingStatus, 30000);
+        setTrainingInterval(interval);
+      } else {
+        // Just do a single check if the interval is already running
+        checkTrainingStatus();
+      }
+
+      // Show current data in a banner if we have it
+      if (trainingData) {
+        // Display status in a banner
+        setError(
+          <Banner status="info" onDismiss={() => setError("")}>
+            <p>Assistant Status:</p>
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(trainingData, null, 2)}
+            </pre>
+          </Banner>,
+        );
+      } else {
+        setError(
+          <Banner status="info" onDismiss={() => setError("")}>
+            <p>Checking status... Results will appear in 1-2 seconds.</p>
+          </Banner>,
+        );
+      }
+    } catch (error) {
+      setError(`Error checking status: ${error.message}`);
+    } finally {
+      setIsDataLoading(false);
     }
   };
 
   return (
     <Page>
       <BlockStack gap="800">
+        {/* Training Status Banner - Show only if we have training data AND it's not in "not_running" state */}
+        {trainingData &&
+          (trainingData.status === "processing" ||
+            trainingData.status === "success") && (
+            <Banner
+              status={trainingData.status === "processing" ? "info" : "success"}
+            >
+              <BlockStack gap="300">
+                <InlineStack align="center" gap="200">
+                  {trainingData.status === "processing" && (
+                    <Spinner size="small" />
+                  )}
+                  {trainingData.status !== "processing" && (
+                    <Icon source={CheckIcon} color="success" />
+                  )}
+                  <Text variant="headingMd">
+                    AI Assistant Training{" "}
+                    {trainingData.status === "processing"
+                      ? "in Progress"
+                      : "Complete"}
+                  </Text>
+                </InlineStack>
+
+                {trainingData.status === "processing" && (
+                  <>
+                    <Text>{getTrainingStatusMessage()}</Text>
+
+                    {/* Progress bar */}
+                    <div style={{ width: "100%", marginTop: "8px" }}>
+                      <div
+                        style={{
+                          width: "100%",
+                          background: "#e0e0e0",
+                          borderRadius: "4px",
+                          height: "8px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${getTrainingProgress()}%`,
+                            background: "#008060",
+                            borderRadius: "4px",
+                            height: "8px",
+                            transition: "width 0.5s ease-in-out",
+                          }}
+                        />
+                      </div>
+                      <Text variant="bodySm" alignment="end">
+                        {getTrainingProgress()}% complete
+                      </Text>
+                    </div>
+
+                    {/* Last updated timestamp */}
+                    <Text variant="bodySm">
+                      Last checked: {new Date().toLocaleTimeString()}
+                    </Text>
+                  </>
+                )}
+
+                {trainingData.status !== "processing" && (
+                  <Text>
+                    Your AI assistant has completed training and is ready to
+                    use!
+                  </Text>
+                )}
+
+                {/* Only show Refresh Status button if training is still in progress */}
+                {trainingData.status === "processing" && (
+                  <Button onClick={handleRefreshStatus} size="slim">
+                    Refresh Status
+                  </Button>
+                )}
+
+                {trainingData.status === "processing" && (
+                  <Text variant="bodySm">
+                    Note: You can leave this page running and it will continue
+                    to train in the background. At this point you can activate
+                    your assistant by clicking "activate"
+                  </Text>
+                )}
+              </BlockStack>
+            </Banner>
+          )}
+
         <Layout>
           <Layout.Section>
             <Card padding="500">

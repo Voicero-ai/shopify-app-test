@@ -15,6 +15,7 @@ import {
   Divider,
   Icon,
   Badge,
+  Grid,
 } from "@shopify/polaris";
 import {
   HomeIcon,
@@ -113,9 +114,6 @@ export default function WebsitePage() {
   // Redirect if disconnected
   useEffect(() => {
     if (disconnected) {
-      console.log(
-        "Website page detected disconnected state, redirecting to main",
-      );
       navigate("/app");
     }
   }, [disconnected, navigate]);
@@ -191,94 +189,103 @@ export default function WebsitePage() {
 
                   <Box paddingBlockStart="300" paddingBlockEnd="300">
                     <BlockStack gap="400">
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                          gap: "16px",
-                        }}
-                      >
-                        <Card padding="300">
-                          <BlockStack gap="100" align="center">
-                            <Icon source={PageIcon} color="primary" />
-                            <Text
-                              variant="headingXl"
-                              fontWeight="bold"
-                              alignment="center"
-                            >
-                              {websiteData._count.pages}
-                            </Text>
-                            <Text
-                              variant="bodySm"
-                              color="subdued"
-                              alignment="center"
-                            >
-                              Pages
-                            </Text>
-                          </BlockStack>
-                        </Card>
+                      <Grid>
+                        <Grid.Cell
+                          columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}
+                        >
+                          <Card padding="300">
+                            <BlockStack gap="100" align="center">
+                              <Icon source={PageIcon} color="primary" />
+                              <Text
+                                variant="headingXl"
+                                fontWeight="bold"
+                                alignment="center"
+                              >
+                                {websiteData._count.pages}
+                              </Text>
+                              <Text
+                                variant="bodySm"
+                                color="subdued"
+                                alignment="center"
+                              >
+                                Pages
+                              </Text>
+                            </BlockStack>
+                          </Card>
+                        </Grid.Cell>
 
-                        <Card padding="300">
-                          <BlockStack gap="100" align="center">
-                            <Icon source={BlogIcon} color="primary" />
-                            <Text
-                              variant="headingXl"
-                              fontWeight="bold"
-                              alignment="center"
-                            >
-                              {websiteData._count.posts}
-                            </Text>
-                            <Text
-                              variant="bodySm"
-                              color="subdued"
-                              alignment="center"
-                            >
-                              Posts
-                            </Text>
-                          </BlockStack>
-                        </Card>
+                        <Grid.Cell
+                          columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}
+                        >
+                          <Card padding="300">
+                            <BlockStack gap="100" align="center">
+                              <Icon source={BlogIcon} color="primary" />
+                              <Text
+                                variant="headingXl"
+                                fontWeight="bold"
+                                alignment="center"
+                              >
+                                {websiteData._count.posts}
+                              </Text>
+                              <Text
+                                variant="bodySm"
+                                color="subdued"
+                                alignment="center"
+                              >
+                                Posts
+                              </Text>
+                            </BlockStack>
+                          </Card>
+                        </Grid.Cell>
 
-                        <Card padding="300">
-                          <BlockStack gap="100" align="center">
-                            <Icon source={ProductIcon} color="primary" />
-                            <Text
-                              variant="headingXl"
-                              fontWeight="bold"
-                              alignment="center"
-                            >
-                              {websiteData._count.products}
-                            </Text>
-                            <Text
-                              variant="bodySm"
-                              color="subdued"
-                              alignment="center"
-                            >
-                              Products
-                            </Text>
-                          </BlockStack>
-                        </Card>
+                        <Grid.Cell
+                          columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}
+                        >
+                          <Card padding="300">
+                            <BlockStack gap="100" align="center">
+                              <Icon source={ProductIcon} color="primary" />
+                              <Text
+                                variant="headingXl"
+                                fontWeight="bold"
+                                alignment="center"
+                              >
+                                {websiteData._count.products}
+                              </Text>
+                              <Text
+                                variant="bodySm"
+                                color="subdued"
+                                alignment="center"
+                              >
+                                Products
+                              </Text>
+                            </BlockStack>
+                          </Card>
+                        </Grid.Cell>
 
-                        {/* Add discounts card inline with others */}
-                        <Card padding="300">
-                          <BlockStack gap="100" align="center">
-                            <Icon source={DiscountIcon} color="primary" />
-                            <Text
-                              variant="headingXl"
-                              fontWeight="bold"
-                              alignment="center"
-                            >
-                              {websiteData._count.discounts || 0}
-                            </Text>
-                            <Text
-                              variant="bodySm"
-                              color="subdued"
-                              alignment="center"
-                            >
-                              Discounts
-                            </Text>
-                          </BlockStack>
-                        </Card>
-                      </div>
+                        <Grid.Cell
+                          columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}
+                        >
+                          <Card padding="300">
+                            <BlockStack gap="100" align="center">
+                              <Icon source={DiscountIcon} color="primary" />
+                              <Text
+                                variant="headingXl"
+                                fontWeight="bold"
+                                alignment="center"
+                              >
+                                {websiteData._count.discounts || 0}
+                              </Text>
+                              <Text
+                                variant="bodySm"
+                                color="subdued"
+                                alignment="center"
+                              >
+                                Discounts
+                              </Text>
+                            </BlockStack>
+                          </Card>
+                        </Grid.Cell>
+                      </Grid>
                     </BlockStack>
                   </Box>
 

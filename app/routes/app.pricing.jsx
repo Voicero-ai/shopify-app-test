@@ -378,9 +378,6 @@ export default function PricingPage() {
   // Redirect if disconnected
   useEffect(() => {
     if (disconnected) {
-      console.log(
-        "Pricing page detected disconnected state, redirecting to main",
-      );
       navigate("/app");
     }
   }, [disconnected, navigate]);
@@ -500,61 +497,158 @@ export default function PricingPage() {
                   You are currently on the {isPro ? "Pro" : "Basic"} Plan
                 </Text>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "24px",
-                  }}
-                >
-                  {/* Basic Plan Card */}
-                  <div style={{ flex: 1, maxWidth: "500px" }}>
-                    <Card>
-                      <BlockStack gap="400">
-                        <Box
-                          paddingBlockStart="300"
-                          paddingBlockEnd="300"
-                          background="bg-surface-secondary"
-                          borderRadiusStartStart="300"
-                          borderRadiusStartEnd="300"
-                        >
-                          <BlockStack gap="200" align="center">
-                            <Badge>Free</Badge>
-                            <Text
-                              as="h3"
-                              variant="headingMd"
-                              alignment="center"
-                            >
-                              Basic Plan
-                            </Text>
-                            <Text as="p" variant="headingXl" alignment="center">
-                              $0
-                            </Text>
-                            <Text
-                              as="p"
-                              variant="bodyMd"
-                              tone="subdued"
-                              alignment="center"
-                            >
-                              Perfect for trying out our platform
-                            </Text>
-                            {currentPlan === "Basic Plan" && (
-                              <Badge tone="success">Current Plan</Badge>
-                            )}
-                          </BlockStack>
-                        </Box>
-
-                        <Box padding="400">
+                <BlockStack gap="500">
+                  <Layout>
+                    <Layout.Section variant="oneHalf">
+                      {/* Basic Plan Card */}
+                      <div style={{ height: "100%" }}>
+                        <Card>
                           <BlockStack gap="400">
-                            {basicFeatures.map((feature, index) => (
-                              <InlineStack
-                                key={index}
-                                gap="300"
-                                blockAlign="center"
-                                align="space-between"
-                              >
-                                {feature.icon ? (
-                                  <>
+                            <Box
+                              paddingBlockStart="300"
+                              paddingBlockEnd="300"
+                              background="bg-surface-secondary"
+                              borderRadius="300 300 0 0"
+                            >
+                              <BlockStack gap="200" align="center">
+                                <Badge>Free</Badge>
+                                <Text
+                                  as="h3"
+                                  variant="headingMd"
+                                  alignment="center"
+                                >
+                                  Basic Plan
+                                </Text>
+                                <Text
+                                  as="p"
+                                  variant="headingXl"
+                                  alignment="center"
+                                >
+                                  $0
+                                </Text>
+                                <Text
+                                  as="p"
+                                  variant="bodyMd"
+                                  tone="subdued"
+                                  alignment="center"
+                                >
+                                  Perfect for trying out our platform
+                                </Text>
+                                {currentPlan === "Basic Plan" && (
+                                  <Badge tone="success">Current Plan</Badge>
+                                )}
+                              </BlockStack>
+                            </Box>
+
+                            <Box padding="400">
+                              <BlockStack gap="400">
+                                {basicFeatures.map((feature, index) => (
+                                  <InlineStack
+                                    key={index}
+                                    gap="300"
+                                    blockAlign="center"
+                                    align="space-between"
+                                  >
+                                    {feature.icon ? (
+                                      <>
+                                        <div
+                                          style={{
+                                            width: "24px",
+                                            display: "flex",
+                                            justifyContent: "center",
+                                          }}
+                                        >
+                                          <Icon
+                                            source={feature.icon}
+                                            color="primary"
+                                          />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                          <Text variant="bodyMd">
+                                            {feature.text}
+                                          </Text>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div style={{ height: "24px" }}></div>
+                                    )}
+                                  </InlineStack>
+                                ))}
+
+                                <Box paddingBlockStart="300">
+                                  <Button
+                                    fullWidth
+                                    disabled={currentPlan === "Basic Plan"}
+                                    onClick={() => handleSubscription("basic")}
+                                    size="large"
+                                  >
+                                    {currentPlan === "Basic Plan"
+                                      ? "Current Plan"
+                                      : isPro
+                                        ? "Downgrade"
+                                        : "Get Started"}
+                                  </Button>
+                                </Box>
+                              </BlockStack>
+                            </Box>
+                          </BlockStack>
+                        </Card>
+                      </div>
+                    </Layout.Section>
+
+                    <Layout.Section variant="oneHalf">
+                      {/* Premium Plan Card */}
+                      <div style={{ height: "100%" }}>
+                        <Card>
+                          <BlockStack gap="400">
+                            <Box
+                              paddingBlockStart="300"
+                              paddingBlockEnd="300"
+                              background="bg-surface-primary-subdued"
+                              borderRadius="300 300 0 0"
+                              style={{
+                                backgroundColor: "rgba(136, 43, 230, 0.1)",
+                              }}
+                            >
+                              <BlockStack gap="200" align="center">
+                                <Badge tone="info">Recommended</Badge>
+                                <Text
+                                  as="h3"
+                                  variant="headingMd"
+                                  alignment="center"
+                                >
+                                  Growth Plan
+                                </Text>
+                                <Text
+                                  as="p"
+                                  variant="headingXl"
+                                  alignment="center"
+                                >
+                                  $10
+                                </Text>
+                                <Text
+                                  as="p"
+                                  variant="bodyMd"
+                                  tone="subdued"
+                                  alignment="center"
+                                >
+                                  Ideal for small to medium businesses
+                                </Text>
+                                {currentPlan === "Pro Plan" && (
+                                  <Badge tone="info">Current Plan</Badge>
+                                )}
+                              </BlockStack>
+                            </Box>
+
+                            <Box padding="400">
+                              <BlockStack gap="400">
+                                {proFeatures.map((feature, index) => (
+                                  <InlineStack
+                                    key={index}
+                                    gap="300"
+                                    blockAlign="center"
+                                    align="space-between"
+                                  >
                                     <div
                                       style={{
                                         width: "24px",
@@ -572,114 +666,32 @@ export default function PricingPage() {
                                         {feature.text}
                                       </Text>
                                     </div>
-                                  </>
-                                ) : (
-                                  <div style={{ height: "24px" }}></div>
-                                )}
-                              </InlineStack>
-                            ))}
+                                  </InlineStack>
+                                ))}
 
-                            <Box paddingBlockStart="300">
-                              <Button
-                                fullWidth
-                                disabled={currentPlan === "Basic Plan"}
-                                onClick={() => handleSubscription("basic")}
-                                size="large"
-                              >
-                                {currentPlan === "Basic Plan"
-                                  ? "Current Plan"
-                                  : isPro
-                                    ? "Downgrade"
-                                    : "Get Started"}
-                              </Button>
+                                <Box paddingBlockStart="300">
+                                  <Button
+                                    primary
+                                    fullWidth
+                                    disabled={currentPlan === "Pro Plan"}
+                                    onClick={() =>
+                                      handleSubscription("premium")
+                                    }
+                                    size="large"
+                                  >
+                                    {currentPlan === "Pro Plan"
+                                      ? "Current Plan"
+                                      : "Upgrade"}
+                                  </Button>
+                                </Box>
+                              </BlockStack>
                             </Box>
                           </BlockStack>
-                        </Box>
-                      </BlockStack>
-                    </Card>
-                  </div>
-
-                  {/* Premium Plan Card */}
-                  <div style={{ flex: 1, maxWidth: "500px" }}>
-                    <Card>
-                      <BlockStack gap="400">
-                        <Box
-                          paddingBlockStart="300"
-                          paddingBlockEnd="300"
-                          background="bg-surface-primary-subdued"
-                          borderRadiusStartStart="300"
-                          borderRadiusStartEnd="300"
-                          style={{ backgroundColor: "rgba(136, 43, 230, 0.1)" }}
-                        >
-                          <BlockStack gap="200" align="center">
-                            <Badge tone="info">Recommended</Badge>
-                            <Text
-                              as="h3"
-                              variant="headingMd"
-                              alignment="center"
-                            >
-                              Growth Plan
-                            </Text>
-                            <Text as="p" variant="headingXl" alignment="center">
-                              $10
-                            </Text>
-                            <Text
-                              as="p"
-                              variant="bodyMd"
-                              tone="subdued"
-                              alignment="center"
-                            >
-                              Ideal for small to medium businesses
-                            </Text>
-                            {currentPlan === "Pro Plan" && (
-                              <Badge tone="info">Current Plan</Badge>
-                            )}
-                          </BlockStack>
-                        </Box>
-
-                        <Box padding="400">
-                          <BlockStack gap="400">
-                            {proFeatures.map((feature, index) => (
-                              <InlineStack
-                                key={index}
-                                gap="300"
-                                blockAlign="center"
-                                align="space-between"
-                              >
-                                <div
-                                  style={{
-                                    width: "24px",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <Icon source={feature.icon} color="primary" />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                  <Text variant="bodyMd">{feature.text}</Text>
-                                </div>
-                              </InlineStack>
-                            ))}
-
-                            <Box paddingBlockStart="300">
-                              <Button
-                                primary
-                                fullWidth
-                                disabled={currentPlan === "Pro Plan"}
-                                onClick={() => handleSubscription("premium")}
-                                size="large"
-                              >
-                                {currentPlan === "Pro Plan"
-                                  ? "Current Plan"
-                                  : "Upgrade"}
-                              </Button>
-                            </Box>
-                          </BlockStack>
-                        </Box>
-                      </BlockStack>
-                    </Card>
-                  </div>
-                </div>
+                        </Card>
+                      </div>
+                    </Layout.Section>
+                  </Layout>
+                </BlockStack>
               </BlockStack>
             </Card>
           </Layout.Section>

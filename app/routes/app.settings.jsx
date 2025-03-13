@@ -92,8 +92,6 @@ export const loader = async ({ request }) => {
     }
 
     const data = await response.json();
-    console.log("Website data fetched:", data);
-
     if (!data.website) {
       return json({
         disconnected: true,
@@ -106,7 +104,6 @@ export const loader = async ({ request }) => {
       accessKey,
     });
   } catch (error) {
-    console.error("Error fetching website data:", error);
     return json({
       disconnected: true,
       error: error.message || "Failed to fetch website data",
@@ -186,8 +183,6 @@ export const action = async ({ request }) => {
         message: "Settings updated successfully!",
       });
     } else if (action === "disconnect") {
-      console.log("Starting disconnect process...");
-
       // Use our API endpoint to delete the access key
       try {
         // Get the URL origin from the current request
@@ -203,26 +198,8 @@ export const action = async ({ request }) => {
           },
         });
 
-        try {
-          const result = await response.json();
-          console.log("Access key deletion result:", result);
-
-          if (!result.success) {
-            console.warn(
-              "Warning: Access key deletion API call was not successful:",
-              result.message,
-            );
-            // Continue with disconnect process even if API call fails
-          }
-        } catch (jsonError) {
-          console.error(
-            "Error parsing JSON from access key deletion API:",
-            jsonError,
-          );
-          // Continue with disconnect process even if JSON parsing fails
-        }
+        await response.json();
       } catch (error) {
-        console.error("Error calling access key deletion API:", error);
         // Continue with disconnect process even if API call fails
       }
 
@@ -233,7 +210,6 @@ export const action = async ({ request }) => {
       });
     }
   } catch (error) {
-    console.error("Operation error:", error);
     return json({
       success: false,
       error: error.message || "Operation failed",
@@ -264,9 +240,6 @@ export default function SettingsPage() {
   // Redirect if disconnected
   useEffect(() => {
     if (disconnected) {
-      console.log(
-        "Settings page detected disconnected state, redirecting to main",
-      );
       navigate("/app");
     }
   }, [disconnected, navigate]);
@@ -335,32 +308,7 @@ export default function SettingsPage() {
 
   const handleDisconnect = () => {
     setShowDisconnectModal(false);
-    console.log("Disconnecting website...");
 
-    // 1. Clear the main access key
-    console.log("Removing voiceroAccessKey from localStorage");
-    window.localStorage?.removeItem("voiceroAccessKey");
-
-    // 2. Clear all voicero-related data from localStorage
-    if (window.localStorage) {
-      console.log("Clearing all Voicero data from localStorage");
-      const keysToRemove = [];
-      // Collect keys first to avoid modification during iteration
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i);
-        if (key && key.startsWith("voicero")) {
-          keysToRemove.push(key);
-        }
-      }
-      // Then remove them
-      keysToRemove.forEach((key) => {
-        console.log(`Removing localStorage key: ${key}`);
-        window.localStorage.removeItem(key);
-      });
-    }
-
-    // 3. Call the access key deletion API directly from the client
-    console.log("Calling access key deletion API");
     fetch("/api/accessKey", {
       method: "DELETE",
       headers: {
@@ -370,28 +318,16 @@ export default function SettingsPage() {
     })
       .then((response) => {
         if (!response.ok) {
-          console.warn(`API returned status ${response.status}`);
+          return { success: false, error: "HTTP error" };
         }
-        return response.json().catch((err) => {
-          console.warn("Error parsing JSON response:", err);
-          return { success: false, error: "JSON parse error" };
-        });
-      })
-      .then((data) => {
-        console.log("Access key deletion response:", data);
-      })
-      .catch((error) => {
-        console.error("Error deleting access key:", error);
+        return response.json().catch(() => ({
+          success: false,
+          error: "JSON parse error",
+        }));
       })
       .finally(() => {
-        // 4. Submit the disconnect action to the server
-        console.log("Submitting disconnect action to server");
         fetcher.submit({ action: "disconnect" }, { method: "POST" });
-
-        // 5. Force a navigation after a delay to ensure processing completes
-        console.log("Setting up navigation delay");
         setTimeout(() => {
-          console.log("Redirecting to app home");
           navigate("/app");
         }, 2000);
       });
@@ -400,12 +336,8 @@ export default function SettingsPage() {
   // Redirect to home if disconnected
   useEffect(() => {
     if (fetcher.data?.disconnected) {
-      // Ensure local storage is cleared
-      window.localStorage?.removeItem("voiceroAccessKey");
-      console.log("Disconnected successfully, redirecting to home");
       navigate("/app");
     } else if (fetcher.data?.error) {
-      console.error("Error during operation:", fetcher.data.error);
       setShowToast(true);
       setToastMessage(fetcher.data.error);
       setToastType("critical");

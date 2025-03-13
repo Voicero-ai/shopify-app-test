@@ -16,25 +16,19 @@ const VoiceroCore = {
 
   // Initialize on page load
   init: function () {
-    console.log("VoiceroCore initializing...");
-
     // Set up global reference
     window.VoiceroCore = this;
 
     // Don't create the interface immediately - wait for successful API connection
     // Check API connection - do this immediately
     if (window.voiceroConfig && window.voiceroConfig.accessKey) {
-      console.log("Access key found, connecting to API...");
       this.checkApiConnection(window.voiceroConfig.accessKey);
     } else {
-      console.error("No access key found in voiceroConfig");
     }
   },
 
   // Create the main interface with the two option buttons
   createButton: function () {
-    console.log("Creating VoiceroAI interface...");
-
     // Check if we should show the chooser or if an interface should auto-open
     const shouldAutoOpen =
       this.appState.isOpen && this.appState.activeInterface;
@@ -155,8 +149,6 @@ const VoiceroCore = {
 
   // Create text chat interface (basic container elements)
   createTextChatInterface: function () {
-    console.log("Creating text chat interface container...");
-
     // Check if text chat interface already exists
     if (document.getElementById("text-chat-interface")) {
       return;
@@ -171,8 +163,6 @@ const VoiceroCore = {
 
   // Create voice chat interface (basic container elements)
   createVoiceChatInterface: function () {
-    console.log("Creating empty voice chat interface container...");
-
     // Check if voice chat interface already exists
     if (document.getElementById("voice-chat-interface")) {
       return;
@@ -212,7 +202,6 @@ const VoiceroCore = {
     // Save state to localStorage
     try {
       localStorage.setItem("voiceroAppState", JSON.stringify(this.appState));
-      console.log("Saving application state to localStorage:", this.appState);
     } catch (e) {
       console.error("Failed to save state to localStorage:", e);
     }
@@ -224,7 +213,6 @@ const VoiceroCore = {
       const savedState = localStorage.getItem("voiceroAppState");
       if (savedState) {
         const parsedState = JSON.parse(savedState);
-        console.log("Loaded saved state:", parsedState);
         // Merge saved state with default state
         this.appState = { ...this.appState, ...parsedState };
         return true;
@@ -237,11 +225,6 @@ const VoiceroCore = {
 
   // Check API connection
   checkApiConnection: function (accessKey) {
-    console.log(
-      "Checking API connection with key:",
-      accessKey.substring(0, 5) + "...",
-    );
-
     // Try each URL in sequence
     let urlIndex = 0;
 
@@ -253,8 +236,6 @@ const VoiceroCore = {
 
       const currentUrl = this.apiBaseUrls[urlIndex];
       const apiUrl = `${currentUrl}/api/connect`;
-
-      console.log(`Trying API endpoint: ${apiUrl}`);
 
       fetch(apiUrl, {
         method: "GET",
@@ -270,16 +251,12 @@ const VoiceroCore = {
           return response.json();
         })
         .then((data) => {
-          console.log("API connected successfully:", data);
-
           // Store the working API URL and update connection status
           this.apiBaseUrl = currentUrl;
           this.apiConnected = true;
 
           // Only create the button if service is active
           if (data.website && data.website.active === true) {
-            console.log("Service is active, creating interface button");
-
             // Load saved state from localStorage
             this.loadState();
 
@@ -297,10 +274,6 @@ const VoiceroCore = {
 
             // Check if we should auto-open an interface
             if (this.appState.isOpen && this.appState.activeInterface) {
-              console.log(
-                `Auto-opening last active interface: ${this.appState.activeInterface}`,
-              );
-
               // Wait a moment for all modules to initialize
               setTimeout(() => {
                 if (
@@ -317,7 +290,6 @@ const VoiceroCore = {
               }, 500);
             }
           } else {
-            console.log("Service is inactive, not showing interface");
           }
         })
         .catch((error) => {
@@ -350,7 +322,6 @@ const VoiceroCore = {
 
   // Add control buttons to interface
   addControlButtons: function (container, type) {
-    console.log(`Adding control buttons to ${type} interface`);
     // This function can be called by VoiceroText or VoiceroVoice
     // to add common control elements
   },
@@ -358,7 +329,6 @@ const VoiceroCore = {
 
 // Initialize on DOM content loaded
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("DOM loaded, initializing VoiceroCore");
   VoiceroCore.init();
 });
 
@@ -367,7 +337,6 @@ if (
   document.readyState === "complete" ||
   document.readyState === "interactive"
 ) {
-  console.log("DOM already loaded, initializing VoiceroCore immediately");
   setTimeout(function () {
     VoiceroCore.init();
   }, 1);

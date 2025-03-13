@@ -4,6 +4,7 @@ import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
+import urls from "./config/urls";
 
 export const streamTimeout = 5000;
 
@@ -16,12 +17,9 @@ export default async function handleRequest(
   addDocumentResponseHeaders(request, responseHeaders);
 
   // Add Content Security Policy header
-  const shopifycdn = "https://cdn.shopify.com";
-  const voiceroApi = "http://localhost:3000";
-  const trainingApi = "http://localhost:4000";
   responseHeaders.set(
     "Content-Security-Policy",
-    `default-src 'self' ${shopifycdn} 'unsafe-eval' 'unsafe-inline'; connect-src 'self' ${shopifycdn} ${voiceroApi} ${trainingApi}; font-src 'self' ${shopifycdn} data:; style-src 'self' ${shopifycdn} 'unsafe-inline'; img-src 'self' ${shopifycdn} data: https:; script-src 'self' ${shopifycdn} 'unsafe-eval' 'unsafe-inline'`,
+    `default-src 'self' ${urls.shopifyCdn} 'unsafe-eval' 'unsafe-inline'; connect-src 'self' ${urls.shopifyCdn} ${urls.voiceroApi} ${urls.trainingApiBase} ${urls.newVoiceroApi} https://admin.shopify.com https://*.shopify.com; font-src 'self' ${urls.shopifyCdn} data:; style-src 'self' ${urls.shopifyCdn} 'unsafe-inline'; img-src 'self' ${urls.shopifyCdn} data: https:; script-src 'self' ${urls.shopifyCdn} 'unsafe-eval' 'unsafe-inline'`,
   );
 
   const userAgent = request.headers.get("user-agent");

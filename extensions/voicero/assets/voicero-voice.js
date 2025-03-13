@@ -22,40 +22,30 @@ const VoiceroVoice = {
 
   // Initialize the voice module
   init: function () {
-    console.log("VoiceroVoice initializing...");
-
     // Wait for DOM to be ready
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
         // Create the voice interface container if it doesn't exist
         this.createVoiceChatInterface();
-        console.log("VoiceroVoice initialized on DOMContentLoaded");
       });
     } else {
       // If DOM is already loaded, create interface immediately
       this.createVoiceChatInterface();
-      console.log("VoiceroVoice initialized immediately");
     }
   },
 
   // Create voice chat interface (HTML structure)
   createVoiceChatInterface: function () {
-    console.log("Creating voice chat interface...");
-
     // Check if voice chat interface AND the messages container already exist
     const existingInterface = document.getElementById("voice-chat-interface");
     const existingMessagesContainer = document.getElementById("voice-messages");
 
     if (existingInterface && existingMessagesContainer) {
-      console.log("Voice chat interface already exists completely");
       return;
     }
 
     // If the interface exists but is incomplete, remove it so we can recreate it properly
     if (existingInterface && !existingMessagesContainer) {
-      console.log(
-        "Voice chat interface exists but is incomplete - recreating it",
-      );
       existingInterface.remove();
     }
 
@@ -361,9 +351,7 @@ const VoiceroVoice = {
     `;
 
     // Assemble interface
-    console.log("Assembling voice interface elements:");
     if (!messagesContainer) {
-      console.error("CRITICAL: messagesContainer is null before assembly");
       return;
     }
 
@@ -372,21 +360,12 @@ const VoiceroVoice = {
       messagesContainer.querySelector(".user-message") !== null;
     const aiMessageExists =
       messagesContainer.querySelector(".ai-message") !== null;
-    console.log(
-      `Initial message divs exist - User: ${userMessageExists}, AI: ${aiMessageExists}`,
-    );
 
     // Add interface elements to the DOM in proper order
     interfaceContainer.appendChild(messagesContainer);
     interfaceContainer.appendChild(inputContainer);
 
     // Verify before adding to body
-    console.log(
-      `Interface ready - Messages container ID: ${messagesContainer.id}`,
-    );
-    console.log(
-      `Messages container has ${messagesContainer.children.length} children`,
-    );
 
     // Add to document body
     document.body.appendChild(interfaceContainer);
@@ -395,16 +374,6 @@ const VoiceroVoice = {
     const verifyMessagesContainer = document.getElementById("voice-messages");
     const verifyUserMessage = document.querySelector(".user-message");
     const verifyAiMessage = document.querySelector(".ai-message");
-    console.log(
-      `After DOM insertion - Messages container: ${
-        verifyMessagesContainer ? "exists" : "missing"
-      }`,
-    );
-    console.log(
-      `After DOM insertion - User message: ${
-        verifyUserMessage ? "exists" : "missing"
-      }, AI message: ${verifyAiMessage ? "exists" : "missing"}`,
-    );
 
     // After creating all elements, set the padding again to override any potential changes
     setTimeout(() => {
@@ -415,35 +384,24 @@ const VoiceroVoice = {
         messagesEl.style.paddingTop = "0";
       }
     }, 100);
-
-    console.log("Voice chat interface HTML created successfully");
   },
 
   // Open voice chat interface
   openVoiceChat: function (isRestoring = false) {
-    console.log("Opening voice chat interface");
-
     // First, make sure the interface exists
     this.createVoiceChatInterface();
     const voiceChat = document.getElementById("voice-chat-interface");
     if (!voiceChat) {
-      console.error(
-        "CRITICAL: Failed to find voice-chat-interface after creation attempt",
-      );
       return;
     }
 
     // Verify that messages container exists
     const messagesContainer = document.getElementById("voice-messages");
     if (!messagesContainer) {
-      console.error(
-        "CRITICAL: voice-messages container not found after interface creation",
-      );
       // Try one more recreation
       voiceChat.remove();
       this.createVoiceChatInterface();
       if (!document.getElementById("voice-messages")) {
-        console.error("FATAL: Cannot create voice interface properly");
         return;
       }
     }
@@ -554,9 +512,6 @@ const VoiceroVoice = {
 
           // Don't try to speak the welcome message automatically - browsers block autoplay
           // Instead we just show the text message
-          console.log(
-            "Showing welcome text message only (skipping audio to avoid autoplay restrictions)",
-          );
           // The user can click the microphone to start interacting
         }, 100);
       }
@@ -577,7 +532,6 @@ const VoiceroVoice = {
       // Initialize the conversation state flag if it doesn't exist
       if (typeof VoiceroCore.appState.hasHadFirstConversation === "undefined") {
         VoiceroCore.appState.hasHadFirstConversation = false;
-        console.log("Initialized hasHadFirstConversation to false");
       }
       VoiceroCore.saveState();
     }
@@ -585,15 +539,12 @@ const VoiceroVoice = {
 
   // Minimize voice chat interface
   minimizeVoiceChat: function () {
-    console.log("Minimizing voice chat interface");
-
     // Get the messages container and input wrapper
     const messagesContainer = document.getElementById("voice-messages");
     const inputContainer = document.getElementById("voice-input-wrapper");
     const voiceChat = document.getElementById("voice-chat-interface");
 
     if (!messagesContainer || !inputContainer) {
-      console.error("Could not find message or input containers to minimize");
       return;
     }
 
@@ -648,14 +599,11 @@ const VoiceroVoice = {
 
   // Maximize voice chat interface
   maximizeVoiceChat: function () {
-    console.log("maximizeVoiceChat called, redirecting to reopenVoiceChat");
     this.reopenVoiceChat();
   },
 
   // Close voice chat and reopen chooser interface
   closeVoiceChat: function () {
-    console.log("Closing voice chat and reopening chooser interface");
-
     // Set flag to prevent auto microphone activation on shutdown
     this.isShuttingDown = true;
 
@@ -718,12 +666,10 @@ const VoiceroVoice = {
         "voice-toggle-container",
       );
       if (coreButtonsContainer) {
-        console.log("Making voice-toggle-container visible");
         coreButtonsContainer.style.display = "block";
       }
 
       // Reopen the chooser interface
-      console.log("Reopening chooser interface");
       if (VoiceroCore.showChooser) {
         VoiceroCore.showChooser();
       } else {
@@ -746,12 +692,6 @@ const VoiceroVoice = {
    */
   // CHANGED: added a `source = "manual"` parameter
   toggleMic: function (source = "manual") {
-    console.log(
-      "Toggle mic called, current recording state:",
-      this.isRecording,
-      "| source:",
-      source,
-    );
     const micButton = document.getElementById("voice-mic-button");
     const micIcon = document.getElementById("voice-mic-icon");
 
@@ -762,13 +702,11 @@ const VoiceroVoice = {
       VoiceroCore.appState &&
       VoiceroCore.appState.isVoiceMinimized
     ) {
-      console.log("Voice chat is minimized, reopening before recording");
       this.reopenVoiceChat();
     }
 
     if (this.isRecording) {
       // Stop recording
-      console.log("Stopping recording without processing audio");
 
       this.isRecording = false;
 
@@ -786,10 +724,8 @@ const VoiceroVoice = {
       if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
         // Cancel/reset any audio chunks instead of processing them
         this.audioChunks = [];
-        console.log("Discarding collected audio chunks");
 
         this.mediaRecorder.stop();
-        console.log("MediaRecorder stopped without processing");
 
         // Clear the recording timeout
         if (this.recordingTimeout) {
@@ -815,19 +751,16 @@ const VoiceroVoice = {
         this.audioContext
           .close()
           .then(() => {
-            console.log("Audio context closed");
             this.audioContext = null;
             this.analyser = null;
           })
           .catch((err) => {
-            console.error("Error closing audio context:", err);
             this.audioContext = null;
             this.analyser = null;
           });
       }
     } else {
       // Start recording
-      console.log("Starting recording");
 
       // Reset manual stop flag when starting a new recording
       this.manuallyStoppedRecording = false;
@@ -844,7 +777,6 @@ const VoiceroVoice = {
 
       // Check if AudioContext is supported
       const audioContextSupported = this.isAudioContextSupported();
-      console.log("AudioContext supported:", audioContextSupported);
 
       // Request microphone access
       navigator.mediaDevices
@@ -858,13 +790,10 @@ const VoiceroVoice = {
           },
         })
         .then((stream) => {
-          console.log("Got media stream:", stream);
-
           // Log audio track settings to help with debugging
           const audioTracks = stream.getAudioTracks();
           if (audioTracks.length > 0) {
             const settings = audioTracks[0].getSettings();
-            console.log("Audio track settings:", settings);
           }
 
           this.currentAudioStream = stream;
@@ -905,16 +834,12 @@ const VoiceroVoice = {
                   if (!this.isSpeaking) {
                     this.isSpeaking = true;
                     this.hasStartedSpeaking = true;
-                    console.log("User started speaking");
                   }
                 } else {
                   if (this.isSpeaking) {
                     this.silenceTime += 100; // Interval is 100ms
                     // If silence for more than 1.5 seconds after speaking, stop recording
                     if (this.silenceTime > 2500 && this.hasStartedSpeaking) {
-                      console.log(
-                        "Silence detected for 2.5s after speaking, stopping recording",
-                      );
                       clearInterval(this.silenceDetectionTimer);
                       this.silenceDetectionTimer = null;
 
@@ -924,27 +849,19 @@ const VoiceroVoice = {
                   }
                 }
               }, 100);
-            } catch (error) {
-              console.error("Error setting up audio analysis:", error);
-            }
+            } catch (error) {}
           }
 
           // Handle data available event
           this.mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
               this.audioChunks.push(event.data);
-              console.log(`Added audio chunk, size: ${event.data.size} bytes`);
             }
           };
 
           this.mediaRecorder.onstop = async () => {
-            console.log("MediaRecorder stopped, processing audio");
-
             // Check if recording was manually stopped by the user
             if (this.manuallyStoppedRecording) {
-              console.log(
-                "Recording was manually stopped by user, skipping audio processing",
-              );
               // Clear flag for next recording
               this.manuallyStoppedRecording = false;
 
@@ -960,12 +877,10 @@ const VoiceroVoice = {
               return; // Exit without processing audio
             }
 
-            console.log(`Total audio chunks: ${this.audioChunks.length}`);
             // Create audio blob from chunks
             const audioBlob = new Blob(this.audioChunks, {
               type: "audio/webm",
             });
-            console.log("Audio blob created, size:", audioBlob.size);
 
             // Only process if we have actual audio data
             if (audioBlob.size > 0) {
@@ -992,7 +907,6 @@ const VoiceroVoice = {
                 if (!whisperResponse.ok)
                   throw new Error("Whisper API request failed");
                 const whisperData = await whisperResponse.json();
-                console.log("Whisper API response:", whisperData);
 
                 // Extract the transcription
                 const transcription =
@@ -1007,7 +921,6 @@ const VoiceroVoice = {
                 if (VoiceroCore && VoiceroCore.appState) {
                   VoiceroCore.appState.hasHadFirstConversation = true;
                   VoiceroCore.saveState();
-                  console.log("Marked first conversation as occurred");
                 }
 
                 // Show typing indicator instead of text placeholder
@@ -1038,7 +951,6 @@ const VoiceroVoice = {
                   throw new Error("Chat API request failed");
 
                 const chatData = await chatResponse.json();
-                console.log("Chat API response:", chatData);
 
                 // Store thread ID from response
                 if (chatData.threadId && VoiceroCore) {
@@ -1113,8 +1025,6 @@ const VoiceroVoice = {
                     this.redirectToUrl(extractedUrls[0]);
                   }
                 } catch (audioError) {
-                  console.error("Error processing audio response:", audioError);
-
                   // Remove typing indicator before adding the error message
                   this.removeTypingIndicator();
                   // Just show the text response if audio fails
@@ -1135,8 +1045,6 @@ const VoiceroVoice = {
                   }
                 }
               } catch (error) {
-                console.error("Error processing audio:", error);
-
                 // Remove any placeholder messages
                 const messagesContainer =
                   document.getElementById("voice-messages");
@@ -1157,7 +1065,6 @@ const VoiceroVoice = {
                 }
               }
             } else {
-              console.log("No audio data recorded");
             }
 
             // Clean up
@@ -1173,12 +1080,10 @@ const VoiceroVoice = {
               this.audioContext
                 .close()
                 .then(() => {
-                  console.log("Audio context closed");
                   this.audioContext = null;
                   this.analyser = null;
                 })
                 .catch((err) => {
-                  console.error("Error closing audio context:", err);
                   this.audioContext = null;
                   this.analyser = null;
                 });
@@ -1188,9 +1093,6 @@ const VoiceroVoice = {
           // Start recording
           this.mediaRecorder.start();
           this.isRecording = true;
-          console.log(
-            "MediaRecorder started - Waiting for user to speak (no initial silence timeout)",
-          );
 
           // Set a timeout to automatically stop recording after 30 seconds
           this.recordingTimeout = setTimeout(() => {
@@ -1199,14 +1101,12 @@ const VoiceroVoice = {
               this.mediaRecorder &&
               this.mediaRecorder.state !== "inactive"
             ) {
-              console.log("Recording timeout reached, stopping automatically");
               // CHANGED: pass "auto" to differentiate from user stop
               this.toggleMic("auto"); // Call toggleMic again to stop recording
             }
           }, 30000); // Increased from 15000 to 30000 (30 seconds)
         })
         .catch((error) => {
-          console.error("Error accessing microphone:", error);
           // Reset UI
           micButton.classList.remove("active");
           micButton.style.borderColor = "transparent";
@@ -1227,7 +1127,6 @@ const VoiceroVoice = {
 
   // Play audio response
   playAudioResponse: async function (audioBlob) {
-    console.log("Playing audio response, blob size:", audioBlob.size);
     return new Promise((resolve, reject) => {
       try {
         // Create audio element
@@ -1237,7 +1136,6 @@ const VoiceroVoice = {
 
         // Set up event listeners
         audio.onended = () => {
-          console.log("Audio playback ended");
           URL.revokeObjectURL(audioUrl);
 
           // Check if this is the welcome message or a regular response
@@ -1247,12 +1145,10 @@ const VoiceroVoice = {
           // Turn the microphone back on automatically only after the first conversation
           if (!this.isShuttingDown && !isWelcomeMessage) {
             setTimeout(() => {
-              console.log("Auto-activating microphone after AI response");
               // CHANGED: pass "auto"
               this.toggleMic("auto");
             }, 300); // Small delay for better UX
           } else if (isWelcomeMessage) {
-            console.log("Skipping auto-mic activation for welcome message");
             // Mark that the welcome message has been played
             if (VoiceroCore && VoiceroCore.appState) {
               VoiceroCore.appState.hasHadFirstConversation = false;
@@ -1263,19 +1159,15 @@ const VoiceroVoice = {
         };
 
         audio.onerror = (error) => {
-          console.error("Audio playback error:", error);
           URL.revokeObjectURL(audioUrl);
           reject(error);
         };
 
         // Start playback
-        console.log("Starting audio playback");
         audio.play().catch((error) => {
-          console.error("Failed to play audio:", error);
           reject(error);
         });
       } catch (error) {
-        console.error("Error setting up audio playback:", error);
         reject(error);
       }
     });
@@ -1309,9 +1201,7 @@ const VoiceroVoice = {
           // Test if it's a valid URL before adding
           new URL(formattedUrl);
           extractedUrls.push(formattedUrl);
-        } catch (e) {
-          console.warn("Invalid URL found in markdown:", url);
-        }
+        } catch (e) {}
       }
       // Replace the markdown link with just the text
       cleanedText = cleanedText.replace(markdownMatch[0], linkText);
@@ -1333,9 +1223,7 @@ const VoiceroVoice = {
         if (!extractedUrls.includes(formattedUrl)) {
           extractedUrls.push(formattedUrl);
         }
-      } catch (e) {
-        console.warn("Invalid URL found in regular text:", url);
-      }
+      } catch (e) {}
     }
 
     // Replace URL patterns with natural language alternatives
@@ -1377,14 +1265,12 @@ const VoiceroVoice = {
     if (!url) return;
     try {
       new URL(url);
-      console.log("Redirecting to URL:", url);
 
       // Before redirecting, save state that we were in voice chat mode
       if (VoiceroCore) {
         // Save that we should reactivate voice on next page load
         localStorage.setItem("voicero_reactivate_voice", "true");
         localStorage.setItem("voicero_auto_mic", "true");
-        console.log("Set voicero_auto_mic to true in localStorage");
 
         if (VoiceroCore.appState) {
           VoiceroCore.appState.isOpen = true;
@@ -1392,13 +1278,11 @@ const VoiceroVoice = {
           VoiceroCore.appState.isVoiceMinimized = false;
           VoiceroCore.saveState();
         }
-        console.log("Saved voice chat state before redirect");
       }
 
       // Navigate in the same tab instead of opening a new one
       window.location.href = url;
     } catch (error) {
-      console.error("Invalid URL, cannot redirect:", url, error);
       const aiMessageDiv = document.querySelector(
         "#voice-chat-interface .ai-message",
       );
@@ -1435,7 +1319,6 @@ const VoiceroVoice = {
   addTypingIndicator: function () {
     const messagesContainer = document.getElementById("voice-messages");
     if (!messagesContainer) {
-      console.error("Messages container not found");
       return;
     }
     this.removeTypingIndicator();
@@ -1496,22 +1379,13 @@ const VoiceroVoice = {
 
   // Add message to the voice chat
   addMessage: function (content, role, formatMarkdown = false) {
-    console.log(`Adding ${role} message to voice chat`);
-
     let messagesContainer = document.getElementById("voice-messages");
     if (!messagesContainer) {
-      console.log(
-        "Voice messages container not found, ensuring interface exists",
-      );
       this.createVoiceChatInterface();
       messagesContainer = document.getElementById("voice-messages");
       if (!messagesContainer) {
-        console.error(
-          "Voice messages container still not found after creating interface",
-        );
         const interfaceExists =
           document.getElementById("voice-chat-interface") !== null;
-        console.error(`Interface container exists: ${interfaceExists}`);
         if (interfaceExists) {
           const interfaceElement = document.getElementById(
             "voice-chat-interface",
@@ -1520,9 +1394,6 @@ const VoiceroVoice = {
           this.createVoiceChatInterface();
           messagesContainer = document.getElementById("voice-messages");
           if (!messagesContainer) {
-            console.error(
-              "CRITICAL: Still cannot create messages container after forced recreation",
-            );
             return;
           }
         } else {
@@ -1554,7 +1425,6 @@ const VoiceroVoice = {
       existingPlaceholders.forEach((el) => el.remove());
     }
 
-    console.log(`Creating new ${role} message element`);
     const messageEl = document.createElement("div");
     messageEl.className = role === "user" ? "user-message" : "ai-message";
 
@@ -1649,14 +1519,11 @@ const VoiceroVoice = {
 
   // Reopen the voice chat from minimized state
   reopenVoiceChat: function () {
-    console.log("Reopening minimized voice chat interface");
-
     const messagesContainer = document.getElementById("voice-messages");
     const voiceChat = document.getElementById("voice-chat-interface");
     const reopenButton = document.getElementById("reopen-voice-chat");
 
     if (!messagesContainer) {
-      console.error("Messages container not found when trying to reopen");
       return;
     }
 
@@ -1680,9 +1547,6 @@ const VoiceroVoice = {
 
   // Speak welcome message using TTS
   speakWelcomeMessage: async function (welcomeText) {
-    console.log(
-      "Speaking welcome message via TTS - Skipping audio playback due to browser autoplay restrictions",
-    );
     // We're not going to attempt to play audio automatically since browsers will block it
     // The user will need to interact with the page first (like clicking the mic button)
     // Display the welcome message as text only
@@ -1694,7 +1558,6 @@ const VoiceroVoice = {
 
   // Clear chat history
   clearChatHistory: function () {
-    console.log("Clearing voice chat history");
     const messagesContainer = document.getElementById("voice-messages");
     if (messagesContainer) {
       const existingMessages = messagesContainer.querySelectorAll(
@@ -1711,15 +1574,12 @@ const VoiceroVoice = {
 
 // Initialize when core is ready
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM content loaded, initializing VoiceroVoice...");
   const existingInterface = document.getElementById("voice-chat-interface");
   if (existingInterface) {
-    console.log("Interface already exists on DOMContentLoaded, cleaning up");
     existingInterface.remove();
   }
 
   if (typeof VoiceroCore !== "undefined") {
-    console.log("VoiceroCore found, initializing Voice module");
     VoiceroVoice.init();
 
     // Check for voice reactivation after navigation
@@ -1730,9 +1590,6 @@ document.addEventListener("DOMContentLoaded", () => {
         VoiceroCore.appState.activeInterface === "voice");
 
     if (shouldReactivate) {
-      console.log(
-        "Reactivating voice chat after navigation - State indicates interface should be open",
-      );
       localStorage.removeItem("voicero_reactivate_voice");
 
       // Wait a moment for everything to initialize properly
@@ -1750,24 +1607,18 @@ document.addEventListener("DOMContentLoaded", () => {
         // Also start the microphone automatically if needed
         const shouldActivateMic =
           localStorage.getItem("voicero_auto_mic") === "true";
-        console.log("Should auto-activate microphone:", shouldActivateMic);
         if (shouldActivateMic) {
-          console.log("Auto-activating microphone after redirect");
           localStorage.removeItem("voicero_auto_mic");
           setTimeout(() => VoiceroVoice.toggleMic("auto"), 800);
         }
       }, 1000);
     }
   } else {
-    console.log("VoiceroCore not found, waiting for it to load");
     let attempts = 0;
     const checkCoreInterval = setInterval(() => {
       attempts++;
       if (typeof VoiceroCore !== "undefined") {
         clearInterval(checkCoreInterval);
-        console.log(
-          `VoiceroCore found after ${attempts} attempts, initializing Voice module`,
-        );
         VoiceroVoice.init();
 
         // Check for voice reactivation after VoiceroCore loads
@@ -1777,7 +1628,6 @@ document.addEventListener("DOMContentLoaded", () => {
             VoiceroCore.appState.isOpen &&
             VoiceroCore.appState.activeInterface === "voice");
         if (shouldReactivate) {
-          console.log("Reactivating voice chat after core loads");
           localStorage.removeItem("voicero_reactivate_voice");
           setTimeout(() => {
             if (VoiceroCore && VoiceroCore.appState) {
@@ -1790,9 +1640,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const shouldActivateMic =
               localStorage.getItem("voicero_auto_mic") === "true";
-            console.log("Should auto-activate microphone:", shouldActivateMic);
             if (shouldActivateMic) {
-              console.log("Auto-activating microphone after redirect");
               localStorage.removeItem("voicero_auto_mic");
               setTimeout(() => VoiceroVoice.toggleMic("auto"), 800);
             }

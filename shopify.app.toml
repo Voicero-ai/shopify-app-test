@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "025df740c8a79a0853a7939da465efb0"
-application_url = "https://number-greek-problems-progress.trycloudflare.com"
+application_url = "https://workstation-f-buffer-governmental.trycloudflare.com"
 embedded = true
 name = "voicero-app-shop-test"
 handle = "voicero-app-shop-test"
@@ -27,13 +27,13 @@ api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_content,read_customers,read_discounts,read_inventory,read_merchant_managed_fulfillment_orders,read_metaobjects,read_orders,read_price_rules,read_product_listings,read_products,read_shipping,read_shopify_payments_payouts,read_themes,write_content,write_metaobject_definitions,write_metaobjects,write_products"
+scopes = "read_content,read_products,read_discounts,write_content,read_metaobjects,write_metaobjects,read_inventory,read_product_listings"
 
 [auth]
 redirect_urls = [
-  "https://number-greek-problems-progress.trycloudflare.com/auth/callback",
-  "https://number-greek-problems-progress.trycloudflare.com/auth/shopify/callback",
-  "https://number-greek-problems-progress.trycloudflare.com/api/auth/callback"
+  "https://workstation-f-buffer-governmental.trycloudflare.com/auth/callback",
+  "https://workstation-f-buffer-governmental.trycloudflare.com/auth/shopify/callback",
+  "https://workstation-f-buffer-governmental.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
