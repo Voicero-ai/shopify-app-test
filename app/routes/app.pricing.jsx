@@ -105,7 +105,7 @@ export const loader = async ({ request }) => {
   if (accessKey) {
     try {
       // Check current API subscription status
-      const apiResponse = await fetch("http://localhost:3000/api/connect", {
+      const apiResponse = await fetch(`${urls.voiceroApi}/api/connect`, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -121,7 +121,7 @@ export const loader = async ({ request }) => {
         // If there's a mismatch, sync the plans
         if (apiPlan !== shopifyPlan) {
           const updateResponse = await fetch(
-            "http://localhost:3000/api/shopify/updateFromShopify",
+            `${urls.voiceroApi}/api/shopify/updateFromShopify`,
             {
               method: "POST",
               headers: {
@@ -265,7 +265,7 @@ export const action = async ({ request }) => {
       // If we have an access key, update the API plan
       if (accessKey) {
         try {
-          await fetch("http://localhost:3000/api/shopify/updateFromShopify", {
+          await fetch(`${urls.voiceroApi}/api/shopify/updateFromShopify`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

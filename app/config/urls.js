@@ -6,7 +6,7 @@ const urls = {
 
   // Voicero API URLs
   voiceroApi: "http://localhost:3000",
-  newVoiceroApi: "http://localhost:3000",
+  newVoiceroApi: "http://localhost:4000",
 
   // voiceroApi: "https://www.voicero.ai",
   // newVoiceroApi: "https://www.voicero.ai",
@@ -18,9 +18,9 @@ const urls = {
   // trainingApiAuto:
   //   "https://5w985cmyf9.execute-api.us-east-2.amazonaws.com/dev/auto",
 
-  trainingApiBase: "http://localhost:4000",
-  trainingApiStatus: "http://localhost:4000/status",
-  trainingApiAuto: "http://localhost:4000/auto",
+    trainingApiBase: "http://localhost:4000",
+    trainingApiStatus: "http://localhost:4000/status",
+    trainingApiAuto: "http://localhost:4000/auto",
 };
 
 export default urls;

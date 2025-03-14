@@ -44,9 +44,12 @@ import urls from "../config/urls";
 export const dynamic = "force-dynamic";
 
 export const loader = async ({ request }) => {
+  console.log("=== LOADER START: Initializing app loader ===");
   const { admin } = await authenticate.admin(request);
+  console.log("Admin authentication completed");
 
   // Get subscription status
+  console.log("Fetching subscription status...");
   const response = await admin.graphql(`
     query {
       appInstallation {
@@ -72,14 +75,17 @@ export const loader = async ({ request }) => {
   `);
 
   const data = await response.json();
+  console.log("Subscription data received:", data);
   const subscriptions = data.data.appInstallation.activeSubscriptions;
   const isPro = subscriptions.some(
     (sub) =>
       sub.status === "ACTIVE" &&
       sub.lineItems[0]?.plan?.pricingDetails?.price?.amount > 0,
   );
+  console.log("Pro status determined:", isPro);
 
   // Get access key from metafields
+  console.log("Fetching access key from metafields...");
   const metafieldResponse = await admin.graphql(`
     query {
       shop {
@@ -91,43 +97,92 @@ export const loader = async ({ request }) => {
   `);
 
   const metafieldData = await metafieldResponse.json();
+  console.log("Metafield data received:", metafieldData);
   const savedKey = metafieldData.data.shop.metafield?.value;
+  console.log("Saved key retrieved:", savedKey ? "Found key" : "No key found");
 
   let isConnected = false;
   if (savedKey) {
+    console.log("Testing connection with saved key...");
     try {
       const trimmedKey = savedKey.trim();
+      console.log("Using trimmed key for connection test");
+      console.log("Key length:", trimmedKey.length);
 
-      // Create headers with URLSearchParams to ensure proper formatting
-      const headers = new Headers();
-      headers.append("Accept", "application/json");
-      headers.append("Authorization", `Bearer ${trimmedKey}`);
+      // Try both localhost and production URLs
+      const apiUrls = [
+        `${urls.voiceroApi}/api/connect`, // Development
+        `${urls.voiceroApi}/api/connect`, // Production backup
+      ];
 
-      if (trimmedKey) {
-        const testResponse = await fetch("http://localhost:3000/api/connect", {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${trimmedKey}`,
-          },
-          mode: "cors",
-        });
+      let connected = false;
+      let responseData = null;
 
-        const responseText = await testResponse.text();
-
+      // Try each URL in sequence
+      for (const apiUrl of apiUrls) {
+        console.log(`Attempting API connection test with URL: ${apiUrl}`);
         try {
-          const responseData = JSON.parse(responseText);
-          // Only set isConnected to true if we have valid website data
-          isConnected = testResponse.ok && responseData.website;
-        } catch (e) {
-          isConnected = false;
+          const testResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${trimmedKey}`,
+            },
+            mode: "cors",
+          });
+          console.log(
+            `Connection test response status for ${apiUrl}:`,
+            testResponse.status,
+          );
+
+          const responseText = await testResponse.text();
+          console.log(
+            `Connection test raw response for ${apiUrl}:`,
+            responseText,
+          );
+
+          try {
+            const parsedData = JSON.parse(responseText);
+            console.log(
+              `Connection test parsed data for ${apiUrl}:`,
+              parsedData,
+            );
+
+            // Only set isConnected to true if we have valid website data
+            if (testResponse.ok && parsedData.website) {
+              console.log(`Connection successful with ${apiUrl}`);
+              connected = true;
+              responseData = parsedData;
+              // Break loop on first successful connection
+              break;
+            }
+          } catch (e) {
+            console.error(
+              `Error parsing connection test response from ${apiUrl}:`,
+              e,
+            );
+          }
+        } catch (fetchError) {
+          console.error(`Fetch error for ${apiUrl}:`, fetchError);
+          // Continue to next URL if this one fails
         }
       }
+
+      isConnected = connected;
+      console.log("Final connection status determined:", isConnected);
     } catch (error) {
+      console.error("Error testing connection:", error);
       isConnected = false;
     }
   }
+
+  console.log("=== LOADER END: Returning data ===");
+  console.log({
+    isPro,
+    apiKey: process.env.SHOPIFY_API_KEY || "(not set)",
+    savedKey: isConnected ? "Valid key exists" : null,
+  });
 
   return json({
     isPro,
@@ -135,14 +190,37 @@ export const loader = async ({ request }) => {
     savedKey: isConnected ? savedKey : null,
   });
 };
+
+// Add helper function before the action handler
+async function getShopId(admin) {
+  try {
+    const shopResponse = await admin.graphql(`
+      query {
+        shop {
+          id
+        }
+      }
+    `);
+    const shopData = await shopResponse.json();
+    return shopData.data.shop.id;
+  } catch (error) {
+    console.error("Error fetching shop ID:", error);
+    throw error;
+  }
+}
+
 export const action = async ({ request }) => {
+  console.log("=== ACTION START: Processing action request ===");
   const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const accessKey = formData.get("accessKey");
   const action = formData.get("action");
+  console.log("Action type:", action);
+  console.log("Access key provided:", accessKey ? "Yes (value hidden)" : "No");
 
   try {
     if (action === "quick_connect") {
+      console.log("Processing quick_connect action");
       const shop = session.shop;
       const storeName = shop.split(".")[0];
       const appHandle = process.env.SHOPIFY_APP_HANDLE || "voicero-app-shop";
@@ -151,41 +229,245 @@ export const action = async ({ request }) => {
         `https://admin.shopify.com/store/${storeName}/apps/${appHandle}/app`,
       );
 
+      // Get and include callback URL for when the quick connect completes
+      // This allows us to handle the returned key properly
+      const callbackUrl = encodeURIComponent(
+        `${
+          request.headers.get("referer") ||
+          `https://${session.shop}/admin/apps/${appHandle}`
+        }/api/quickConnectCallback`,
+      );
+
+      console.log("Redirect URL parameters prepared:", {
+        shop,
+        storeName,
+        appHandle,
+        site_url: `https://${shop}`,
+        admin_url: `https://admin.shopify.com/store/${storeName}/apps/${appHandle}/app`,
+        callback_url: callbackUrl,
+      });
+
+      console.log("=== ACTION END: Returning redirect URL ===");
       return {
         success: true,
-        redirectUrl: `http://localhost:3000/app/connect?site_url=${site_url}&redirect_url=${admin_url}&type=Shopify`,
+        redirectUrl: `${urls.voiceroApi}/app/connect?site_url=${site_url}&redirect_url=${admin_url}&callback_url=${callbackUrl}&type=Shopify`,
       };
+    } else if (action === "quick_connect_callback") {
+      // This is called when the quick connect flow completes
+      console.log("Processing quick_connect_callback action");
+      try {
+        const incomingKey = formData.get("access_key");
+        if (!incomingKey) {
+          console.error("No access key provided in callback");
+          throw new Error(
+            "No access key was provided from the quick connect flow",
+          );
+        }
+
+        console.log("Received new access key from quick connect flow");
+
+        // First, check if there's an existing key we need to delete
+        console.log("Checking for existing access key");
+        const metafieldResponse = await admin.graphql(`
+          query {
+            shop {
+              metafield(namespace: "voicero", key: "access_key") {
+                id
+                value
+              }
+            }
+          }
+        `);
+
+        const metafieldData = await metafieldResponse.json();
+        console.log("Existing key check response:", metafieldData);
+
+        // If there's an existing metafield with a key, delete it first
+        if (metafieldData.data?.shop?.metafield?.id) {
+          console.log("Found existing key, deleting it first");
+          const metafieldId = metafieldData.data.shop.metafield.id;
+
+          const deleteResponse = await admin.graphql(`
+            mutation {
+              metafieldDelete(input: {
+                id: "${metafieldId}"
+              }) {
+                deletedId
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `);
+
+          const deleteResult = await deleteResponse.json();
+          console.log("Delete key response:", deleteResult);
+
+          if (deleteResult.data?.metafieldDelete?.userErrors?.length > 0) {
+            console.warn(
+              "Warning: Issues deleting old key:",
+              deleteResult.data.metafieldDelete.userErrors,
+            );
+          }
+        }
+
+        // Now save the new key
+        const shopId = await getShopId(admin);
+
+        console.log("Creating metafield to store access key...");
+        const saveResponse = await admin.graphql(
+          `
+          mutation CreateMetafield($input: MetafieldsSetInput!) {
+            metafieldsSet(metafields: [$input]) {
+              metafields {
+                id
+                key
+                value
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `,
+          {
+            variables: {
+              input: {
+                namespace: "voicero",
+                key: "access_key",
+                type: "single_line_text_field",
+                value: incomingKey,
+                ownerId: shopId,
+              },
+            },
+          },
+        );
+
+        const saveResult = await saveResponse.json();
+        console.log("Save key response:", saveResult);
+
+        if (saveResult.data?.metafieldsSet?.userErrors?.length > 0) {
+          console.error(
+            "Save key errors:",
+            saveResult.data.metafieldsSet.userErrors,
+          );
+          throw new Error("Failed to save access key from quick connect flow");
+        }
+
+        // Now try to connect with the key
+        return {
+          success: true,
+          message: "Successfully saved access key from quick connect flow",
+          accessKey: incomingKey,
+          shouldConnect: true,
+        };
+      } catch (error) {
+        console.error("Quick connect callback error:", error);
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
     } else if (action === "manual_connect") {
+      console.log("Processing manual_connect action");
       try {
         const trimmedKey = accessKey?.trim();
+        console.log("Trimmed key available:", !!trimmedKey);
+        console.log("Key length:", trimmedKey?.length || 0);
 
         if (!trimmedKey) {
+          console.error("No access key provided");
           throw new Error("No access key provided");
         }
 
+        console.log("Attempting API connection with provided key...");
         const headers = new Headers();
         headers.append("Accept", "application/json");
         headers.append("Authorization", `Bearer ${trimmedKey}`);
 
-        const response = await fetch("http://localhost:3000/api/connect", {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${trimmedKey}`,
-          },
-          mode: "cors",
-        });
+        // Try various URLs for connection
+        const apiUrls = [
+          `${urls.voiceroApi}/api/connect`,
+          `${urls.voiceroApi}/api/connect`,
+        ];
 
-        const responseText = await response.text();
+        let connectionSuccessful = false;
+        let connectionResponse = null;
+        let connectionData = null;
+        let connectionError = null;
 
-        if (!response.ok) {
-          throw new Error(`Connection failed with status: ${response.status}`);
+        // Try each URL until one succeeds
+        for (const apiUrl of apiUrls) {
+          try {
+            console.log(`Trying connection to: ${apiUrl}`);
+            const response = await fetch(apiUrl, {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${trimmedKey}`,
+              },
+              mode: "cors",
+            });
+            console.log(
+              `Connection API response status for ${apiUrl}:`,
+              response.status,
+            );
+
+            const responseText = await response.text();
+            console.log(
+              `Connection API raw response for ${apiUrl}:`,
+              responseText,
+            );
+
+            try {
+              const data = JSON.parse(responseText);
+              console.log(`Connection API parsed data for ${apiUrl}:`, data);
+
+              if (response.ok && data.website) {
+                connectionSuccessful = true;
+                connectionResponse = response;
+                connectionData = data;
+                console.log(`Successful connection to ${apiUrl}`);
+                break;
+              } else {
+                console.log(
+                  `Connection to ${apiUrl} returned invalid data or error:`,
+                  data,
+                );
+                connectionError = data.error || "Connection failed";
+              }
+            } catch (parseError) {
+              console.error(
+                `Error parsing response from ${apiUrl}:`,
+                parseError,
+              );
+              connectionError = "Invalid response format";
+            }
+          } catch (fetchError) {
+            console.error(`Fetch error for ${apiUrl}:`, fetchError);
+            connectionError = fetchError.message;
+          }
         }
 
-        const data = JSON.parse(responseText);
+        if (!connectionSuccessful) {
+          console.error(
+            "All connection attempts failed. Last error:",
+            connectionError,
+          );
+          throw new Error(
+            connectionError ||
+              "Connection failed. Please check your access key.",
+          );
+        }
+
+        // We have a successful connection at this point
+        const data = connectionData;
 
         // Update theme settings directly using the admin API
+        console.log("Fetching shop ID...");
         const shopResponse = await admin.graphql(`
           query {
             shop {
@@ -195,8 +477,11 @@ export const action = async ({ request }) => {
         `);
 
         const shopData = await shopResponse.json();
+        console.log("Shop data received:", shopData);
         const shopId = shopData.data.shop.id;
+        console.log("Shop ID:", shopId);
 
+        console.log("Creating metafield to store access key...");
         const metafieldResponse = await admin.graphql(
           `
           mutation CreateMetafield($input: MetafieldsSetInput!) {
@@ -227,11 +512,17 @@ export const action = async ({ request }) => {
         );
 
         const metafieldData = await metafieldResponse.json();
+        console.log("Metafield creation response:", metafieldData);
 
         if (metafieldData.data?.metafieldsSet?.userErrors?.length > 0) {
+          console.error(
+            "Metafield errors:",
+            metafieldData.data.metafieldsSet.userErrors,
+          );
           throw new Error("Failed to save access key to store");
         }
 
+        console.log("=== ACTION END: Manual connection successful ===");
         return {
           success: true,
           accessKey: accessKey,
@@ -240,6 +531,7 @@ export const action = async ({ request }) => {
           namespace: data.website?.VectorDbConfig?.namespace || data.namespace,
         };
       } catch (error) {
+        console.error("Manual connect error:", error);
         return {
           success: false,
           error: error.message,
@@ -247,17 +539,21 @@ export const action = async ({ request }) => {
       }
     }
   } catch (error) {
+    console.error("Action handler error:", error);
     let errorMessage = error.message;
 
     if (error.response) {
       try {
         const errorData = await error.response.json();
+        console.error("Error response data:", errorData);
         errorMessage = errorData.message || errorMessage;
       } catch (e) {
+        console.error("Failed to parse error response:", e);
         // If we can't parse the error response, stick with the original message
       }
     }
 
+    console.log("=== ACTION END: Returning error ===");
     return {
       success: false,
       error: errorMessage,
@@ -363,6 +659,25 @@ async function updateThemeSettings(admin, themeId, accessKey) {
 
 export default function Index() {
   const { savedKey } = useLoaderData();
+  const navigate = useNavigate();
+
+  // Check for access_key in URL
+  useEffect(() => {
+    console.log("Checking for access_key in URL");
+    const url = new URL(window.location.href);
+    const accessKeyParam = url.searchParams.get("access_key");
+
+    if (accessKeyParam) {
+      console.log("Found access_key in URL, will use for connection");
+
+      // Clean up the URL by removing the access_key parameter
+      url.searchParams.delete("access_key");
+      window.history.replaceState({}, document.title, url.toString());
+
+      // Set the access key from the URL param
+      setAccessKey(accessKeyParam);
+    }
+  }, []);
 
   // State to track active training process
   const [trainingData, setTrainingData] = useState(null);
@@ -378,7 +693,6 @@ export default function Index() {
   const [accessKey, setAccessKey] = useState(savedKey || "");
   const fetcher = useFetcher();
   const app = useAppBridge();
-  const navigate = useNavigate();
   const isLoading = fetcher.state === "submitting";
   const [error, setError] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -394,30 +708,44 @@ export default function Index() {
 
   // Handle successful connection response
   useEffect(() => {
+    console.log("useEffect: handling fetcher.data response");
     if (fetcher.data?.success && fetcher.data.accessKey) {
+      console.log("Successful connection, setting access key");
       setAccessKey(fetcher.data.accessKey);
     }
 
     // Check if we got a response with namespace data
     if (fetcher.data?.namespace) {
+      console.log(
+        "Setting namespace from direct namespace field:",
+        fetcher.data.namespace,
+      );
       setNamespace(fetcher.data.namespace);
     }
     // Check if we have namespace in VectorDbConfig
     else if (fetcher.data?.websiteData?.VectorDbConfig?.namespace) {
       const websiteNamespace =
         fetcher.data.websiteData.VectorDbConfig.namespace;
+      console.log("Setting namespace from VectorDbConfig:", websiteNamespace);
       setNamespace(websiteNamespace);
     }
   }, [fetcher.data]);
 
   // Single useEffect for status checking - runs when component mounts or namespace changes
   useEffect(() => {
+    console.log("useEffect: namespace changed or component mounted");
+    console.log("Current namespace:", namespace);
+
     if (namespace) {
+      console.log("Namespace available, checking training status");
       checkTrainingStatus();
+    } else {
+      console.log("No namespace available, skipping training status check");
     }
 
     return () => {
       if (trainingInterval) {
+        console.log("Cleanup: clearing training interval");
         clearInterval(trainingInterval);
       }
     };
@@ -426,7 +754,11 @@ export default function Index() {
   // Function to check training status
   const checkTrainingStatus = useCallback(() => {
     // Check if we have the necessary credentials
+    console.log("checkTrainingStatus called with apiKey:", !!apiKey);
+    console.log("Current namespace:", namespace);
+
     if (!apiKey) {
+      console.log("No API key available, skipping status check");
       return;
     }
 
@@ -434,9 +766,11 @@ export default function Index() {
     const namespaceToUse = namespace;
 
     if (!namespaceToUse) {
+      console.log("No namespace available, skipping status check");
       return;
     }
 
+    console.log(`Fetching training status for namespace: ${namespaceToUse}`);
     fetch(`${urls.trainingApiStatus}/${namespaceToUse}`, {
       method: "GET",
       headers: {
@@ -445,14 +779,20 @@ export default function Index() {
       },
     })
       .then((res) => {
+        console.log("Training status API response status:", res.status);
         if (!res.ok) throw new Error(`Status API returned ${res.status}`);
         return res.json();
       })
       .then((data) => {
+        console.log("Training status API data:", data);
         // Reset failure count on success
-        if (failureCount > 0) setFailureCount(0);
+        if (failureCount > 0) {
+          console.log(`Resetting failure count from ${failureCount} to 0`);
+          setFailureCount(0);
+        }
 
         // Store the training data in state
+        console.log("Updating training data in state:", data.data);
         setTrainingData(data.data);
 
         // If process is complete or not running, clear the interval
@@ -463,6 +803,9 @@ export default function Index() {
           data.data?.status === "finished" ||
           data.data?.status === "not_running"
         ) {
+          console.log(
+            `Training status is "${data.data?.status}", clearing interval`,
+          );
           if (trainingInterval) {
             clearInterval(trainingInterval);
             setTrainingInterval(null);
@@ -470,12 +813,17 @@ export default function Index() {
         }
       })
       .catch((err) => {
+        console.error("Error checking training status:", err);
         // Increment failure count
         const newFailureCount = failureCount + 1;
+        console.log(`Incrementing failure count to ${newFailureCount}`);
         setFailureCount(newFailureCount);
 
         // Stop checking after MAX_FAILURES consecutive failures
         if (newFailureCount >= MAX_FAILURES) {
+          console.log(
+            `Reached max failures (${MAX_FAILURES}), stopping status checks`,
+          );
           if (trainingInterval) {
             clearInterval(trainingInterval);
             setTrainingInterval(null);
@@ -497,8 +845,12 @@ export default function Index() {
 
   // Auto-connect when we have an access key
   useEffect(() => {
+    console.log("useEffect: accessKey changed, current value:", !!accessKey);
+    console.log("fetcher.data?.success:", fetcher.data?.success);
+
     if (accessKey && !fetcher.data?.success) {
       // Only connect if we haven't already
+      console.log("Auto-connecting with access key");
       setIsDataLoading(true);
       fetcher.submit(
         { accessKey, action: "manual_connect" },
@@ -509,7 +861,9 @@ export default function Index() {
 
   // Reset data loading state when we get data back from fetcher
   useEffect(() => {
+    console.log("useEffect: fetcher.data updated");
     if (fetcher.data) {
+      console.log("Fetcher data received, resetting loading states");
       setIsDataLoading(false);
       setIsConnecting(false);
     }
@@ -525,20 +879,68 @@ export default function Index() {
     }
   }, [fetcher.data]);
 
-  const handleManualConnect = () => {
+  const handleManualConnect = async () => {
+    console.log("handleManualConnect called");
     if (!accessKey) {
+      console.log("No access key provided, showing error");
       setError("Please enter an access key");
       return;
     }
+    console.log("Proceeding with manual connect");
     setError("");
     setIsConnecting(true);
-    fetcher.submit(
-      {
-        accessKey,
-        action: "manual_connect",
-      },
-      { method: "POST" },
-    );
+
+    try {
+      // First, check if there's an existing key we need to delete
+      console.log("Checking for existing access key");
+      const existingKeyResponse = await fetch("/api/accessKey", {
+        method: "GET",
+      });
+      const existingKeyData = await existingKeyResponse.json();
+      console.log("Existing key check response:", existingKeyData);
+
+      // If there's an existing key, delete it first
+      if (existingKeyData.success && existingKeyData.accessKey) {
+        console.log("Found existing key, deleting it first");
+        const deleteResponse = await fetch("/api/accessKey", {
+          method: "DELETE",
+        });
+        const deleteResult = await deleteResponse.json();
+        console.log("Delete key response:", deleteResult);
+      }
+
+      // Now set the new key
+      console.log("Setting new access key");
+      const saveResponse = await fetch("/api/accessKey", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessKey: accessKey,
+        }),
+      });
+      const saveResult = await saveResponse.json();
+      console.log("Save key response:", saveResult);
+
+      if (!saveResult.success) {
+        throw new Error(`Failed to save access key: ${saveResult.message}`);
+      }
+
+      // Now connect with the new key
+      console.log("Submitting manual_connect action with new access key");
+      fetcher.submit(
+        {
+          accessKey,
+          action: "manual_connect",
+        },
+        { method: "POST" },
+      );
+    } catch (error) {
+      console.error("Error updating access key:", error);
+      setError(`Failed to update access key: ${error.message}`);
+      setIsConnecting(false);
+    }
   };
 
   // Function to manually refresh status without setting up an interval
@@ -547,6 +949,8 @@ export default function Index() {
   }, [checkTrainingStatus]);
 
   const handleQuickConnect = () => {
+    console.log("handleQuickConnect called");
+    console.log("Submitting quick_connect action");
     fetcher.submit({ action: "quick_connect" }, { method: "POST" });
   };
 
@@ -581,24 +985,32 @@ export default function Index() {
   };
 
   const handleSync = async () => {
+    console.log("=== SYNC START: Beginning content sync process ===");
     try {
       setIsSyncing(true);
       setError(""); // Clear any previous errors
+      console.log("Setting UI state: isSyncing=true");
 
       // Step 1: Initial sync
+      console.log("Step 1: Initiating local API sync");
       const syncInitResponse = await fetch("/api/sync", {
         method: "GET",
       });
+      console.log("Initial sync response status:", syncInitResponse.status);
 
       const responseText = await syncInitResponse.text();
+      console.log("Initial sync raw response:", responseText);
       let data;
       try {
         data = JSON.parse(responseText);
+        console.log("Initial sync data parsed successfully");
       } catch (e) {
+        console.error("Failed to parse JSON response:", e);
         throw new Error(`Invalid JSON response: ${responseText}`);
       }
 
       if (!syncInitResponse.ok) {
+        console.error("Initial sync failed:", syncInitResponse.status);
         throw new Error(
           `HTTP error! status: ${syncInitResponse.status}, details: ${
             data.details || "unknown error"
@@ -609,10 +1021,13 @@ export default function Index() {
           }`,
         );
       }
+      console.log("Initial sync completed successfully");
 
       // Step 2: Send data to backend
+      console.log("Step 2: Sending sync data to backend");
+      console.log("Sync data size:", JSON.stringify(data).length, "bytes");
       const syncResponse = await fetch(
-        "http://localhost:3000/api/shopify/sync",
+        `${urls.voiceroApi}/api/shopify/sync`,
         {
           method: "POST",
           headers: {
@@ -626,23 +1041,27 @@ export default function Index() {
           }),
         },
       );
+      console.log("Backend sync response status:", syncResponse.status);
 
       if (!syncResponse.ok) {
         const errorData = await syncResponse.json();
+        console.error("Backend sync error:", errorData);
         throw new Error(
           `Sync error! status: ${syncResponse.status}, details: ${
             errorData.error || "unknown error"
           }`,
         );
       }
+      console.log("Backend sync completed successfully");
 
       // Step 3: Start vectorization
+      console.log("Step 3: Starting vectorization process");
       setLoadingText(
         "Vectorizing your store content... This may take a few minutes.",
       );
 
       const vectorizeResponse = await fetch(
-        "http://localhost:3000/api/shopify/vectorize",
+        `${urls.voiceroApi}/api/shopify/vectorize`,
         {
           method: "POST",
           headers: {
@@ -652,9 +1071,11 @@ export default function Index() {
           },
         },
       );
+      console.log("Vectorization response status:", vectorizeResponse.status);
 
       if (!vectorizeResponse.ok) {
         const errorData = await vectorizeResponse.json();
+        console.error("Vectorization error:", errorData);
         throw new Error(
           `Vectorization error! status: ${vectorizeResponse.status}, details: ${
             errorData.error || "unknown error"
@@ -664,9 +1085,11 @@ export default function Index() {
 
       // Process the regular JSON response
       const vectorizeData = await vectorizeResponse.json();
+      console.log("Vectorization response data:", vectorizeData);
 
       // Check if the vectorization was successful
       if (!vectorizeData.success) {
+        console.error("Vectorization failed:", vectorizeData.error);
         throw new Error(
           `Vectorization failed: ${vectorizeData.error || "Unknown error"}`,
         );
@@ -674,6 +1097,7 @@ export default function Index() {
 
       // Show some stats if available
       if (vectorizeData.stats) {
+        console.log("Vectorization stats:", vectorizeData.stats);
         setLoadingText(
           `Vectorization complete! Added ${vectorizeData.stats.added} items to the vector database.`,
         );
@@ -682,9 +1106,10 @@ export default function Index() {
       }
 
       // Step 4: Create or get assistant
+      console.log("Step 4: Setting up AI assistant");
       setLoadingText("Setting up your AI assistant...");
       const assistantResponse = await fetch(
-        "http://localhost:3000/api/shopify/assistant",
+        `${urls.voiceroApi}/api/shopify/assistant`,
         {
           method: "POST",
           headers: {
@@ -694,17 +1119,21 @@ export default function Index() {
           },
         },
       );
+      console.log("Assistant setup response status:", assistantResponse.status);
 
       if (!assistantResponse.ok) {
         const errorData = await assistantResponse.json();
+        console.error("Assistant setup error:", errorData);
         throw new Error(
           `Assistant setup error! status: ${assistantResponse.status}, details: ${
             errorData.error || "unknown error"
           }`,
         );
       }
+      console.log("Assistant setup completed successfully");
 
       // Step 5: Start auto-training process
+      console.log("Step 5: Starting auto-training process");
       setIsTraining(true);
       setLoadingText(
         "Starting auto-training process. This typically takes 10-20 minutes to complete.",
@@ -712,6 +1141,7 @@ export default function Index() {
 
       // Try different approaches to find the namespace
       let foundNamespace = null;
+      console.log("Attempting to determine namespace for training");
 
       // 1. Check from the original data structure
       if (
@@ -721,12 +1151,15 @@ export default function Index() {
         data.website.VectorDbConfig.namespace
       ) {
         foundNamespace = data.website.VectorDbConfig.namespace;
+        console.log("Found namespace from website data:", foundNamespace);
         setNamespace(foundNamespace);
       }
       // 2. If not in website data, try from assistantResponse
       else if (assistantResponse && assistantResponse.ok) {
         try {
+          console.log("Attempting to get namespace from assistant response");
           const assistantData = await assistantResponse.json();
+          console.log("Assistant response data:", assistantData);
 
           if (
             assistantData &&
@@ -734,18 +1167,21 @@ export default function Index() {
             assistantData.website.VectorDbConfig
           ) {
             foundNamespace = assistantData.website.VectorDbConfig.namespace;
+            console.log("Found namespace from assistant data:", foundNamespace);
             setNamespace(foundNamespace);
           }
         } catch (err) {
+          console.error("Error parsing assistant response:", err);
           // Handle error silently
         }
       }
 
       // 3. As a last resort, try to get it from backend directly
       if (!foundNamespace) {
+        console.log("No namespace found yet, trying backend API directly");
         try {
           const websiteResponse = await fetch(
-            "http://localhost:3000/api/connect",
+            `${urls.voiceroApi}/api/connect`,
             {
               method: "GET",
               headers: {
@@ -754,9 +1190,11 @@ export default function Index() {
               },
             },
           );
+          console.log("Website API response status:", websiteResponse.status);
 
           if (websiteResponse.ok) {
             const websiteData = await websiteResponse.json();
+            console.log("Website API data:", websiteData);
 
             if (
               websiteData &&
@@ -764,6 +1202,7 @@ export default function Index() {
               websiteData.website.VectorDbConfig
             ) {
               foundNamespace = websiteData.website.VectorDbConfig.namespace;
+              console.log("Found namespace from website API:", foundNamespace);
               setNamespace(foundNamespace);
             } else if (
               websiteData &&
@@ -772,19 +1211,27 @@ export default function Index() {
             ) {
               // Use website ID as namespace as a fallback
               foundNamespace = websiteData.website.id;
+              console.log(
+                "Using website ID as namespace fallback:",
+                foundNamespace,
+              );
               setNamespace(foundNamespace);
             }
           }
         } catch (err) {
+          console.error("Error fetching website data:", err);
           // Handle error silently
         }
       }
 
       if (!foundNamespace) {
+        console.error("No namespace found for auto-training");
         throw new Error("No namespace found for auto-training");
       }
+      console.log("Final namespace for training:", foundNamespace);
 
       // Start the auto-training process
+      console.log("Initiating auto-training API call");
       const autoTrainResponse = await fetch(
         `${urls.trainingApiAuto}/${foundNamespace}`,
         {
@@ -796,27 +1243,33 @@ export default function Index() {
           },
         },
       );
+      console.log("Auto-training response status:", autoTrainResponse.status);
 
       if (!autoTrainResponse.ok) {
         const errorData = await autoTrainResponse.json();
+        console.error("Auto-training error:", errorData);
         throw new Error(
           `Auto-training initiation error! status: ${autoTrainResponse.status}, details: ${
             errorData.error || "unknown error"
           }`,
         );
       }
+      console.log("Auto-training initiated successfully");
 
       // Clear any existing interval
       if (trainingInterval) {
+        console.log("Clearing existing training interval");
         clearInterval(trainingInterval);
         setTrainingInterval(null);
       }
 
       // Set up new status check interval
+      console.log("Setting up new training status check interval (every 30s)");
       const newInterval = setInterval(checkTrainingStatus, 30000);
       setTrainingInterval(newInterval);
 
       // Do an immediate check to update UI
+      console.log("Performing immediate status check");
       checkTrainingStatus();
 
       // Show training in progress message
@@ -824,16 +1277,22 @@ export default function Index() {
         "Auto-training in progress. This typically takes 10-20 minutes to complete. You can now navigate away from this page - the process will continue in the background.",
       );
 
+      console.log(
+        "Setting final UI state: training=true, success=true, syncing=false",
+      );
       setIsTraining(true);
       setIsSuccess(true);
       setIsSyncing(false);
+      console.log("=== SYNC END: All processes completed successfully ===");
     } catch (error) {
+      console.error("Sync process failed:", error);
       setError(
         <Banner status="critical" onDismiss={() => setError("")}>
           <p>Failed to sync content: {error.message}</p>
         </Banner>,
       );
       setIsSyncing(false);
+      console.log("=== SYNC END: Process failed with error ===");
     }
   };
 
@@ -894,15 +1353,20 @@ export default function Index() {
   }, [trainingData]);
 
   const handleViewStatus = async () => {
+    console.log("handleViewStatus called");
     try {
       setIsDataLoading(true);
       setError("");
+      console.log("Setting UI state: isDataLoading=true");
 
       // Reset failure count when manually checking
+      console.log("Resetting failure count to 0");
       setFailureCount(0);
 
       // Check if we have the namespace
+      console.log("Current namespace:", namespace);
       if (!namespace) {
+        console.log("No namespace found, showing error");
         setError("No namespace found. Please connect to your website first.");
         setIsDataLoading(false);
         return;
@@ -910,19 +1374,23 @@ export default function Index() {
 
       // If interval was stopped due to failures or not_running, restart it for manual check
       if (!trainingInterval) {
+        console.log("No active interval, performing immediate status check");
         checkTrainingStatus(); // Do an immediate check
 
         // Only set up a new interval if the check doesn't immediately return not_running
         // The interval will be cleared automatically if status is not_running
+        console.log("Setting up new status check interval");
         const interval = setInterval(checkTrainingStatus, 30000);
         setTrainingInterval(interval);
       } else {
+        console.log("Interval already active, performing single status check");
         // Just do a single check if the interval is already running
         checkTrainingStatus();
       }
 
       // Show current data in a banner if we have it
       if (trainingData) {
+        console.log("Displaying current training data in banner");
         // Display status in a banner
         setError(
           <Banner status="info" onDismiss={() => setError("")}>
@@ -933,6 +1401,7 @@ export default function Index() {
           </Banner>,
         );
       } else {
+        console.log("No training data yet, showing checking status message");
         setError(
           <Banner status="info" onDismiss={() => setError("")}>
             <p>Checking status... Results will appear in 1-2 seconds.</p>
@@ -940,8 +1409,10 @@ export default function Index() {
         );
       }
     } catch (error) {
+      console.error("Error checking status:", error);
       setError(`Error checking status: ${error.message}`);
     } finally {
+      console.log("Setting isDataLoading=false");
       setIsDataLoading(false);
     }
   };
@@ -1175,7 +1646,7 @@ export default function Index() {
                                   icon={ExternalIcon}
                                   onClick={() => {
                                     window.open(
-                                      `http://localhost:3000/app/websites/website?id=${fetcher.data.websiteData.id}`,
+                                      `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}`,
                                       "_blank",
                                     );
                                   }}
@@ -1313,7 +1784,7 @@ export default function Index() {
                                           size="slim"
                                           onClick={() => {
                                             fetch(
-                                              "http://localhost:3000/api/websites/toggle-status",
+                                              `${urls.voiceroApi}/api/websites/toggle-status`,
                                               {
                                                 method: "POST",
                                                 headers: {
@@ -1719,7 +2190,7 @@ export default function Index() {
                                   icon={SettingsIcon}
                                   onClick={() => {
                                     window.open(
-                                      `http://localhost:3000/app/websites/website?id=${fetcher.data.websiteData.id}&tab=assistant`,
+                                      `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=assistant`,
                                       "_blank",
                                     );
                                   }}
@@ -1731,7 +2202,7 @@ export default function Index() {
                                   icon={ExternalIcon}
                                   onClick={() => {
                                     window.open(
-                                      `http://localhost:3000/app/websites/website?id=${fetcher.data.websiteData.id}&tab=preview`,
+                                      `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=preview`,
                                       "_blank",
                                     );
                                   }}

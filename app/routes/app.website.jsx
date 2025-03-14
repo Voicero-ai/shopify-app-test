@@ -28,7 +28,7 @@ import {
   DiscountIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
-
+import { urls } from "../config/urls";
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
 
@@ -55,7 +55,7 @@ export const loader = async ({ request }) => {
 
   try {
     // Fetch website data
-    const response = await fetch("http://localhost:3000/api/connect", {
+    const response = await fetch(`${urls.voiceroApi}/api/connect`, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -114,6 +114,7 @@ export default function WebsitePage() {
   // Redirect if disconnected
   useEffect(() => {
     if (disconnected) {
+      
       navigate("/app");
     }
   }, [disconnected, navigate]);
@@ -324,7 +325,7 @@ export default function WebsitePage() {
                     external
                     onClick={() => {
                       window.open(
-                        `http://localhost:3000/app/websites/website?id=${websiteData.id}#settings`,
+                        `${urls.voiceroApi}/app/websites/website?id=${websiteData.id}#settings`,
                         "_blank",
                       );
                     }}

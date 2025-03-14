@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "025df740c8a79a0853a7939da465efb0"
-application_url = "https://workstation-f-buffer-governmental.trycloudflare.com"
+application_url = "https://disco-supported-forums-battle.trycloudflare.com"
 embedded = true
 name = "voicero-app-shop-test"
 handle = "voicero-app-shop-test"
@@ -31,9 +31,9 @@ scopes = "read_content,read_products,read_discounts,write_content,read_metaobjec
 
 [auth]
 redirect_urls = [
-  "https://workstation-f-buffer-governmental.trycloudflare.com/auth/callback",
-  "https://workstation-f-buffer-governmental.trycloudflare.com/auth/shopify/callback",
-  "https://workstation-f-buffer-governmental.trycloudflare.com/api/auth/callback"
+  "https://disco-supported-forums-battle.trycloudflare.com/auth/callback",
+  "https://disco-supported-forums-battle.trycloudflare.com/auth/shopify/callback",
+  "https://disco-supported-forums-battle.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

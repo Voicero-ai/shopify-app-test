@@ -2,10 +2,9 @@ import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
 import { createReadableStreamFromReadable } from "@remix-run/node";
-import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
-import urls from "./config/urls";
 
+// Simplified timeout
 export const streamTimeout = 5000;
 
 export default async function handleRequest(
@@ -14,22 +13,21 @@ export default async function handleRequest(
   responseHeaders,
   remixContext,
 ) {
+  // Add Shopify headers - this already includes appropriate CSP headers
+  // that are compatible with Shopify's admin interface
   addDocumentResponseHeaders(request, responseHeaders);
 
-  // Add Content Security Policy header
-  responseHeaders.set(
-    "Content-Security-Policy",
-    `default-src 'self' ${urls.shopifyCdn} 'unsafe-eval' 'unsafe-inline'; connect-src 'self' ${urls.shopifyCdn} ${urls.voiceroApi} ${urls.trainingApiBase} ${urls.newVoiceroApi} https://admin.shopify.com https://*.shopify.com; font-src 'self' ${urls.shopifyCdn} data:; style-src 'self' ${urls.shopifyCdn} 'unsafe-inline'; img-src 'self' ${urls.shopifyCdn} data: https:; script-src 'self' ${urls.shopifyCdn} 'unsafe-eval' 'unsafe-inline'`,
-  );
-
-  const userAgent = request.headers.get("user-agent");
-  const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
+  // We're no longer setting a custom CSP header
+  // This allows Shopify's default CSP to take effect
+  // Which should properly handle their analytics and telemetry systems
 
   return new Promise((resolve, reject) => {
+    let didError = false;
+
     const { pipe, abort } = renderToPipeableStream(
       <RemixServer context={remixContext} url={request.url} />,
       {
-        [callbackName]: () => {
+        onShellReady() {
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
 
@@ -37,23 +35,24 @@ export default async function handleRequest(
           resolve(
             new Response(stream, {
               headers: responseHeaders,
-              status: responseStatusCode,
+              status: didError ? 500 : responseStatusCode,
             }),
           );
           pipe(body);
         },
         onShellError(error) {
+          didError = true;
+          console.error("Shell error:", error);
           reject(error);
         },
         onError(error) {
-          responseStatusCode = 500;
-          console.error(error);
+          didError = true;
+          console.error("Rendering error:", error);
         },
       },
     );
 
-    // Automatically timeout the React renderer after 6 seconds, which ensures
-    // React has enough time to flush down the rejected boundary contents
-    setTimeout(abort, streamTimeout + 1000);
+    // Simple timeout
+    setTimeout(abort, streamTimeout);
   });
 }

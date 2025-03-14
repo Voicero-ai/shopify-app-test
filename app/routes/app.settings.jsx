@@ -75,7 +75,7 @@ export const loader = async ({ request }) => {
 
   try {
     // Fetch website data from the connect API
-    const response = await fetch("http://localhost:3000/api/connect", {
+    const response = await fetch(`${urls.voiceroApi}/api/connect`, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -159,7 +159,7 @@ export const action = async ({ request }) => {
 
       // Call the editInfoFromShopify API
       const response = await fetch(
-        "http://localhost:3000/api/shopify/editInfoFromShopify",
+        `${urls.voiceroApi}/api/shopify/editInfoFromShopify`,
         {
           method: "POST",
           headers: {
@@ -268,7 +268,7 @@ export default function SettingsPage() {
     try {
       // Call the toggle-status API
       const response = await fetch(
-        "http://localhost:3000/api/websites/toggle-status",
+        `${urls.voiceroApi}/api/websites/toggle-status`,
         {
           method: "POST",
           headers: {
