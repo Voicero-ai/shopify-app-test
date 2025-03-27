@@ -26,9 +26,10 @@ import {
   CalendarIcon,
   SettingsFilledIcon,
   DiscountIcon,
+  CollectionIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
-import { urls } from "../config/urls";
+import urls from "../config/urls";
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
 
@@ -114,7 +115,6 @@ export default function WebsitePage() {
   // Redirect if disconnected
   useEffect(() => {
     if (disconnected) {
-      
       navigate("/app");
     }
   }, [disconnected, navigate]);
@@ -282,6 +282,30 @@ export default function WebsitePage() {
                                 alignment="center"
                               >
                                 Discounts
+                              </Text>
+                            </BlockStack>
+                          </Card>
+                        </Grid.Cell>
+
+                        <Grid.Cell
+                          columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}
+                        >
+                          <Card padding="300">
+                            <BlockStack gap="100" align="center">
+                              <Icon source={CollectionIcon} color="primary" />
+                              <Text
+                                variant="headingXl"
+                                fontWeight="bold"
+                                alignment="center"
+                              >
+                                {websiteData._count.collections || 0}
+                              </Text>
+                              <Text
+                                variant="bodySm"
+                                color="subdued"
+                                alignment="center"
+                              >
+                                Collections
                               </Text>
                             </BlockStack>
                           </Card>

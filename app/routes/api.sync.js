@@ -47,6 +47,31 @@ export const loader = async ({ request }) => {
               handle
               vendor
               productType
+              tags
+              publishedAt
+              status
+              description
+              descriptionHtml
+              seo {
+                title
+                description
+              }
+              priceRangeV2 {
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+                maxVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+              totalInventory
+              tracksInventory
+              hasOnlyDefaultVariant
+              hasOutOfStockVariants
+              createdAt
+              updatedAt
               images(first: 10) {
                 edges {
                   node {
@@ -64,6 +89,11 @@ export const loader = async ({ request }) => {
                     price
                     sku
                     inventoryQuantity
+                    compareAtPrice
+                    inventoryPolicy
+                    inventoryItem {
+                      tracked
+                    }
                   }
                 }
               }
@@ -134,6 +164,20 @@ export const loader = async ({ request }) => {
           // full body_html from REST
           description: fullProd.body_html,
           bodyHtml: fullProd.body_html,
+          // New fields from GraphQL
+          tags: node.tags,
+          publishedAt: node.publishedAt,
+          status: node.status,
+          description: node.description,
+          descriptionHtml: node.descriptionHtml,
+          seo: node.seo,
+          priceRange: node.priceRangeV2,
+          totalInventory: node.totalInventory,
+          tracksInventory: node.tracksInventory,
+          hasOnlyDefaultVariant: node.hasOnlyDefaultVariant,
+          hasOutOfStockVariants: node.hasOutOfStockVariants,
+          createdAt: node.createdAt,
+          updatedAt: node.updatedAt,
           images: (fullProd.images || []).map((img) => ({
             shopifyId: img.id,
             url: img.src,
@@ -145,6 +189,13 @@ export const loader = async ({ request }) => {
             price: parseFloat(v.price),
             sku: v.sku,
             inventory: v.inventory_quantity,
+            compareAtPrice: v.compare_at_price
+              ? parseFloat(v.compare_at_price)
+              : null,
+            inventoryPolicy: v.inventory_policy,
+            inventoryTracking: v.inventory_management ? true : false,
+            weight: v.weight,
+            weightUnit: v.weight_unit,
           })),
           // Collections from the GraphQL node
           collections: node.collections.edges.map(({ node: coll }) => ({
@@ -178,7 +229,7 @@ export const loader = async ({ request }) => {
     // 3) Pages (GraphQL for IDs)
     // ---------------------
     const pagesResponse = await admin.graphql(`
-      {
+      query {
         pages(first: 50) {
           edges {
             node {
@@ -186,12 +237,54 @@ export const loader = async ({ request }) => {
               title
               handle
               body
+              bodySummary
+              createdAt
+              updatedAt
+              publishedAt
+              isPublished
+              templateSuffix
+              metafields(first: 10) {
+                edges {
+                  node {
+                    id
+                    namespace
+                    key
+                    value
+                  }
+                }
+              }
             }
           }
         }
       }
     `);
     const pagesData = await pagesResponse.json();
+
+    // Log the raw pages data in a clean format
+    console.log("=== PAGES DATA ===");
+    console.log(
+      JSON.stringify(
+        pagesData.data.pages.edges.map(({ node }) => ({
+          id: node.id,
+          title: node.title,
+          handle: node.handle,
+          bodySummary: node.bodySummary,
+          createdAt: node.createdAt,
+          updatedAt: node.updatedAt,
+          publishedAt: node.publishedAt,
+          isPublished: node.isPublished,
+          templateSuffix: node.templateSuffix,
+          metafields: node.metafields.edges.map(({ node: meta }) => ({
+            id: meta.id,
+            namespace: meta.namespace,
+            key: meta.key,
+            value: meta.value,
+          })),
+        })),
+        null,
+        2,
+      ),
+    );
 
     // For untruncated HTML, fetch each page with REST
     const mergedPages = await Promise.all(
@@ -203,13 +296,30 @@ export const loader = async ({ request }) => {
         // shape: { page: {...} }
         const fullPage = pageRes.page;
 
-        return {
+        const pageData = {
           shopifyId: parseInt(numericId),
           title: fullPage.title,
           handle: fullPage.handle,
-          // untruncated
           content: fullPage.body_html,
+          bodySummary: node.bodySummary,
+          createdAt: node.createdAt,
+          updatedAt: node.updatedAt,
+          publishedAt: node.publishedAt,
+          isPublished: node.isPublished,
+          templateSuffix: node.templateSuffix,
+          metafields: node.metafields.edges.map(({ node: meta }) => ({
+            id: meta.id,
+            namespace: meta.namespace,
+            key: meta.key,
+            value: meta.value,
+          })),
         };
+
+        // Log each processed page in a clean format
+        console.log(`=== PROCESSED PAGE: ${pageData.title} ===`);
+        console.log(JSON.stringify(pageData, null, 2));
+
+        return pageData;
       }),
     );
 
@@ -224,6 +334,29 @@ export const loader = async ({ request }) => {
               id
               title
               handle
+              articlesCount {
+                count
+                precision
+              }
+              commentPolicy
+              createdAt
+              updatedAt
+              feed {
+                location
+                path
+              }
+              metafields(first: 10) {
+                edges {
+                  node {
+                    id
+                    namespace
+                    key
+                    value
+                  }
+                }
+              }
+              tags
+              templateSuffix
               articles(first: 20) {
                 edges {
                   node {
@@ -236,11 +369,47 @@ export const loader = async ({ request }) => {
                     }
                     image {
                       url
+                      altText
+                    }
+                    isPublished
+                    publishedAt
+                    summary
+                    tags
+                    templateSuffix
+                    createdAt
+                    updatedAt
+                    metafields(first: 10) {
+                      edges {
+                        node {
+                          id
+                          namespace
+                          key
+                          value
+                        }
+                      }
+                    }
+                    comments(first: 10) {
+                      edges {
+                        node {
+                          id
+                          author {
+                            name
+                          }
+                          body
+                          createdAt
+                        }
+                      }
                     }
                   }
                 }
               }
             }
+          }
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
           }
         }
       }
@@ -270,6 +439,25 @@ export const loader = async ({ request }) => {
               content: fullArticle.body_html, // untruncated
               author: fullArticle.author,
               image: fullArticle.image?.src || null,
+              isPublished: article.isPublished,
+              publishedAt: article.publishedAt,
+              summary: article.summary,
+              tags: article.tags,
+              templateSuffix: article.templateSuffix,
+              createdAt: article.createdAt,
+              updatedAt: article.updatedAt,
+              metafields: article.metafields.edges.map(({ node: meta }) => ({
+                id: meta.id,
+                namespace: meta.namespace,
+                key: meta.key,
+                value: meta.value,
+              })),
+              comments: article.comments.edges.map(({ node: comment }) => ({
+                id: comment.id,
+                author: comment.author.name,
+                content: comment.body,
+                createdAt: comment.createdAt,
+              })),
             };
           }),
         );
@@ -278,6 +466,24 @@ export const loader = async ({ request }) => {
           shopifyId: parseInt(blogNumericId),
           title: blog.title,
           handle: blog.handle,
+          articlesCount: blog.articlesCount.count,
+          commentPolicy: blog.commentPolicy,
+          createdAt: blog.createdAt,
+          updatedAt: blog.updatedAt,
+          feed: blog.feed
+            ? {
+                location: blog.feed.location,
+                path: blog.feed.path,
+              }
+            : null,
+          metafields: blog.metafields.edges.map(({ node: meta }) => ({
+            id: meta.id,
+            namespace: meta.namespace,
+            key: meta.key,
+            value: meta.value,
+          })),
+          tags: blog.tags,
+          templateSuffix: blog.templateSuffix,
           posts: mergedArticles,
         };
       }),

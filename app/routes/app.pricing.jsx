@@ -30,6 +30,7 @@ import {
   NotificationIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import urls from "../config/urls";
 
 // Add the RECURRING_INTERVAL constant
 const RECURRING_INTERVAL = {
@@ -173,7 +174,7 @@ export const action = async ({ request }) => {
       },
       premium: {
         name: "Pro Plan",
-        price: 10,
+        price: 40,
         trialDays: 0,
       },
     };
@@ -624,7 +625,7 @@ export default function PricingPage() {
                                   variant="headingXl"
                                   alignment="center"
                                 >
-                                  $10
+                                  $40
                                 </Text>
                                 <Text
                                   as="p"

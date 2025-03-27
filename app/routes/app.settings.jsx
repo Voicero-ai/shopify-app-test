@@ -48,6 +48,7 @@ import {
   XIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import urls from "../config/urls";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
@@ -84,17 +85,14 @@ export const loader = async ({ request }) => {
     });
 
     if (!response.ok) {
-      // If the access key is invalid or there's no website, redirect to connect
       return json({
-        disconnected: true,
-        error: "Invalid access key or no website found",
+        error: "Failed to fetch website data",
       });
     }
 
     const data = await response.json();
     if (!data.website) {
       return json({
-        disconnected: true,
         error: "No website data found",
       });
     }
@@ -105,7 +103,6 @@ export const loader = async ({ request }) => {
     });
   } catch (error) {
     return json({
-      disconnected: true,
       error: error.message || "Failed to fetch website data",
     });
   }

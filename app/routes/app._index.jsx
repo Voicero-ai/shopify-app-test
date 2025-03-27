@@ -34,6 +34,7 @@ import {
   CalendarIcon,
   DataPresentationIcon,
   CheckIcon,
+  CollectionIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -657,6 +658,57 @@ async function updateThemeSettings(admin, themeId, accessKey) {
   }
 }
 
+// Add new helper function for training individual content
+const trainContentItem = async (accessKey, contentType, item) => {
+  console.log(`Training ${contentType} item:`, item);
+
+  const response = await fetch(
+    `${urls.voiceroApi}/api/shopify/train/${contentType}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessKey}`,
+      },
+      body: JSON.stringify({
+        id: item.id,
+        vectorId: item.vectorId,
+        shopifyId: item.shopifyId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      `Training failed for ${contentType} ${item.shopifyId}: ${errorData.error || "Unknown error"}`,
+    );
+  }
+
+  return response.json();
+};
+
+// Helper to calculate total items
+const calculateTotalItems = (data) => {
+  if (!data || !data.content) return 0;
+  const counts = {
+    products: data.content.products?.length || 0,
+    pages: data.content.pages?.length || 0,
+    posts: data.content.posts?.length || 0,
+    collections: data.content.collections?.length || 0,
+    discounts: data.content.discounts?.length || 0,
+  };
+  // Add 1 for general training step
+  return Object.values(counts).reduce((a, b) => a + b, 0) + 1;
+};
+
+// Add helper function to get category count
+const getCategoryCount = (data, category) => {
+  if (!data?.content?.[category]) return 0;
+  return data.content[category].length;
+};
+
 export default function Index() {
   const { savedKey } = useLoaderData();
   const navigate = useNavigate();
@@ -681,11 +733,6 @@ export default function Index() {
 
   // State to track active training process
   const [trainingData, setTrainingData] = useState(null);
-  const [trainingInterval, setTrainingInterval] = useState(null);
-  // Track consecutive failures
-  const [failureCount, setFailureCount] = useState(0);
-  const MAX_FAILURES = 5; // Stop after 5 consecutive failures
-
   // Get API key from saved key (from loader data)
   const apiKey = savedKey;
 
@@ -702,9 +749,6 @@ export default function Index() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
   const [namespace, setNamespace] = useState(null);
-  const [statusData, setStatusData] = useState(null);
-  const [trainingStatus, setTrainingStatus] = useState(null);
-  const [statusCheckCount, setStatusCheckCount] = useState(0);
 
   // Handle successful connection response
   useEffect(() => {
@@ -729,119 +773,31 @@ export default function Index() {
       console.log("Setting namespace from VectorDbConfig:", websiteNamespace);
       setNamespace(websiteNamespace);
     }
+
+    // Log the complete website data in a clean format
+    if (fetcher.data?.websiteData) {
+      console.log("=== WEBSITE DATA ===");
+      console.log(
+        JSON.stringify(
+          {
+            id: fetcher.data.websiteData.id,
+            name: fetcher.data.websiteData.name,
+            url: fetcher.data.websiteData.url,
+            type: fetcher.data.websiteData.type,
+            plan: fetcher.data.websiteData.plan,
+            active: fetcher.data.websiteData.active,
+            lastSyncedAt: fetcher.data.websiteData.lastSyncedAt,
+            queryLimit: fetcher.data.websiteData.queryLimit,
+            monthlyQueries: fetcher.data.websiteData.monthlyQueries,
+            contentCounts: fetcher.data.websiteData._count,
+            VectorDbConfig: fetcher.data.websiteData.VectorDbConfig,
+          },
+          null,
+          2,
+        ),
+      );
+    }
   }, [fetcher.data]);
-
-  // Single useEffect for status checking - runs when component mounts or namespace changes
-  useEffect(() => {
-    console.log("useEffect: namespace changed or component mounted");
-    console.log("Current namespace:", namespace);
-
-    if (namespace) {
-      console.log("Namespace available, checking training status");
-      checkTrainingStatus();
-    } else {
-      console.log("No namespace available, skipping training status check");
-    }
-
-    return () => {
-      if (trainingInterval) {
-        console.log("Cleanup: clearing training interval");
-        clearInterval(trainingInterval);
-      }
-    };
-  }, [namespace]); // Run when namespace changes
-
-  // Function to check training status
-  const checkTrainingStatus = useCallback(() => {
-    // Check if we have the necessary credentials
-    console.log("checkTrainingStatus called with apiKey:", !!apiKey);
-    console.log("Current namespace:", namespace);
-
-    if (!apiKey) {
-      console.log("No API key available, skipping status check");
-      return;
-    }
-
-    // Use the user's namespace
-    const namespaceToUse = namespace;
-
-    if (!namespaceToUse) {
-      console.log("No namespace available, skipping status check");
-      return;
-    }
-
-    console.log(`Fetching training status for namespace: ${namespaceToUse}`);
-    fetch(`${urls.trainingApiStatus}/${namespaceToUse}`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-    })
-      .then((res) => {
-        console.log("Training status API response status:", res.status);
-        if (!res.ok) throw new Error(`Status API returned ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        console.log("Training status API data:", data);
-        // Reset failure count on success
-        if (failureCount > 0) {
-          console.log(`Resetting failure count from ${failureCount} to 0`);
-          setFailureCount(0);
-        }
-
-        // Store the training data in state
-        console.log("Updating training data in state:", data.data);
-        setTrainingData(data.data);
-
-        // If process is complete or not running, clear the interval
-        if (
-          data.data?.status === "complete" ||
-          data.data?.status === "done" ||
-          data.data?.status === "success" ||
-          data.data?.status === "finished" ||
-          data.data?.status === "not_running"
-        ) {
-          console.log(
-            `Training status is "${data.data?.status}", clearing interval`,
-          );
-          if (trainingInterval) {
-            clearInterval(trainingInterval);
-            setTrainingInterval(null);
-          }
-        }
-      })
-      .catch((err) => {
-        console.error("Error checking training status:", err);
-        // Increment failure count
-        const newFailureCount = failureCount + 1;
-        console.log(`Incrementing failure count to ${newFailureCount}`);
-        setFailureCount(newFailureCount);
-
-        // Stop checking after MAX_FAILURES consecutive failures
-        if (newFailureCount >= MAX_FAILURES) {
-          console.log(
-            `Reached max failures (${MAX_FAILURES}), stopping status checks`,
-          );
-          if (trainingInterval) {
-            clearInterval(trainingInterval);
-            setTrainingInterval(null);
-
-            // Show error message to user
-            setError(
-              <Banner status="critical" onDismiss={() => setError("")}>
-                <p>
-                  Status checking has been paused due to repeated connection
-                  failures.
-                </p>
-                <p>Click "View Status" to try again manually.</p>
-              </Banner>,
-            );
-          }
-        }
-      });
-  }, [apiKey, trainingInterval, namespace, failureCount]);
 
   // Auto-connect when we have an access key
   useEffect(() => {
@@ -943,11 +899,6 @@ export default function Index() {
     }
   };
 
-  // Function to manually refresh status without setting up an interval
-  const handleRefreshStatus = useCallback(() => {
-    checkTrainingStatus();
-  }, [checkTrainingStatus]);
-
   const handleQuickConnect = () => {
     console.log("handleQuickConnect called");
     console.log("Submitting quick_connect action");
@@ -960,10 +911,6 @@ export default function Index() {
       setAccessKey("");
       setNamespace(null);
       setTrainingData(null);
-      if (trainingInterval) {
-        clearInterval(trainingInterval);
-        setTrainingInterval(null);
-      }
 
       // Clear any in-memory data
       if (fetcher) {
@@ -988,7 +935,7 @@ export default function Index() {
     console.log("=== SYNC START: Beginning content sync process ===");
     try {
       setIsSyncing(true);
-      setError(""); // Clear any previous errors
+      setError("");
       console.log("Setting UI state: isSyncing=true");
 
       // Step 1: Initial sync
@@ -1004,6 +951,26 @@ export default function Index() {
       try {
         data = JSON.parse(responseText);
         console.log("Initial sync data parsed successfully");
+
+        // Log the complete data in a clean format
+        console.log("=== COMPLETE SYNC DATA ===");
+        console.log(JSON.stringify(data, null, 2));
+
+        // If there's an error, log it in a more readable format
+        if (data.error) {
+          console.log("=== SYNC ERROR ===");
+          console.log(
+            JSON.stringify(
+              {
+                error: data.error,
+                details: data.details,
+                graphQLErrors: data.graphQLErrors,
+              },
+              null,
+              2,
+            ),
+          );
+        }
       } catch (e) {
         console.error("Failed to parse JSON response:", e);
         throw new Error(`Invalid JSON response: ${responseText}`);
@@ -1026,21 +993,18 @@ export default function Index() {
       // Step 2: Send data to backend
       console.log("Step 2: Sending sync data to backend");
       console.log("Sync data size:", JSON.stringify(data).length, "bytes");
-      const syncResponse = await fetch(
-        `${urls.voiceroApi}/api/shopify/sync`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${accessKey}`,
-          },
-          body: JSON.stringify({
-            fullSync: true,
-            data: data,
-          }),
+      const syncResponse = await fetch(`${urls.voiceroApi}/api/shopify/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${accessKey}`,
         },
-      );
+        body: JSON.stringify({
+          fullSync: true,
+          data: data,
+        }),
+      });
       console.log("Backend sync response status:", syncResponse.status);
 
       if (!syncResponse.ok) {
@@ -1130,110 +1094,201 @@ export default function Index() {
           }`,
         );
       }
-      console.log("Assistant setup completed successfully");
 
-      // Step 5: Start auto-training process
-      console.log("Step 5: Starting auto-training process");
+      const assistantData = await assistantResponse.json();
+      console.log("Assistant response data:", assistantData);
+
+      // Get website ID from the initial sync response
+      const websiteId = data.website?.id;
+      if (!websiteId) {
+        throw new Error("No website ID found in sync response");
+      }
+
+      // After assistant setup, start individual training
+      console.log("Starting individual content training");
       setIsTraining(true);
-      setLoadingText(
-        "Starting auto-training process. This typically takes 10-20 minutes to complete.",
-      );
+      setLoadingText("Starting content training process...");
 
-      // Try different approaches to find the namespace
-      let foundNamespace = null;
-      console.log("Attempting to determine namespace for training");
+      // Calculate total items to train
+      const totalItems = calculateTotalItems(assistantData);
+      let trainedItems = 0;
 
-      // 1. Check from the original data structure
-      if (
-        data &&
-        data.website &&
-        data.website.VectorDbConfig &&
-        data.website.VectorDbConfig.namespace
-      ) {
-        foundNamespace = data.website.VectorDbConfig.namespace;
-        console.log("Found namespace from website data:", foundNamespace);
-        setNamespace(foundNamespace);
-      }
-      // 2. If not in website data, try from assistantResponse
-      else if (assistantResponse && assistantResponse.ok) {
-        try {
-          console.log("Attempting to get namespace from assistant response");
-          const assistantData = await assistantResponse.json();
-          console.log("Assistant response data:", assistantData);
+      // Initialize training state
+      setTrainingData({
+        status: "processing",
+        progress: 0,
+        message: "Preparing to train content...",
+        steps: [],
+        currentCategory: 0,
+        categories: ["products", "pages", "posts", "collections", "discounts"],
+      });
 
-          if (
-            assistantData &&
-            assistantData.website &&
-            assistantData.website.VectorDbConfig
-          ) {
-            foundNamespace = assistantData.website.VectorDbConfig.namespace;
-            console.log("Found namespace from assistant data:", foundNamespace);
-            setNamespace(foundNamespace);
+      // Train products
+      if (assistantData.content.products?.length) {
+        setTrainingData((prev) => ({
+          ...prev,
+          message: "Training products...",
+          currentCategory: 0,
+        }));
+
+        const productCount = getCategoryCount(assistantData, "products");
+        let trainedProducts = 0;
+
+        for (const product of assistantData.content.products) {
+          try {
+            await trainContentItem(accessKey, "product", product);
+            trainedItems++;
+            trainedProducts++;
+            const progress = Math.round((trainedItems / totalItems) * 100);
+            setTrainingData((prev) => ({
+              ...prev,
+              progress,
+              message: `Training products (${trainedProducts}/${productCount}) | Overall: ${trainedItems}/${totalItems}`,
+            }));
+          } catch (error) {
+            console.error("Error training product:", error);
+            // Continue with next item
           }
-        } catch (err) {
-          console.error("Error parsing assistant response:", err);
-          // Handle error silently
         }
       }
 
-      // 3. As a last resort, try to get it from backend directly
-      if (!foundNamespace) {
-        console.log("No namespace found yet, trying backend API directly");
-        try {
-          const websiteResponse = await fetch(
-            `${urls.voiceroApi}/api/connect`,
-            {
-              method: "GET",
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${accessKey}`,
-              },
-            },
-          );
-          console.log("Website API response status:", websiteResponse.status);
+      // Train pages
+      if (assistantData.content.pages?.length) {
+        setTrainingData((prev) => ({
+          ...prev,
+          message: "Training pages...",
+          currentCategory: 1,
+        }));
 
-          if (websiteResponse.ok) {
-            const websiteData = await websiteResponse.json();
-            console.log("Website API data:", websiteData);
+        const pageCount = getCategoryCount(assistantData, "pages");
+        let trainedPages = 0;
 
-            if (
-              websiteData &&
-              websiteData.website &&
-              websiteData.website.VectorDbConfig
-            ) {
-              foundNamespace = websiteData.website.VectorDbConfig.namespace;
-              console.log("Found namespace from website API:", foundNamespace);
-              setNamespace(foundNamespace);
-            } else if (
-              websiteData &&
-              websiteData.website &&
-              websiteData.website.id
-            ) {
-              // Use website ID as namespace as a fallback
-              foundNamespace = websiteData.website.id;
-              console.log(
-                "Using website ID as namespace fallback:",
-                foundNamespace,
-              );
-              setNamespace(foundNamespace);
-            }
+        for (const page of assistantData.content.pages) {
+          try {
+            await trainContentItem(accessKey, "page", page);
+            trainedItems++;
+            trainedPages++;
+            const progress = Math.round((trainedItems / totalItems) * 100);
+            setTrainingData((prev) => ({
+              ...prev,
+              progress,
+              message: `Training pages (${trainedPages}/${pageCount}) | Overall: ${trainedItems}/${totalItems}`,
+            }));
+          } catch (error) {
+            console.error("Error training page:", error);
+            // Continue with next item
           }
-        } catch (err) {
-          console.error("Error fetching website data:", err);
-          // Handle error silently
         }
       }
 
-      if (!foundNamespace) {
-        console.error("No namespace found for auto-training");
-        throw new Error("No namespace found for auto-training");
-      }
-      console.log("Final namespace for training:", foundNamespace);
+      // Train posts
+      if (assistantData.content.posts?.length) {
+        setTrainingData((prev) => ({
+          ...prev,
+          message: "Training posts...",
+          currentCategory: 2,
+        }));
 
-      // Start the auto-training process
-      console.log("Initiating auto-training API call");
-      const autoTrainResponse = await fetch(
-        `${urls.trainingApiAuto}/${foundNamespace}`,
+        const postCount = getCategoryCount(assistantData, "posts");
+        let trainedPosts = 0;
+
+        for (const post of assistantData.content.posts) {
+          try {
+            await trainContentItem(accessKey, "post", post);
+            trainedItems++;
+            trainedPosts++;
+            const progress = Math.round((trainedItems / totalItems) * 100);
+            setTrainingData((prev) => ({
+              ...prev,
+              progress,
+              message: `Training posts (${trainedPosts}/${postCount}) | Overall: ${trainedItems}/${totalItems}`,
+            }));
+          } catch (error) {
+            console.error("Error training post:", error);
+            // Continue with next item
+          }
+        }
+      }
+
+      // Train collections
+      if (assistantData.content.collections?.length) {
+        setTrainingData((prev) => ({
+          ...prev,
+          message: "Training collections...",
+          currentCategory: 3,
+        }));
+
+        const collectionCount = getCategoryCount(assistantData, "collections");
+        let trainedCollections = 0;
+
+        for (const collection of assistantData.content.collections) {
+          try {
+            await trainContentItem(accessKey, "collection", collection);
+            trainedItems++;
+            trainedCollections++;
+            const progress = Math.round((trainedItems / totalItems) * 100);
+            setTrainingData((prev) => ({
+              ...prev,
+              progress,
+              message: `Training collections (${trainedCollections}/${collectionCount}) | Overall: ${trainedItems}/${totalItems}`,
+            }));
+          } catch (error) {
+            console.error("Error training collection:", error);
+            // Continue with next item
+          }
+        }
+      }
+
+      // Train discounts
+      if (assistantData.content.discounts?.length) {
+        setTrainingData((prev) => ({
+          ...prev,
+          message: "Training discounts...",
+          currentCategory: 4,
+        }));
+
+        const discountCount = getCategoryCount(assistantData, "discounts");
+        let trainedDiscounts = 0;
+
+        for (const discount of assistantData.content.discounts) {
+          try {
+            await trainContentItem(accessKey, "discount", discount);
+            trainedItems++;
+            trainedDiscounts++;
+            const progress = Math.round((trainedItems / totalItems) * 100);
+            setTrainingData((prev) => ({
+              ...prev,
+              progress,
+              message: `Training discounts (${trainedDiscounts}/${discountCount}) | Overall: ${trainedItems}/${totalItems}`,
+            }));
+          } catch (error) {
+            console.error("Error training discount:", error);
+            // Continue with next item
+          }
+        }
+      }
+
+      // Training complete
+      setTrainingData((prev) => ({
+        ...prev,
+        status: "success",
+        progress: 100,
+        message: "Training complete! Your AI assistant is ready to use.",
+        currentCategory: 5,
+      }));
+
+      // Step 5: Train general QAs
+      console.log("Step 5: Training general QAs");
+      setLoadingText("Training general QAs...");
+      setTrainingData((prev) => ({
+        ...prev,
+        status: "processing",
+        message: "Training general QAs...",
+        currentCategory: 5,
+      }));
+
+      const generalTrainingResponse = await fetch(
+        `${urls.voiceroApi}/api/shopify/train/general`,
         {
           method: "POST",
           headers: {
@@ -1241,46 +1296,35 @@ export default function Index() {
             Accept: "application/json",
             Authorization: `Bearer ${accessKey}`,
           },
+          body: JSON.stringify({
+            websiteId: websiteId,
+          }),
         },
       );
-      console.log("Auto-training response status:", autoTrainResponse.status);
 
-      if (!autoTrainResponse.ok) {
-        const errorData = await autoTrainResponse.json();
-        console.error("Auto-training error:", errorData);
+      if (!generalTrainingResponse.ok) {
+        const errorData = await generalTrainingResponse.json();
+        console.error("General training error:", errorData);
         throw new Error(
-          `Auto-training initiation error! status: ${autoTrainResponse.status}, details: ${
+          `General training error! status: ${generalTrainingResponse.status}, details: ${
             errorData.error || "unknown error"
           }`,
         );
       }
-      console.log("Auto-training initiated successfully");
 
-      // Clear any existing interval
-      if (trainingInterval) {
-        console.log("Clearing existing training interval");
-        clearInterval(trainingInterval);
-        setTrainingInterval(null);
-      }
+      const generalTrainingData = await generalTrainingResponse.json();
+      console.log("General training response data:", generalTrainingData);
 
-      // Set up new status check interval
-      console.log("Setting up new training status check interval (every 30s)");
-      const newInterval = setInterval(checkTrainingStatus, 30000);
-      setTrainingInterval(newInterval);
+      // Update training data to show completion
+      setTrainingData((prev) => ({
+        ...prev,
+        status: "success",
+        progress: 100,
+        message: "Training complete! Your AI assistant is ready to use.",
+        currentCategory: 6,
+      }));
 
-      // Do an immediate check to update UI
-      console.log("Performing immediate status check");
-      checkTrainingStatus();
-
-      // Show training in progress message
-      setLoadingText(
-        "Auto-training in progress. This typically takes 10-20 minutes to complete. You can now navigate away from this page - the process will continue in the background.",
-      );
-
-      console.log(
-        "Setting final UI state: training=true, success=true, syncing=false",
-      );
-      setIsTraining(true);
+      setLoadingText("Training complete! Your AI assistant is ready to use.");
       setIsSuccess(true);
       setIsSyncing(false);
       console.log("=== SYNC END: All processes completed successfully ===");
@@ -1359,10 +1403,6 @@ export default function Index() {
       setError("");
       console.log("Setting UI state: isDataLoading=true");
 
-      // Reset failure count when manually checking
-      console.log("Resetting failure count to 0");
-      setFailureCount(0);
-
       // Check if we have the namespace
       console.log("Current namespace:", namespace);
       if (!namespace) {
@@ -1370,22 +1410,6 @@ export default function Index() {
         setError("No namespace found. Please connect to your website first.");
         setIsDataLoading(false);
         return;
-      }
-
-      // If interval was stopped due to failures or not_running, restart it for manual check
-      if (!trainingInterval) {
-        console.log("No active interval, performing immediate status check");
-        checkTrainingStatus(); // Do an immediate check
-
-        // Only set up a new interval if the check doesn't immediately return not_running
-        // The interval will be cleared automatically if status is not_running
-        console.log("Setting up new status check interval");
-        const interval = setInterval(checkTrainingStatus, 30000);
-        setTrainingInterval(interval);
-      } else {
-        console.log("Interval already active, performing single status check");
-        // Just do a single check if the interval is already running
-        checkTrainingStatus();
       }
 
       // Show current data in a banner if we have it
@@ -1487,17 +1511,17 @@ export default function Index() {
                 )}
 
                 {/* Only show Refresh Status button if training is still in progress */}
-                {trainingData.status === "processing" && (
-                  <Button onClick={handleRefreshStatus} size="slim">
+                {/* {trainingData.status === "processing" && (
+                  <Button onClick={handleViewStatus} size="slim">
                     Refresh Status
                   </Button>
-                )}
+                )} */}
 
                 {trainingData.status === "processing" && (
                   <Text variant="bodySm">
-                    Note: You can leave this page running and it will continue
-                    to train in the background. At this point you can activate
-                    your assistant by clicking "activate"
+                    Note: Do not close this page while training is in progress.
+                    You can leave the page and do other things, but do not close
+                    it. It will stop the training.
                   </Text>
                 )}
               </BlockStack>
@@ -2064,29 +2088,64 @@ export default function Index() {
                                     </Card>
                                   </div>
 
-                                  <Card padding="400">
-                                    <BlockStack gap="200" align="center">
-                                      <Icon
-                                        source={QuestionCircleIcon}
-                                        color="primary"
-                                        backdrop
-                                        size="large"
-                                      />
-                                      <Text
-                                        variant="headingXl"
-                                        fontWeight="bold"
-                                        alignment="center"
-                                      >
-                                        {
-                                          fetcher.data.websiteData
-                                            .monthlyQueries
-                                        }
-                                      </Text>
-                                      <Text variant="bodySm" alignment="center">
-                                        Monthly Queries
-                                      </Text>
-                                    </BlockStack>
-                                  </Card>
+                                  <div
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns: "1fr 1fr",
+                                      gap: "16px",
+                                    }}
+                                  >
+                                    <Card padding="400">
+                                      <BlockStack gap="200" align="center">
+                                        <Icon
+                                          source={CollectionIcon}
+                                          color="primary"
+                                          backdrop
+                                          size="large"
+                                        />
+                                        <Text
+                                          variant="headingXl"
+                                          fontWeight="bold"
+                                          alignment="center"
+                                        >
+                                          {fetcher.data.websiteData._count
+                                            .collections || 0}
+                                        </Text>
+                                        <Text
+                                          variant="bodySm"
+                                          alignment="center"
+                                        >
+                                          Collections
+                                        </Text>
+                                      </BlockStack>
+                                    </Card>
+                                    <Card padding="400">
+                                      <BlockStack gap="200" align="center">
+                                        <Icon
+                                          source={QuestionCircleIcon}
+                                          color="primary"
+                                          backdrop
+                                          size="large"
+                                        />
+                                        <Text
+                                          variant="headingXl"
+                                          fontWeight="bold"
+                                          alignment="center"
+                                        >
+                                          {
+                                            fetcher.data.websiteData
+                                              .monthlyQueries
+                                          }
+                                        </Text>
+                                        <Text
+                                          variant="bodySm"
+                                          alignment="center"
+                                        >
+                                          Monthly Queries
+                                        </Text>
+                                      </BlockStack>
+                                    </Card>
+                                  </div>
                                 </BlockStack>
                               </Card>
 

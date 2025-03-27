@@ -6,21 +6,12 @@ const urls = {
 
   // Voicero API URLs
   voiceroApi: "http://localhost:3000",
-  newVoiceroApi: "http://localhost:4000",
-
-  // voiceroApi: "https://www.voicero.ai",
-  // newVoiceroApi: "https://www.voicero.ai",
+  newVoiceroApi: "http://localhost:3000",
 
   // Training API URLs
-  // trainingApiBase: "https://5w985cmyf9.execute-api.us-east-2.amazonaws.com",
-  // trainingApiStatus:
-  //   "https://5w985cmyf9.execute-api.us-east-2.amazonaws.com/dev/status",
-  // trainingApiAuto:
-  //   "https://5w985cmyf9.execute-api.us-east-2.amazonaws.com/dev/auto",
-
-    trainingApiBase: "http://localhost:4000",
-    trainingApiStatus: "http://localhost:4000/status",
-    trainingApiAuto: "http://localhost:4000/auto",
+  trainingApiBase: "http://localhost:3000",
+  trainingApiStatus: "http://localhost:3000/api/shopify/train/status",
+  trainingApiAuto: "http://localhost:3000/api/shopify/train",
 };
 
 export default urls;
