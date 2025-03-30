@@ -44,6 +44,16 @@ import urls from "../config/urls";
 
 export const dynamic = "force-dynamic";
 
+// Add these constants at the top of the file after imports
+const AVERAGE_TIMES = {
+  products: 145, // 2:25
+  pages: 100, // 1:40
+  collections: 60, // 1:00
+  discounts: 70, // 1:10
+  posts: 90, // 1:30
+  general: 90, // 1:30
+};
+
 export const loader = async ({ request }) => {
   console.log("=== LOADER START: Initializing app loader ===");
   const { admin } = await authenticate.admin(request);
@@ -658,6 +668,392 @@ async function updateThemeSettings(admin, themeId, accessKey) {
   }
 }
 
+// Add new helper function to check training status
+const checkTrainingStatus = async (
+  accessKey,
+  setUntrainedItems,
+  setItemsInTraining,
+) => {
+  console.log("Checking training status...");
+  const response = await fetch(`${urls.voiceroApi}/api/shopify/train/status`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      `Failed to check training status: ${errorData.error || "Unknown error"}`,
+    );
+  }
+
+  const data = await response.json();
+  console.log("Training status response:", data);
+
+  // Separate items into untrained and in-training
+  const untrained = {
+    products: [],
+    pages: [],
+    blogPosts: [],
+    collections: [],
+    discounts: [],
+  };
+
+  const inTraining = {
+    products: [],
+    pages: [],
+    blogPosts: [],
+    collections: [],
+    discounts: [],
+  };
+
+  // Process each category
+  Object.keys(data).forEach((category) => {
+    data[category].forEach((item) => {
+      if (item.isTraining) {
+        inTraining[category].push(item);
+      } else if (!item.trained) {
+        untrained[category].push(item);
+      }
+    });
+  });
+
+  // Update items in training state
+  setItemsInTraining(inTraining);
+
+  // Check if any items are currently being trained or need training
+  const hasItemsInTraining = Object.values(inTraining).some(
+    (items) => items.length > 0,
+  );
+  const hasUntrainedItems = Object.values(untrained).some(
+    (items) => items.length > 0,
+  );
+
+  // Show training banner if we have either items in training or untrained items
+  if (hasItemsInTraining || hasUntrainedItems) {
+    console.log(
+      "Found items that need training or are in training, setting up training state",
+    );
+    setTrainingData({
+      status: "processing",
+      progress: 0,
+      message: hasItemsInTraining
+        ? "Content training in progress..."
+        : "Content needs training...",
+      steps: [],
+      currentCategory: 0,
+      categories: ["products", "pages", "posts", "collections", "discounts"],
+    });
+    setIsTraining(true);
+
+    // If we have untrained items and no items in training, start the training process
+    if (hasUntrainedItems && !hasItemsInTraining) {
+      console.log("Starting training for untrained items");
+      try {
+        await trainUntrainedItems(
+          fetcher.data.accessKey,
+          untrained,
+          setTrainingData,
+          setUntrainedItems,
+          fetcher.data.websiteData, // Pass websiteData as a parameter
+        );
+      } catch (error) {
+        console.error("Error training untrained items:", error);
+        setError(`Failed to train items: ${error.message}`);
+      }
+    }
+
+    // Set up polling to check status every 15 seconds
+    const pollStatus = async () => {
+      try {
+        const statusResponse = await fetch(
+          `${urls.voiceroApi}/api/shopify/train/status`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${fetcher.data.accessKey}`,
+            },
+          },
+        );
+
+        if (!statusResponse.ok) {
+          throw new Error(
+            `Failed to check training status: ${statusResponse.status}`,
+          );
+        }
+
+        const statusData = await statusResponse.json();
+        console.log("Polling training status:", statusData);
+
+        // Process the status data
+        const polledUntrained = {
+          products: [],
+          pages: [],
+          blogPosts: [],
+          collections: [],
+          discounts: [],
+        };
+
+        const polledInTraining = {
+          products: [],
+          pages: [],
+          blogPosts: [],
+          collections: [],
+          discounts: [],
+        };
+
+        Object.keys(statusData).forEach((category) => {
+          statusData[category].forEach((item) => {
+            if (item.isTraining) {
+              polledInTraining[category].push(item);
+            } else if (!item.trained) {
+              polledUntrained[category].push(item);
+            }
+          });
+        });
+
+        // Update states
+        setItemsInTraining(polledInTraining);
+        setUntrainedItems(polledUntrained);
+
+        // Check if everything is done
+        const stillInTraining = Object.values(polledInTraining).some(
+          (items) => items.length > 0,
+        );
+        const stillUntrained = Object.values(polledUntrained).some(
+          (items) => items.length > 0,
+        );
+
+        if (stillInTraining || stillUntrained) {
+          console.log(
+            "Training still in progress, will poll again in 15 seconds",
+          );
+          setTimeout(pollStatus, 15000);
+        } else {
+          console.log("All items are trained, setting success state");
+          setTrainingData({
+            status: "success",
+            progress: 100,
+            message: `Training complete! Your AI assistant is ready to use. Last synced: ${fetcher.data.websiteData.lastSyncedAt ? new Date(fetcher.data.websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
+            currentCategory: 5,
+          });
+          setIsTraining(false);
+        }
+      } catch (error) {
+        console.error("Error polling training status:", error);
+        setError(`Failed to check training status: ${error.message}`);
+      }
+    };
+
+    // Start polling
+    setTimeout(pollStatus, 15000);
+  } else {
+    // Only set success state if there are no items in training AND no untrained items
+    console.log("All items are trained, setting success state");
+    setTrainingData({
+      status: "success",
+      progress: 100,
+      message: `Training complete! Your AI assistant is ready to use. Last synced: ${fetcher.data.websiteData.lastSyncedAt ? new Date(fetcher.data.websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
+      currentCategory: 5,
+    });
+    setIsTraining(false);
+  }
+
+  // Log the current state
+  console.log("Training state:", {
+    hasItemsInTraining,
+    hasUntrainedItems,
+    inTrainingCounts: Object.fromEntries(
+      Object.entries(inTraining).map(([key, value]) => [key, value.length]),
+    ),
+    untrainedCounts: Object.fromEntries(
+      Object.entries(untrained).map(([key, value]) => [key, value.length]),
+    ),
+  });
+
+  return untrained;
+};
+
+// Modify trainUntrainedItems to accept setTrainingData
+const trainUntrainedItems = async (
+  accessKey,
+  untrainedItems,
+  setTrainingData,
+  setUntrainedItems,
+  websiteData, // Add websiteData parameter
+) => {
+  console.log("Starting to train untrained items:", untrainedItems);
+
+  // Get websiteId from any untrained item (they all belong to the same website)
+  const websiteId =
+    untrainedItems.products?.[0]?.websiteId ||
+    untrainedItems.pages?.[0]?.websiteId ||
+    untrainedItems.blogPosts?.[0]?.websiteId ||
+    untrainedItems.collections?.[0]?.websiteId ||
+    untrainedItems.discounts?.[0]?.websiteId;
+
+  // Check if there are any untrained items
+  const hasUntrainedItems = Object.values(untrainedItems).some(
+    (items) => items.length > 0,
+  );
+
+  // Initialize training state
+  setTrainingData({
+    status: "processing",
+    progress: 0,
+    message: "Starting training of all content...",
+    steps: [],
+    currentCategory: 0,
+    categories: ["products", "pages", "posts", "collections", "discounts"],
+  });
+
+  let totalItems = 0;
+  Object.values(untrainedItems).forEach((items) => {
+    totalItems += items.length;
+  });
+  // Add 1 for general training if needed
+  if (hasUntrainedItems && websiteId) {
+    totalItems += 1;
+  }
+
+  try {
+    // Create arrays of promises for each category
+    const trainingPromises = [];
+    let itemsStarted = 0;
+
+    // Add product training promises
+    untrainedItems.products?.forEach((product) => {
+      trainingPromises.push(
+        trainContentItem(accessKey, "product", product).then(() => {
+          itemsStarted++;
+          const progress = Math.round((itemsStarted / totalItems) * 100);
+          setTrainingData((prev) => ({
+            ...prev,
+            progress,
+            message: `Training in progress: ${itemsStarted}/${totalItems} items complete`,
+          }));
+        }),
+      );
+    });
+
+    // Add page training promises
+    untrainedItems.pages?.forEach((page) => {
+      trainingPromises.push(
+        trainContentItem(accessKey, "page", page).then(() => {
+          itemsStarted++;
+          const progress = Math.round((itemsStarted / totalItems) * 100);
+          setTrainingData((prev) => ({
+            ...prev,
+            progress,
+            message: `Training in progress: ${itemsStarted}/${totalItems} items complete`,
+          }));
+        }),
+      );
+    });
+
+    // Add blog post training promises
+    untrainedItems.blogPosts?.forEach((post) => {
+      trainingPromises.push(
+        trainContentItem(accessKey, "post", post).then(() => {
+          itemsStarted++;
+          const progress = Math.round((itemsStarted / totalItems) * 100);
+          setTrainingData((prev) => ({
+            ...prev,
+            progress,
+            message: `Training in progress: ${itemsStarted}/${totalItems} items complete`,
+          }));
+        }),
+      );
+    });
+
+    // Add collection training promises
+    untrainedItems.collections?.forEach((collection) => {
+      trainingPromises.push(
+        trainContentItem(accessKey, "collection", collection).then(() => {
+          itemsStarted++;
+          const progress = Math.round((itemsStarted / totalItems) * 100);
+          setTrainingData((prev) => ({
+            ...prev,
+            progress,
+            message: `Training in progress: ${itemsStarted}/${totalItems} items complete`,
+          }));
+        }),
+      );
+    });
+
+    // Add discount training promises
+    untrainedItems.discounts?.forEach((discount) => {
+      trainingPromises.push(
+        trainContentItem(accessKey, "discount", discount).then(() => {
+          itemsStarted++;
+          const progress = Math.round((itemsStarted / totalItems) * 100);
+          setTrainingData((prev) => ({
+            ...prev,
+            progress,
+            message: `Training in progress: ${itemsStarted}/${totalItems} items complete`,
+          }));
+        }),
+      );
+    });
+
+    // Wait for all training promises to complete
+    await Promise.all(trainingPromises);
+
+    // After all individual items are trained, train general if needed
+    if (hasUntrainedItems && websiteId) {
+      setTrainingData((prev) => ({
+        ...prev,
+        message: "Training general QAs...",
+        progress: 95,
+      }));
+
+      await fetch(`${urls.voiceroApi}/api/shopify/train/general`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${accessKey}`,
+        },
+        body: JSON.stringify({
+          websiteId: websiteId,
+        }),
+      });
+    }
+
+    // Clear all untrained items since training is complete
+    setUntrainedItems({
+      products: [],
+      pages: [],
+      blogPosts: [],
+      collections: [],
+      discounts: [],
+    });
+
+    // Set final success state
+    setTrainingData((prev) => ({
+      ...prev,
+      status: "success",
+      progress: 100,
+      message: `Training complete! Your AI assistant is ready to use. Last synced: ${websiteData?.lastSyncedAt ? new Date(websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
+      currentCategory: 5,
+    }));
+  } catch (error) {
+    console.error("Error during parallel training:", error);
+    setTrainingData((prev) => ({
+      ...prev,
+      status: "error",
+      message: `Training error: ${error.message}`,
+    }));
+    throw error;
+  }
+};
+
 // Add new helper function for training individual content
 const trainContentItem = async (accessKey, contentType, item) => {
   console.log(`Training ${contentType} item:`, item);
@@ -691,27 +1087,193 @@ const trainContentItem = async (accessKey, contentType, item) => {
 
 // Helper to calculate total items
 const calculateTotalItems = (data) => {
-  if (!data || !data.content) return 0;
+  if (!data) return 0;
   const counts = {
-    products: data.content.products?.length || 0,
-    pages: data.content.pages?.length || 0,
-    posts: data.content.posts?.length || 0,
-    collections: data.content.collections?.length || 0,
-    discounts: data.content.discounts?.length || 0,
+    products: data.products?.length || 0,
+    pages: data.pages?.length || 0,
+    blogPosts: data.blogPosts?.length || 0,
+    collections: data.collections?.length || 0,
+    discounts: data.discounts?.length || 0,
   };
-  // Add 1 for general training step
-  return Object.values(counts).reduce((a, b) => a + b, 0) + 1;
+  return Object.values(counts).reduce((a, b) => a + b, 0);
 };
 
-// Add helper function to get category count
-const getCategoryCount = (data, category) => {
-  if (!data?.content?.[category]) return 0;
-  return data.content[category].length;
+// Helper to calculate untrained items
+const calculateUntrainedItems = (data) => {
+  if (!data) return 0;
+  let untrainedCount = 0;
+
+  // Count untrained items in each category
+  Object.values(data).forEach((category) => {
+    if (Array.isArray(category)) {
+      untrainedCount += category.filter(
+        (item) => !item.trained && !item.isTraining,
+      ).length;
+    }
+  });
+
+  return untrainedCount;
+};
+
+// Add this helper function
+const calculateEstimatedTime = (untrainedItems, currentCategory) => {
+  // Get counts of untrained items for each category
+  const counts = {
+    products: untrainedItems.products?.length || 0,
+    pages: untrainedItems.pages?.length || 0,
+    blogPosts: untrainedItems.blogPosts?.length || 0,
+    collections: untrainedItems.collections?.length || 0,
+    discounts: untrainedItems.discounts?.length || 0,
+  };
+
+  // Calculate total items
+  const totalItems = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  // If no items, return 0
+  if (totalItems === 0) return 0;
+
+  // Find the category with the most items
+  let maxItems = 0;
+  let maxCategory = null;
+  Object.entries(counts).forEach(([category, count]) => {
+    if (count > maxItems) {
+      maxItems = count;
+      maxCategory = category;
+    }
+  });
+
+  // Get the time for the category with most items
+  let baseTime = AVERAGE_TIMES[maxCategory];
+
+  // If we have more than one category with items, add the time for the second largest category
+  const categoriesWithItems = Object.entries(counts)
+    .filter(([_, count]) => count > 0)
+    .sort(([_, a], [__, b]) => b - a);
+
+  if (categoriesWithItems.length > 1) {
+    const secondLargestCategory = categoriesWithItems[1][0];
+    baseTime += AVERAGE_TIMES[secondLargestCategory];
+  }
+
+  // Add general training time if we have any items
+  if (totalItems > 0) {
+    baseTime += AVERAGE_TIMES.general;
+  }
+
+  return baseTime;
+};
+
+// Add this helper function
+const formatTimeRemaining = (seconds) => {
+  // If seconds is 0 or negative, return "Calculating..."
+  if (seconds <= 0) return "Calculating...";
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (minutes === 0) {
+    return `${remainingSeconds} seconds`;
+  } else if (minutes === 1) {
+    return `${minutes} minute ${remainingSeconds} seconds`;
+  } else {
+    return `${minutes} minutes ${remainingSeconds} seconds`;
+  }
 };
 
 export default function Index() {
   const { savedKey } = useLoaderData();
   const navigate = useNavigate();
+
+  // Group all state declarations together at the top
+  const [accessKey, setAccessKey] = useState(savedKey || "");
+  const [trainingData, setTrainingData] = useState(null);
+  const [untrainedItems, setUntrainedItems] = useState({
+    products: [],
+    pages: [],
+    blogPosts: [],
+    collections: [],
+    discounts: [],
+  });
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [error, setError] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
+  const [namespace, setNamespace] = useState(null);
+  const [itemsInTraining, setItemsInTraining] = useState({
+    products: [],
+    pages: [],
+    blogPosts: [],
+    collections: [],
+    discounts: [],
+  });
+
+  // State for UI and data
+  const fetcher = useFetcher();
+  const app = useAppBridge();
+  const isLoading = fetcher.state === "submitting";
+
+  // Helper to get training progress
+  const getTrainingProgress = useCallback(() => {
+    // If we have training data with a progress value, use it
+    if (trainingData?.progress) {
+      const progressValue = parseInt(trainingData.progress);
+      if (!isNaN(progressValue)) {
+        return progressValue;
+      }
+    }
+
+    // Calculate progress based on untrained items and items in training
+    const totalItems =
+      calculateTotalItems(untrainedItems) +
+      calculateTotalItems(itemsInTraining);
+    const remainingItems = calculateUntrainedItems(untrainedItems);
+
+    if (totalItems === 0) return 0;
+
+    // Calculate progress percentage
+    const progress = Math.round(
+      ((totalItems - remainingItems) / totalItems) * 100,
+    );
+
+    // Ensure progress is between 0 and 100
+    return Math.min(Math.max(progress, 0), 100);
+  }, [trainingData, untrainedItems, itemsInTraining]);
+
+  // Add useEffect to update time remaining
+  useEffect(() => {
+    if (trainingData?.status === "processing") {
+      // Calculate initial remaining time
+      let remainingTime = calculateEstimatedTime(
+        untrainedItems,
+        trainingData.currentCategory,
+      );
+
+      // Set initial time remaining
+      setTimeRemaining(remainingTime);
+
+      // Only start the countdown if we have a valid remaining time
+      if (remainingTime > 0) {
+        const updateTime = () => {
+          setTimeRemaining((prevTime) => {
+            if (prevTime <= 0) return 0;
+            return prevTime - 1;
+          });
+        };
+
+        // Update every second
+        const interval = setInterval(updateTime, 1000);
+
+        return () => clearInterval(interval);
+      }
+    } else {
+      // Reset time remaining when not processing
+      setTimeRemaining(0);
+    }
+  }, [trainingData?.status, trainingData?.currentCategory, untrainedItems]);
 
   // Check for access_key in URL
   useEffect(() => {
@@ -731,31 +1293,243 @@ export default function Index() {
     }
   }, []);
 
-  // State to track active training process
-  const [trainingData, setTrainingData] = useState(null);
   // Get API key from saved key (from loader data)
   const apiKey = savedKey;
 
-  // State for UI and data
-  const [accessKey, setAccessKey] = useState(savedKey || "");
-  const fetcher = useFetcher();
-  const app = useAppBridge();
-  const isLoading = fetcher.state === "submitting";
-  const [error, setError] = useState(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(false);
-  const [loadingText, setLoadingText] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isTraining, setIsTraining] = useState(false);
-  const [namespace, setNamespace] = useState(null);
-
-  // Handle successful connection response
+  // Modify the useEffect that handles successful connection
   useEffect(() => {
     console.log("useEffect: handling fetcher.data response");
     if (fetcher.data?.success && fetcher.data.accessKey) {
       console.log("Successful connection, setting access key");
       setAccessKey(fetcher.data.accessKey);
+
+      // Only check status on initial load
+      const checkInitialStatus = async () => {
+        try {
+          const response = await fetch(
+            `${urls.voiceroApi}/api/shopify/train/status`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                Authorization: `Bearer ${fetcher.data.accessKey}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to check training status: ${response.status}`,
+            );
+          }
+
+          const data = await response.json();
+          console.log("Initial training status response:", data);
+
+          // Separate items into untrained and in-training
+          const untrained = {
+            products: [],
+            pages: [],
+            blogPosts: [],
+            collections: [],
+            discounts: [],
+          };
+
+          const inTraining = {
+            products: [],
+            pages: [],
+            blogPosts: [],
+            collections: [],
+            discounts: [],
+          };
+
+          // Process each category
+          Object.keys(data).forEach((category) => {
+            data[category].forEach((item) => {
+              if (item.isTraining) {
+                inTraining[category].push(item);
+              } else if (!item.trained) {
+                untrained[category].push(item);
+              }
+            });
+          });
+
+          // Update items in training state
+          setItemsInTraining(inTraining);
+          setUntrainedItems(untrained);
+
+          // Check if any items are currently being trained or need training
+          const hasItemsInTraining = Object.values(inTraining).some(
+            (items) => items.length > 0,
+          );
+          const hasUntrainedItems = Object.values(untrained).some(
+            (items) => items.length > 0,
+          );
+
+          // Show training banner if we have either items in training or untrained items
+          if (hasItemsInTraining || hasUntrainedItems) {
+            console.log(
+              "Found items that need training or are in training, setting up training state",
+            );
+            setTrainingData({
+              status: "processing",
+              progress: 0,
+              message: hasItemsInTraining
+                ? "Content training in progress..."
+                : "Content needs training...",
+              steps: [],
+              currentCategory: 0,
+              categories: [
+                "products",
+                "pages",
+                "posts",
+                "collections",
+                "discounts",
+              ],
+            });
+            setIsTraining(true);
+
+            // If we have untrained items and no items in training, start the training process
+            if (hasUntrainedItems && !hasItemsInTraining) {
+              console.log("Starting training for untrained items");
+              try {
+                await trainUntrainedItems(
+                  fetcher.data.accessKey,
+                  untrained,
+                  setTrainingData,
+                  setUntrainedItems,
+                  fetcher.data.websiteData, // Pass websiteData as a parameter
+                );
+              } catch (error) {
+                console.error("Error training untrained items:", error);
+                setError(`Failed to train items: ${error.message}`);
+              }
+            }
+
+            // Set up polling to check status every 15 seconds
+            const pollStatus = async () => {
+              try {
+                const statusResponse = await fetch(
+                  `${urls.voiceroApi}/api/shopify/train/status`,
+                  {
+                    method: "GET",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Accept: "application/json",
+                      Authorization: `Bearer ${fetcher.data.accessKey}`,
+                    },
+                  },
+                );
+
+                if (!statusResponse.ok) {
+                  throw new Error(
+                    `Failed to check training status: ${statusResponse.status}`,
+                  );
+                }
+
+                const statusData = await statusResponse.json();
+                console.log("Polling training status:", statusData);
+
+                // Process the status data
+                const polledUntrained = {
+                  products: [],
+                  pages: [],
+                  blogPosts: [],
+                  collections: [],
+                  discounts: [],
+                };
+
+                const polledInTraining = {
+                  products: [],
+                  pages: [],
+                  blogPosts: [],
+                  collections: [],
+                  discounts: [],
+                };
+
+                Object.keys(statusData).forEach((category) => {
+                  statusData[category].forEach((item) => {
+                    if (item.isTraining) {
+                      polledInTraining[category].push(item);
+                    } else if (!item.trained) {
+                      polledUntrained[category].push(item);
+                    }
+                  });
+                });
+
+                // Update states
+                setItemsInTraining(polledInTraining);
+                setUntrainedItems(polledUntrained);
+
+                // Check if everything is done
+                const stillInTraining = Object.values(polledInTraining).some(
+                  (items) => items.length > 0,
+                );
+                const stillUntrained = Object.values(polledUntrained).some(
+                  (items) => items.length > 0,
+                );
+
+                if (stillInTraining || stillUntrained) {
+                  console.log(
+                    "Training still in progress, will poll again in 15 seconds",
+                  );
+                  setTimeout(pollStatus, 15000);
+                } else {
+                  console.log("All items are trained, setting success state");
+                  setTrainingData({
+                    status: "success",
+                    progress: 100,
+                    message: `Training complete! Your AI assistant is ready to use. Last synced: ${fetcher.data.websiteData.lastSyncedAt ? new Date(fetcher.data.websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
+                    currentCategory: 5,
+                  });
+                  setIsTraining(false);
+                }
+              } catch (error) {
+                console.error("Error polling training status:", error);
+                setError(`Failed to check training status: ${error.message}`);
+              }
+            };
+
+            // Start polling
+            setTimeout(pollStatus, 15000);
+          } else {
+            // Only set success state if there are no items in training AND no untrained items
+            console.log("All items are trained, setting success state");
+            setTrainingData({
+              status: "success",
+              progress: 100,
+              message: `Training complete! Your AI assistant is ready to use. Last synced: ${fetcher.data.websiteData.lastSyncedAt ? new Date(fetcher.data.websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
+              currentCategory: 5,
+            });
+            setIsTraining(false);
+          }
+
+          // Log the current state
+          console.log("Training state:", {
+            hasItemsInTraining,
+            hasUntrainedItems,
+            inTrainingCounts: Object.fromEntries(
+              Object.entries(inTraining).map(([key, value]) => [
+                key,
+                value.length,
+              ]),
+            ),
+            untrainedCounts: Object.fromEntries(
+              Object.entries(untrained).map(([key, value]) => [
+                key,
+                value.length,
+              ]),
+            ),
+          });
+        } catch (error) {
+          console.error("Error checking initial training status:", error);
+          setError(`Failed to check training status: ${error.message}`);
+        }
+      };
+
+      // Only check status once on initial load
+      checkInitialStatus();
     }
 
     // Check if we got a response with namespace data
@@ -1098,20 +1872,16 @@ export default function Index() {
       const assistantData = await assistantResponse.json();
       console.log("Assistant response data:", assistantData);
 
-      // Get website ID from the initial sync response
-      const websiteId = data.website?.id;
+      // Get website ID from the assistant response
+      const websiteId = assistantData.websiteId;
       if (!websiteId) {
-        throw new Error("No website ID found in sync response");
+        throw new Error("No website ID found in assistant response");
       }
 
       // After assistant setup, start individual training
       console.log("Starting individual content training");
       setIsTraining(true);
       setLoadingText("Starting content training process...");
-
-      // Calculate total items to train
-      const totalItems = calculateTotalItems(assistantData);
-      let trainedItems = 0;
 
       // Initialize training state
       setTrainingData({
@@ -1123,159 +1893,14 @@ export default function Index() {
         categories: ["products", "pages", "posts", "collections", "discounts"],
       });
 
-      // Train products
-      if (assistantData.content.products?.length) {
-        setTrainingData((prev) => ({
-          ...prev,
-          message: "Training products...",
-          currentCategory: 0,
-        }));
-
-        const productCount = getCategoryCount(assistantData, "products");
-        let trainedProducts = 0;
-
-        for (const product of assistantData.content.products) {
-          try {
-            await trainContentItem(accessKey, "product", product);
-            trainedItems++;
-            trainedProducts++;
-            const progress = Math.round((trainedItems / totalItems) * 100);
-            setTrainingData((prev) => ({
-              ...prev,
-              progress,
-              message: `Training products (${trainedProducts}/${productCount}) | Overall: ${trainedItems}/${totalItems}`,
-            }));
-          } catch (error) {
-            console.error("Error training product:", error);
-            // Continue with next item
-          }
-        }
-      }
-
-      // Train pages
-      if (assistantData.content.pages?.length) {
-        setTrainingData((prev) => ({
-          ...prev,
-          message: "Training pages...",
-          currentCategory: 1,
-        }));
-
-        const pageCount = getCategoryCount(assistantData, "pages");
-        let trainedPages = 0;
-
-        for (const page of assistantData.content.pages) {
-          try {
-            await trainContentItem(accessKey, "page", page);
-            trainedItems++;
-            trainedPages++;
-            const progress = Math.round((trainedItems / totalItems) * 100);
-            setTrainingData((prev) => ({
-              ...prev,
-              progress,
-              message: `Training pages (${trainedPages}/${pageCount}) | Overall: ${trainedItems}/${totalItems}`,
-            }));
-          } catch (error) {
-            console.error("Error training page:", error);
-            // Continue with next item
-          }
-        }
-      }
-
-      // Train posts
-      if (assistantData.content.posts?.length) {
-        setTrainingData((prev) => ({
-          ...prev,
-          message: "Training posts...",
-          currentCategory: 2,
-        }));
-
-        const postCount = getCategoryCount(assistantData, "posts");
-        let trainedPosts = 0;
-
-        for (const post of assistantData.content.posts) {
-          try {
-            await trainContentItem(accessKey, "post", post);
-            trainedItems++;
-            trainedPosts++;
-            const progress = Math.round((trainedItems / totalItems) * 100);
-            setTrainingData((prev) => ({
-              ...prev,
-              progress,
-              message: `Training posts (${trainedPosts}/${postCount}) | Overall: ${trainedItems}/${totalItems}`,
-            }));
-          } catch (error) {
-            console.error("Error training post:", error);
-            // Continue with next item
-          }
-        }
-      }
-
-      // Train collections
-      if (assistantData.content.collections?.length) {
-        setTrainingData((prev) => ({
-          ...prev,
-          message: "Training collections...",
-          currentCategory: 3,
-        }));
-
-        const collectionCount = getCategoryCount(assistantData, "collections");
-        let trainedCollections = 0;
-
-        for (const collection of assistantData.content.collections) {
-          try {
-            await trainContentItem(accessKey, "collection", collection);
-            trainedItems++;
-            trainedCollections++;
-            const progress = Math.round((trainedItems / totalItems) * 100);
-            setTrainingData((prev) => ({
-              ...prev,
-              progress,
-              message: `Training collections (${trainedCollections}/${collectionCount}) | Overall: ${trainedItems}/${totalItems}`,
-            }));
-          } catch (error) {
-            console.error("Error training collection:", error);
-            // Continue with next item
-          }
-        }
-      }
-
-      // Train discounts
-      if (assistantData.content.discounts?.length) {
-        setTrainingData((prev) => ({
-          ...prev,
-          message: "Training discounts...",
-          currentCategory: 4,
-        }));
-
-        const discountCount = getCategoryCount(assistantData, "discounts");
-        let trainedDiscounts = 0;
-
-        for (const discount of assistantData.content.discounts) {
-          try {
-            await trainContentItem(accessKey, "discount", discount);
-            trainedItems++;
-            trainedDiscounts++;
-            const progress = Math.round((trainedItems / totalItems) * 100);
-            setTrainingData((prev) => ({
-              ...prev,
-              progress,
-              message: `Training discounts (${trainedDiscounts}/${discountCount}) | Overall: ${trainedItems}/${totalItems}`,
-            }));
-          } catch (error) {
-            console.error("Error training discount:", error);
-            // Continue with next item
-          }
-        }
-      }
-
-      // Training complete
-      setTrainingData((prev) => ({
-        ...prev,
-        status: "success",
-        progress: 100,
-        message: "Training complete! Your AI assistant is ready to use.",
-        currentCategory: 5,
-      }));
+      // Use the parallel training approach
+      await trainUntrainedItems(
+        accessKey,
+        assistantData.content,
+        setTrainingData,
+        setUntrainedItems,
+        assistantData.website,
+      );
 
       // Step 5: Train general QAs
       console.log("Step 5: Training general QAs");
@@ -1320,7 +1945,7 @@ export default function Index() {
         ...prev,
         status: "success",
         progress: 100,
-        message: "Training complete! Your AI assistant is ready to use.",
+        message: `Training complete! Your AI assistant is ready to use. Last synced: ${fetcher.data.websiteData.lastSyncedAt ? new Date(fetcher.data.websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
         currentCategory: 6,
       }));
 
@@ -1339,26 +1964,6 @@ export default function Index() {
       console.log("=== SYNC END: Process failed with error ===");
     }
   };
-
-  // Helper to get training progress
-  const getTrainingProgress = useCallback(() => {
-    if (!trainingData) return 0;
-
-    // Use progress directly if available
-    if (trainingData.progress) {
-      const progressValue = parseInt(trainingData.progress);
-      if (!isNaN(progressValue)) {
-        return progressValue;
-      }
-    }
-
-    // Fall back to category calculation if available
-    const { currentCategory, categories } = trainingData;
-    if (currentCategory === undefined || !categories || !categories.length)
-      return 0;
-
-    return Math.round((currentCategory / categories.length) * 100);
-  }, [trainingData]);
 
   // Helper to get formatted training status message
   const getTrainingStatusMessage = useCallback(() => {
@@ -1471,6 +2076,8 @@ export default function Index() {
                   <>
                     <Text>{getTrainingStatusMessage()}</Text>
 
+                    {/* Show items currently being trained */}
+
                     {/* Progress bar */}
                     <div style={{ width: "100%", marginTop: "8px" }}>
                       <div
@@ -1496,9 +2103,10 @@ export default function Index() {
                       </Text>
                     </div>
 
-                    {/* Last updated timestamp */}
+                    {/* Estimated time remaining */}
                     <Text variant="bodySm">
-                      Last checked: {new Date().toLocaleTimeString()}
+                      Estimated time remaining:{" "}
+                      {formatTimeRemaining(timeRemaining)}
                     </Text>
                   </>
                 )}
@@ -1506,7 +2114,12 @@ export default function Index() {
                 {trainingData.status !== "processing" && (
                   <Text>
                     Your AI assistant has completed training and is ready to
-                    use!
+                    use! Last synced:{" "}
+                    {fetcher.data?.websiteData?.lastSyncedAt
+                      ? new Date(
+                          fetcher.data.websiteData.lastSyncedAt,
+                        ).toLocaleString()
+                      : "Never"}
                   </Text>
                 )}
 
@@ -1520,8 +2133,9 @@ export default function Index() {
                 {trainingData.status === "processing" && (
                   <Text variant="bodySm">
                     Note: Do not close this page while training is in progress.
-                    You can leave the page and do other things, but do not close
-                    it. It will stop the training.
+                    If you do it will pause the current training and will start
+                    again once you open the app again from where you left. You
+                    can leave the page and do other things, but do not close it.
                   </Text>
                 )}
               </BlockStack>

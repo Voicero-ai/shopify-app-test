@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "025df740c8a79a0853a7939da465efb0"
-application_url = "https://walking-expired-shepherd-gross.trycloudflare.com"
+application_url = "https://factors-pool-consulting-blind.trycloudflare.com"
 embedded = true
 name = "voicero-app-shop-test"
 handle = "voicero-app-shop-test"
@@ -31,9 +31,9 @@ scopes = "read_content,read_products,read_discounts,write_content,read_metaobjec
 
 [auth]
 redirect_urls = [
-  "https://walking-expired-shepherd-gross.trycloudflare.com/auth/callback",
-  "https://walking-expired-shepherd-gross.trycloudflare.com/auth/shopify/callback",
-  "https://walking-expired-shepherd-gross.trycloudflare.com/api/auth/callback"
+  "https://factors-pool-consulting-blind.trycloudflare.com/auth/callback",
+  "https://factors-pool-consulting-blind.trycloudflare.com/auth/shopify/callback",
+  "https://factors-pool-consulting-blind.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
