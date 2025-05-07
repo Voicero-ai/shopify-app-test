@@ -1,5 +1,5 @@
 {
-  "name": "voicero-app-shop",
+  "name": "voicero-app-shop-test",
   "private": true,
   "scripts": {
     "build": "remix vite:build",
@@ -31,7 +31,6 @@
     "@remix-run/node": "^2.15.0",
     "@remix-run/react": "^2.15.0",
     "@remix-run/serve": "^2.15.0",
-    "@shopify/app-bridge": "^3.7.10",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^12.0.0",
     "@shopify/shopify-app-remix": "^3.7.0",
@@ -50,11 +49,8 @@
     "@types/node": "^22.2.0",
     "@types/react": "^18.2.31",
     "@types/react-dom": "^18.2.14",
-    "@vercel/remix": "^2.15.3",
-    "dotenv": "^16.4.7",
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^10.0.1",
-    "node-fetch": "^3.3.2",
     "prettier": "^3.2.4",
     "typescript": "^5.2.2",
     "vite": "^5.1.3"
