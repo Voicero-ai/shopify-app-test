@@ -6,17 +6,12 @@ export const dynamic = "force-dynamic";
 export async function action({ request }) {
   const { admin, session } = await authenticate.admin(request);
 
-  console.log("=== QUICK CONNECT CALLBACK START ===");
 
   try {
     // Parse the form data from the request
     const formData = await request.formData();
     const accessKey = formData.get("access_key");
 
-    console.log(
-      "Received access key from quick connect flow:",
-      accessKey ? "yes (hidden)" : "no",
-    );
 
     if (!accessKey) {
       console.error("No access key received in callback");

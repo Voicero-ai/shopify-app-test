@@ -113,6 +113,9 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
   const action = formData.get("action");
 
+  // Log received form data
+  
+
   // Get access key from metafields
   const metafieldResponse = await admin.graphql(`
     query {
@@ -144,6 +147,8 @@ export const action = async ({ request }) => {
       const name = formData.get("name");
       const url = formData.get("url");
       const customInstructions = formData.get("customInstructions");
+      const color = formData.get("color");
+
 
       // Prepare the update payload
       const updates = {
@@ -152,7 +157,9 @@ export const action = async ({ request }) => {
         customInstructions,
         popUpQuestions,
         active,
+        color,
       };
+
 
       // Call the editInfoFromShopify API
       const response = await fetch(
@@ -225,6 +232,7 @@ export default function SettingsPage() {
     customInstructions: websiteData?.customInstructions || "",
     popUpQuestions: websiteData?.popUpQuestions || [],
     active: websiteData?.active || false,
+    color: websiteData?.color || "#000000",
   });
 
   const [isEditingQuestions, setIsEditingQuestions] = useState(false);
@@ -250,8 +258,10 @@ export default function SettingsPage() {
       customInstructions: formData.customInstructions,
       popUpQuestions: JSON.stringify(formData.popUpQuestions),
       active: formData.active.toString(),
+      color: formData.color,
       // Explicitly exclude lastSyncedAt to preserve its value on the server
     };
+
 
     fetcher.submit(dataToSubmit, { method: "POST" });
     setIsEditing(false);
@@ -347,6 +357,7 @@ export default function SettingsPage() {
           customInstructions: fetcher.data.data.customInstructions || "",
           popUpQuestions: fetcher.data.data.popUpQuestions || [],
           active: fetcher.data.data.active || false,
+          color: fetcher.data.data.color || "#000000",
         });
         setQuestions(fetcher.data.data.popUpQuestions || []);
       }
@@ -500,6 +511,16 @@ export default function SettingsPage() {
                       multiline={4}
                       disabled={!isEditing}
                       helpText="Provide custom instructions for your AI assistant to better serve your customers"
+                    />
+                    <TextField
+                      label="Assistant Color"
+                      value={formData.color}
+                      onChange={(value) =>
+                        setFormData({ ...formData, color: value })
+                      }
+                      disabled={!isEditing}
+                      type="color"
+                      helpText="Choose a color for your AI assistant"
                     />
                   </BlockStack>
                 </BlockStack>

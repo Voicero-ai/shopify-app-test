@@ -16,6 +16,7 @@ import {
   Icon,
   Badge,
   Grid,
+  TextField,
 } from "@shopify/polaris";
 import {
   HomeIcon,
@@ -393,6 +394,27 @@ export default function WebsitePage() {
                         <Text as="p">No pop-up questions configured</Text>
                       </Card>
                     )}
+                  </BlockStack>
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodyMd" fontWeight="bold">
+                      Assistant Color:
+                    </Text>
+                    <Card padding="400">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" variant="bodyMd">
+                          {websiteData.color || "#000000"}
+                        </Text>
+                        <Box
+                          style={{
+                            backgroundColor: websiteData.color || "#000000",
+                            width: "24px",
+                            height: "24px",
+                            borderRadius: "var(--p-border-radius-100)",
+                            border: "1px solid var(--p-color-border)",
+                          }}
+                        />
+                      </InlineStack>
+                    </Card>
                   </BlockStack>
                 </BlockStack>
               </BlockStack>

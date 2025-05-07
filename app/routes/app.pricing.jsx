@@ -32,13 +32,9 @@ import {
 import { authenticate } from "../shopify.server";
 import urls from "../config/urls";
 
-// Add the RECURRING_INTERVAL constant
-const RECURRING_INTERVAL = {
-  EVERY_30_DAYS: "EVERY_30_DAYS",
-};
-
 export const loader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  const { shop } = session;
 
   // Get Shopify subscription status
   const response = await admin.graphql(`
@@ -100,6 +96,7 @@ export const loader = async ({ request }) => {
       isPro: !!activePaidSubscription,
       currentPlan: activePaidSubscription ? "Pro Plan" : "Basic Plan",
       subscriptionEnds: activePaidSubscription?.currentPeriodEnd,
+      shop,
     });
   }
 
@@ -154,211 +151,28 @@ export const loader = async ({ request }) => {
     isPro: !!activePaidSubscription,
     currentPlan: activePaidSubscription ? "Pro Plan" : "Basic Plan",
     subscriptionEnds: activePaidSubscription?.currentPeriodEnd,
+    shop,
   });
 };
 
 export const action = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const { shop } = session;
 
   try {
-    const formData = await request.formData();
-    const planType = formData.get("planType");
-
-    // Define plan details
-    const planDetails = {
-      basic: {
-        name: "Basic Plan",
-        price: 0,
-        trialDays: 0,
-      },
-      premium: {
-        name: "Pro Plan",
-        price: 40,
-        trialDays: 0,
-      },
-    };
-
-    const plan = planDetails[planType];
-
-    // For the basic plan (free), we need to handle it differently
-    if (planType === "basic") {
-      // First, check if there are any active subscriptions
-      const response = await admin.graphql(`
-        query {
-          appInstallation {
-            activeSubscriptions {
-              id
-              status
-            }
-          }
-        }
-      `);
-
-      const data = await response.json();
-      const activeSubscriptions = data.data.appInstallation.activeSubscriptions;
-
-      // If there are active subscriptions, cancel them
-      if (activeSubscriptions.length > 0) {
-        for (const subscription of activeSubscriptions) {
-          if (subscription.status === "ACTIVE") {
-            await admin.graphql(`
-              mutation {
-                appSubscriptionCancel(
-                  id: "${subscription.id}"
-                ) {
-                  appSubscription {
-                    id
-                    status
-                  }
-                  userErrors {
-                    field
-                    message
-                  }
-                }
-              }
-            `);
-          }
-        }
-      }
-
-      // Update the metafield to indicate the plan change
-      try {
-        await admin.graphql(`
-          mutation {
-            metafieldSet(
-              metafield: {
-                namespace: "voicero",
-                key: "plan",
-                value: "Basic",
-                type: "single_line_text_field"
-              }
-            ) {
-              metafield {
-                id
-                value
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `);
-      } catch (error) {
-        console.error("Error updating plan metafield:", error);
-      }
-
-      // Get the access key from metafields
-      const metafieldResponse = await admin.graphql(`
-        query {
-          shop {
-            metafield(namespace: "voicero", key: "access_key") {
-              value
-            }
-          }
-        }
-      `);
-
-      const metafieldData = await metafieldResponse.json();
-      const accessKey = metafieldData.data.shop.metafield?.value;
-
-      // If we have an access key, update the API plan
-      if (accessKey) {
-        try {
-          await fetch(`${urls.voiceroApi}/api/shopify/updateFromShopify`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              Authorization: `Bearer ${accessKey}`,
-            },
-            body: JSON.stringify({
-              plan: "Free",
-              queryLimit: 10000,
-              subscriptionEnds: null,
-            }),
-          });
-        } catch (error) {
-          console.error("Error updating API plan:", error);
-        }
-      }
-
-      return json({
-        success: true,
-        planChanged: true,
-        newPlan: "Basic Plan",
-      });
-    }
-
-    // For premium plan, create subscription with test flag
-    const response = await admin.graphql(
-      `
-      mutation createSubscription($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean!) {
-        appSubscriptionCreate(
-          name: $name
-          lineItems: $lineItems
-          returnUrl: $returnUrl
-          test: $test
-        ) {
-          appSubscription {
-            id
-            status
-          }
-          confirmationUrl
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `,
-      {
-        variables: {
-          name: plan.name,
-          lineItems: [
-            {
-              plan: {
-                appRecurringPricingDetails: {
-                  price: { amount: plan.price, currencyCode: "USD" },
-                  interval: RECURRING_INTERVAL.EVERY_30_DAYS,
-                },
-              },
-            },
-          ],
-          returnUrl: `https://admin.shopify.com/store/${shop.split(".")[0]}/apps/voicero-app-shop/app/pricing`,
-          test: true,
-        },
-      },
-    );
-
-    const responseJson = await response.json();
-
-    if (responseJson.data?.appSubscriptionCreate?.userErrors?.length > 0) {
-      throw new Error(
-        responseJson.data.appSubscriptionCreate.userErrors[0].message,
-      );
-    }
-
-    if (!responseJson.data?.appSubscriptionCreate?.confirmationUrl) {
-      throw new Error(
-        "Could not create subscription. Please ensure the app is properly configured in your Shopify Partner dashboard.",
-      );
-    }
-
-    const confirmationUrl =
-      responseJson.data.appSubscriptionCreate.confirmationUrl;
+    // Redirect to Shopify-managed pricing page
+    const managedPricingUrl = `https://admin.shopify.com/store/${shop.split(".")[0]}/charges/voicero-app-shop/pricing_plans`;
 
     return json({
       success: true,
-      confirmationUrl,
+      managedPricingUrl,
     });
   } catch (error) {
-    console.error("Subscription error:", error);
+    console.error("Pricing error:", error);
     return json({
       success: false,
       error:
-        error.message || "Failed to create subscription. Please try again.",
+        error.message || "Failed to access pricing plans. Please try again.",
     });
   }
 };
@@ -370,6 +184,7 @@ export default function PricingPage() {
     currentPlan,
     subscriptionEnds,
     disconnected,
+    shop,
   } = useLoaderData();
   const fetcher = useFetcher();
   const [error, setError] = useState(null);
@@ -382,6 +197,10 @@ export default function PricingPage() {
       navigate("/app");
     }
   }, [disconnected, navigate]);
+
+  // Format shop domain for managed pricing URL
+  const shopName = shop ? shop.split(".")[0] : "";
+  const managedPricingUrl = `https://admin.shopify.com/store/${shopName}/charges/voicero-app-shop/pricing_plans`;
 
   // Add subscription status banner
   const getSubscriptionBanner = () => {
@@ -403,39 +222,28 @@ export default function PricingPage() {
     );
   };
 
-  // Update the useEffect hook that handles the redirect and plan changes
+  // Update the useEffect hook to handle the redirect to Shopify Managed Pricing
   useEffect(() => {
-    if (fetcher.data?.confirmationUrl) {
+    if (fetcher.data?.managedPricingUrl) {
       // Open in new tab instead of redirecting in the iframe
-      window.open(fetcher.data.confirmationUrl, "_top");
+      window.open(fetcher.data.managedPricingUrl, "_top");
     }
     // Show error from action if any
     if (fetcher.data?.error) {
       setError(fetcher.data.error);
       setSuccessMessage(null);
     }
-    // Handle successful plan change (downgrade to Basic)
-    if (fetcher.data?.planChanged) {
-      setSuccessMessage(
-        `Successfully changed to ${fetcher.data.newPlan}. You may need to refresh the page to see the changes.`,
-      );
-      setError(null);
-      // Reload the page after 3 seconds to reflect the changes
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
-    }
   }, [fetcher.data]);
 
-  const handleSubscription = (planType) => {
+  const navigateToManagedPricing = () => {
     setSuccessMessage(null);
     setError(null);
-    fetcher.submit({ planType }, { method: "POST" });
+    fetcher.submit({}, { method: "POST" });
   };
 
   // Feature list with icons
   const basicFeatures = [
-    { icon: DatabaseIcon, text: "100 AI chats per month" },
+    { icon: DatabaseIcon, text: "200 AI chats per month" },
     { icon: MicrophoneIcon, text: "Basic voice commands" },
     { icon: ClockIcon, text: "Standard response time" },
     { icon: ChatIcon, text: "Community support" },
@@ -497,6 +305,19 @@ export default function PricingPage() {
                 <Text as="p" variant="bodyMd" alignment="center" tone="subdued">
                   You are currently on the {isPro ? "Pro" : "Basic"} Plan
                 </Text>
+
+                <Banner status="info">
+                  <Text variant="bodyMd">
+                    To view all available plans or change your subscription,
+                    please click the button below to access Shopify's
+                    subscription management.
+                  </Text>
+                  <Box paddingBlockStart="300">
+                    <Button primary onClick={navigateToManagedPricing}>
+                      Manage Subscription
+                    </Button>
+                  </Box>
+                </Banner>
 
                 <BlockStack gap="500">
                   <Layout>
@@ -579,15 +400,10 @@ export default function PricingPage() {
                                 <Box paddingBlockStart="300">
                                   <Button
                                     fullWidth
-                                    disabled={currentPlan === "Basic Plan"}
-                                    onClick={() => handleSubscription("basic")}
+                                    onClick={navigateToManagedPricing}
                                     size="large"
                                   >
-                                    {currentPlan === "Basic Plan"
-                                      ? "Current Plan"
-                                      : isPro
-                                        ? "Downgrade"
-                                        : "Get Started"}
+                                    Manage Subscription
                                   </Button>
                                 </Box>
                               </BlockStack>
@@ -674,15 +490,10 @@ export default function PricingPage() {
                                   <Button
                                     primary
                                     fullWidth
-                                    disabled={currentPlan === "Pro Plan"}
-                                    onClick={() =>
-                                      handleSubscription("premium")
-                                    }
+                                    onClick={navigateToManagedPricing}
                                     size="large"
                                   >
-                                    {currentPlan === "Pro Plan"
-                                      ? "Current Plan"
-                                      : "Upgrade"}
+                                    Manage Subscription
                                   </Button>
                                 </Box>
                               </BlockStack>

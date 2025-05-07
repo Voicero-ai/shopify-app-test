@@ -5,16 +5,13 @@ import crypto from "crypto";
  * Simple test endpoint to verify webhook HMAC validation logic
  */
 export async function action({ request }: ActionFunctionArgs) {
-  console.log("Test webhook received:", request.method);
 
   try {
     // Get the raw request body
     const rawBody = await request.text();
-    console.log("Raw body:", rawBody);
 
     // Get the HMAC signature
     const hmac = request.headers.get("x-shopify-hmac-sha256");
-    console.log("Received HMAC:", hmac);
 
     if (!hmac) {
       console.error("Missing HMAC signature");
@@ -23,7 +20,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Get the API secret (from environment variable)
     const secret = process.env.SHOPIFY_API_SECRET;
-    console.log("Using API secret:", secret);
 
     // Generate our own HMAC for comparison
     const generatedHmac = crypto
@@ -31,7 +27,6 @@ export async function action({ request }: ActionFunctionArgs) {
       .update(rawBody, "utf8")
       .digest("base64");
 
-    console.log("Generated HMAC:", generatedHmac);
 
     // Check if the HMACs match
     if (hmac !== generatedHmac) {
@@ -47,7 +42,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // If we get here, HMAC validation passed
-    console.log("HMAC validation passed!");
 
     // Extract topic and shop for logging
     const topic = request.headers.get("x-shopify-topic");

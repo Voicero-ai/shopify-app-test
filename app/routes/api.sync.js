@@ -4,6 +4,9 @@ import { json } from "@remix-run/node";
 // Pick the Admin API version you want for the REST calls:
 const SHOPIFY_API_VERSION = "2025-01";
 
+// Helper function to extract numeric ID from Shopify's global ID
+const extractNumericId = (gid) => gid.split("/").pop();
+
 export const loader = async ({ request }) => {
   // We assume authenticate.admin returns { admin, session }
   // where:
@@ -127,103 +130,91 @@ export const loader = async ({ request }) => {
     `);
     const productsData = await productsResponse.json();
 
-    // For untruncated HTML, fetch each product with REST + fetch
-    const extractNumericId = (gid) => gid.split("/").pop();
+    // Check for GraphQL errors
+    if (productsData.errors) {
+      throw new Error(`GraphQL Error: ${JSON.stringify(productsData.errors)}`);
+    }
 
-    // Helper to do a direct REST call
-    const restGet = async (endpoint) => {
-      const url = `https://${session.shop}/admin/api/${SHOPIFY_API_VERSION}${endpoint}`;
-      const resp = await fetch(url, {
-        method: "GET",
-        headers: {
-          "X-Shopify-Access-Token": session.accessToken,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!resp.ok) {
-        throw new Error(`REST call failed: ${resp.status} ${resp.statusText}`);
-      }
-      return resp.json();
-    };
+    // Check if we have valid data
+    if (!productsData?.data?.products?.edges) {
+      throw new Error("Invalid products data structure received from GraphQL");
+    }
 
-    const mergedProducts = await Promise.all(
-      productsData.data.products.edges.map(async ({ node }) => {
-        const numericId = extractNumericId(node.id);
-
-        // GET /products/{productId}.json
-        const productRes = await restGet(`/products/${numericId}.json`);
-        // shape: { product: {...} }
-        const fullProd = productRes.product;
+    // Process products data directly from GraphQL
+    const mergedProducts = productsData.data.products.edges
+      .map(({ node }) => {
+        if (!node) {
+          console.warn("Skipping invalid product node");
+          return null;
+        }
 
         return {
-          shopifyId: parseInt(numericId),
-          title: fullProd.title,
-          handle: fullProd.handle,
-          vendor: fullProd.vendor,
-          productType: fullProd.product_type,
-          // full body_html from REST
-          description: fullProd.body_html,
-          bodyHtml: fullProd.body_html,
-          // New fields from GraphQL
-          tags: node.tags,
+          shopifyId: parseInt(extractNumericId(node.id)),
+          title: node.title || "",
+          handle: node.handle || "",
+          vendor: node.vendor || "",
+          productType: node.productType || "",
+          description: node.description || "",
+          bodyHtml: node.descriptionHtml || "",
+          tags: node.tags || [],
           publishedAt: node.publishedAt,
-          status: node.status,
-          description: node.description,
-          descriptionHtml: node.descriptionHtml,
-          seo: node.seo,
-          priceRange: node.priceRangeV2,
-          totalInventory: node.totalInventory,
-          tracksInventory: node.tracksInventory,
-          hasOnlyDefaultVariant: node.hasOnlyDefaultVariant,
-          hasOutOfStockVariants: node.hasOutOfStockVariants,
+          status: node.status || "DRAFT",
+          seo: node.seo || { title: "", description: "" },
+          priceRange: node.priceRangeV2 || {
+            minVariantPrice: { amount: "0", currencyCode: "USD" },
+            maxVariantPrice: { amount: "0", currencyCode: "USD" },
+          },
+          totalInventory: node.totalInventory || 0,
+          tracksInventory: node.tracksInventory || false,
+          hasOnlyDefaultVariant: node.hasOnlyDefaultVariant || false,
+          hasOutOfStockVariants: node.hasOutOfStockVariants || false,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
-          images: (fullProd.images || []).map((img) => ({
-            shopifyId: img.id,
-            url: img.src,
-            altText: img.alt,
+          images: (node.images?.edges || []).map(({ node: img }) => ({
+            shopifyId: parseInt(extractNumericId(img.id)),
+            url: img.originalSrc || "",
+            altText: img.altText || "",
           })),
-          variants: (fullProd.variants || []).map((v) => ({
-            shopifyId: v.id,
-            title: v.title,
-            price: parseFloat(v.price),
-            sku: v.sku,
-            inventory: v.inventory_quantity,
-            compareAtPrice: v.compare_at_price
-              ? parseFloat(v.compare_at_price)
+          variants: (node.variants?.edges || []).map(({ node: v }) => ({
+            shopifyId: parseInt(extractNumericId(v.id)),
+            title: v.title || "",
+            price: parseFloat(v.price || "0"),
+            sku: v.sku || "",
+            inventory: v.inventoryQuantity || 0,
+            compareAtPrice: v.compareAtPrice
+              ? parseFloat(v.compareAtPrice)
               : null,
-            inventoryPolicy: v.inventory_policy,
-            inventoryTracking: v.inventory_management ? true : false,
-            weight: v.weight,
-            weightUnit: v.weight_unit,
+            inventoryPolicy: v.inventoryPolicy || "DENY",
+            inventoryTracking: v.inventoryItem?.tracked || false,
           })),
-          // Collections from the GraphQL node
-          collections: node.collections.edges.map(({ node: coll }) => ({
-            shopifyId: parseInt(extractNumericId(coll.id)),
-            title: coll.title,
-            handle: coll.handle,
-            description: coll.description,
-            image: coll.image
-              ? {
-                  url: coll.image.url,
-                  altText: coll.image.altText,
-                }
-              : null,
-            ruleSet: coll.ruleSet
-              ? {
-                  rules: coll.ruleSet.rules.map((rule) => ({
-                    column: rule.column,
-                    condition: rule.condition,
-                    relation: rule.relation,
-                  })),
-                }
-              : null,
-            sortOrder: coll.sortOrder,
-            updatedAt: coll.updatedAt,
-          })),
+          collections: (node.collections?.edges || []).map(
+            ({ node: coll }) => ({
+              shopifyId: parseInt(extractNumericId(coll.id)),
+              title: coll.title || "",
+              handle: coll.handle || "",
+              description: coll.description || "",
+              image: coll.image
+                ? {
+                    url: coll.image.url || "",
+                    altText: coll.image.altText || "",
+                  }
+                : null,
+              ruleSet: coll.ruleSet
+                ? {
+                    rules: (coll.ruleSet.rules || []).map((rule) => ({
+                      column: rule.column || "",
+                      condition: rule.condition || "",
+                      relation: rule.relation || "",
+                    })),
+                  }
+                : null,
+              sortOrder: coll.sortOrder || "BEST_SELLING",
+              updatedAt: coll.updatedAt,
+            }),
+          ),
         };
-      }),
-    );
+      })
+      .filter(Boolean); // Remove any null entries
 
     // ---------------------
     // 3) Pages (GraphQL for IDs)
@@ -260,58 +251,60 @@ export const loader = async ({ request }) => {
     `);
     const pagesData = await pagesResponse.json();
 
-    // Log the raw pages data in a clean format
-    console.log("=== PAGES DATA ===");
-    console.log(
-      JSON.stringify(
-        pagesData.data.pages.edges.map(({ node }) => ({
-          id: node.id,
-          title: node.title,
-          handle: node.handle,
-          bodySummary: node.bodySummary,
-          createdAt: node.createdAt,
-          updatedAt: node.updatedAt,
-          publishedAt: node.publishedAt,
-          isPublished: node.isPublished,
-          templateSuffix: node.templateSuffix,
-          metafields: node.metafields.edges.map(({ node: meta }) => ({
-            id: meta.id,
-            namespace: meta.namespace,
-            key: meta.key,
-            value: meta.value,
-          })),
-        })),
-        null,
-        2,
-      ),
-    );
+    // Check for GraphQL errors
+    if (pagesData.errors) {
+      throw new Error(`GraphQL Error: ${JSON.stringify(pagesData.errors)}`);
+    }
+
+    // Check if we have valid data
+    if (!pagesData?.data?.pages?.edges) {
+      throw new Error("Invalid pages data structure received from GraphQL");
+    }
 
     // For untruncated HTML, fetch each page with REST
     const mergedPages = await Promise.all(
       pagesData.data.pages.edges.map(async ({ node }) => {
+        if (!node) {
+          console.warn("Skipping invalid page node");
+          return null;
+        }
+
         const numericId = extractNumericId(node.id);
 
         // GET /pages/{pageId}.json
-        const pageRes = await restGet(`/pages/${numericId}.json`);
-        // shape: { page: {...} }
-        const fullPage = pageRes.page;
+        const pageRes = await fetch(
+          `https://${session.shop}/admin/api/${SHOPIFY_API_VERSION}/pages/${numericId}.json`,
+          {
+            method: "GET",
+            headers: {
+              "X-Shopify-Access-Token": session.accessToken,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+        if (!pageRes.ok) {
+          throw new Error(
+            `REST call failed: ${pageRes.status} ${pageRes.statusText}`,
+          );
+        }
+        const fullPage = await pageRes.json();
 
         const pageData = {
           shopifyId: parseInt(numericId),
-          title: fullPage.title,
-          handle: fullPage.handle,
-          content: fullPage.body_html,
-          bodySummary: node.bodySummary,
+          title: fullPage.page.title || "",
+          handle: fullPage.page.handle || "",
+          content: fullPage.page.body_html || "",
+          bodySummary: node.bodySummary || "",
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           publishedAt: node.publishedAt,
-          isPublished: node.isPublished,
-          templateSuffix: node.templateSuffix,
-          metafields: node.metafields.edges.map(({ node: meta }) => ({
-            id: meta.id,
-            namespace: meta.namespace,
-            key: meta.key,
-            value: meta.value,
+          isPublished: node.isPublished || false,
+          templateSuffix: node.templateSuffix || "",
+          metafields: (node.metafields?.edges || []).map(({ node: meta }) => ({
+            id: meta.id || "",
+            namespace: meta.namespace || "",
+            key: meta.key || "",
+            value: meta.value || "",
           })),
         };
 
@@ -321,7 +314,7 @@ export const loader = async ({ request }) => {
 
         return pageData;
       }),
-    );
+    ).then((pages) => pages.filter(Boolean)); // Remove any null entries
 
     // ---------------------
     // 4) Blogs + Articles (GraphQL for IDs)
@@ -416,78 +409,113 @@ export const loader = async ({ request }) => {
     `);
     const blogsData = await blogsResponse.json();
 
+    // Check for GraphQL errors
+    if (blogsData.errors) {
+      throw new Error(`GraphQL Error: ${JSON.stringify(blogsData.errors)}`);
+    }
+
+    // Check if we have valid data
+    if (!blogsData?.data?.blogs?.edges) {
+      throw new Error("Invalid blogs data structure received from GraphQL");
+    }
+
     // For untruncated articles
     const mergedBlogs = await Promise.all(
       blogsData.data.blogs.edges.map(async ({ node: blog }) => {
+        if (!blog) {
+          console.warn("Skipping invalid blog node");
+          return null;
+        }
+
         const blogNumericId = extractNumericId(blog.id);
 
         const mergedArticles = await Promise.all(
-          blog.articles.edges.map(async ({ node: article }) => {
+          (blog.articles?.edges || []).map(async ({ node: article }) => {
+            if (!article) {
+              console.warn("Skipping invalid article node");
+              return null;
+            }
+
             const articleNumericId = extractNumericId(article.id);
 
             // GET /blogs/{blogId}/articles/{articleId}.json
-            const articleRes = await restGet(
-              `/blogs/${blogNumericId}/articles/${articleNumericId}.json`,
+            const articleRes = await fetch(
+              `https://${session.shop}/admin/api/${SHOPIFY_API_VERSION}/blogs/${blogNumericId}/articles/${articleNumericId}.json`,
+              {
+                method: "GET",
+                headers: {
+                  "X-Shopify-Access-Token": session.accessToken,
+                  "Content-Type": "application/json",
+                },
+              },
             );
-            // shape: { article: {...} }
-            const fullArticle = articleRes.article;
+            if (!articleRes.ok) {
+              throw new Error(
+                `REST call failed: ${articleRes.status} ${articleRes.statusText}`,
+              );
+            }
+            const fullArticle = await articleRes.json();
 
             return {
               shopifyId: parseInt(articleNumericId),
-              title: fullArticle.title,
-              handle: fullArticle.handle,
-              content: fullArticle.body_html, // untruncated
-              author: fullArticle.author,
-              image: fullArticle.image?.src || null,
-              isPublished: article.isPublished,
+              title: fullArticle.article.title || "",
+              handle: fullArticle.article.handle || "",
+              content: fullArticle.article.body_html || "",
+              author: fullArticle.article.author || "",
+              image: fullArticle.article.image?.src || null,
+              isPublished: article.isPublished || false,
               publishedAt: article.publishedAt,
-              summary: article.summary,
-              tags: article.tags,
-              templateSuffix: article.templateSuffix,
-              createdAt: article.createdAt,
-              updatedAt: article.updatedAt,
-              metafields: article.metafields.edges.map(({ node: meta }) => ({
-                id: meta.id,
-                namespace: meta.namespace,
-                key: meta.key,
-                value: meta.value,
-              })),
-              comments: article.comments.edges.map(({ node: comment }) => ({
-                id: comment.id,
-                author: comment.author.name,
-                content: comment.body,
-                createdAt: comment.createdAt,
-              })),
+              summary: fullArticle.article.summary || "",
+              tags: fullArticle.article.tags || [],
+              templateSuffix: fullArticle.article.templateSuffix || "",
+              createdAt: fullArticle.article.createdAt,
+              updatedAt: fullArticle.article.updatedAt,
+              metafields: (fullArticle.article.metafields?.edges || []).map(
+                ({ node: meta }) => ({
+                  id: meta.id || "",
+                  namespace: meta.namespace || "",
+                  key: meta.key || "",
+                  value: meta.value || "",
+                }),
+              ),
+              comments: (fullArticle.article.comments?.edges || []).map(
+                ({ node: comment }) => ({
+                  id: comment.id || "",
+                  author: comment.author?.name || "",
+                  content: comment.body || "",
+                  createdAt: comment.createdAt,
+                }),
+              ),
             };
           }),
-        );
+        ).then((articles) => articles.filter(Boolean)); // Remove any null entries
 
         return {
           shopifyId: parseInt(blogNumericId),
-          title: blog.title,
-          handle: blog.handle,
-          articlesCount: blog.articlesCount.count,
-          commentPolicy: blog.commentPolicy,
+          title: blog.title || "",
+          handle: blog.handle || "",
+          articlesCount: blog.articlesCount?.count || 0,
+          commentPolicy: blog.commentPolicy || "MODERATE",
           createdAt: blog.createdAt,
           updatedAt: blog.updatedAt,
           feed: blog.feed
             ? {
-                location: blog.feed.location,
-                path: blog.feed.path,
+                location: blog.feed.location || "",
+                path: blog.feed.path || "",
               }
             : null,
-          metafields: blog.metafields.edges.map(({ node: meta }) => ({
-            id: meta.id,
-            namespace: meta.namespace,
-            key: meta.key,
-            value: meta.value,
+          metafields: (blog.metafields?.edges || []).map(({ node: meta }) => ({
+            id: meta.id || "",
+            namespace: meta.namespace || "",
+            key: meta.key || "",
+            value: meta.value || "",
           })),
-          tags: blog.tags,
-          templateSuffix: blog.templateSuffix,
+          tags: blog.tags || [],
+          templateSuffix: blog.templateSuffix || "",
           posts: mergedArticles,
         };
       }),
-    );
+    ).then((blogs) => blogs.filter(Boolean)); // Remove any null entries
 
     // ---------------------
     // 5) Collections (GraphQL only)

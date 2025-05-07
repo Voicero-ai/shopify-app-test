@@ -55,12 +55,12 @@ const AVERAGE_TIMES = {
 };
 
 export const loader = async ({ request }) => {
-  console.log("=== LOADER START: Initializing app loader ===");
+  
   const { admin } = await authenticate.admin(request);
-  console.log("Admin authentication completed");
+  
 
   // Get subscription status
-  console.log("Fetching subscription status...");
+  
   const response = await admin.graphql(`
     query {
       appInstallation {
@@ -86,17 +86,17 @@ export const loader = async ({ request }) => {
   `);
 
   const data = await response.json();
-  console.log("Subscription data received:", data);
+  
   const subscriptions = data.data.appInstallation.activeSubscriptions;
   const isPro = subscriptions.some(
     (sub) =>
       sub.status === "ACTIVE" &&
       sub.lineItems[0]?.plan?.pricingDetails?.price?.amount > 0,
   );
-  console.log("Pro status determined:", isPro);
+  
 
   // Get access key from metafields
-  console.log("Fetching access key from metafields...");
+  
   const metafieldResponse = await admin.graphql(`
     query {
       shop {
@@ -108,17 +108,17 @@ export const loader = async ({ request }) => {
   `);
 
   const metafieldData = await metafieldResponse.json();
-  console.log("Metafield data received:", metafieldData);
+  
   const savedKey = metafieldData.data.shop.metafield?.value;
-  console.log("Saved key retrieved:", savedKey ? "Found key" : "No key found");
+  
 
   let isConnected = false;
   if (savedKey) {
-    console.log("Testing connection with saved key...");
+    
     try {
       const trimmedKey = savedKey.trim();
-      console.log("Using trimmed key for connection test");
-      console.log("Key length:", trimmedKey.length);
+      
+      
 
       // Try both localhost and production URLs
       const apiUrls = [
@@ -131,7 +131,7 @@ export const loader = async ({ request }) => {
 
       // Try each URL in sequence
       for (const apiUrl of apiUrls) {
-        console.log(`Attempting API connection test with URL: ${apiUrl}`);
+        
         try {
           const testResponse = await fetch(apiUrl, {
             method: "GET",
@@ -142,27 +142,18 @@ export const loader = async ({ request }) => {
             },
             mode: "cors",
           });
-          console.log(
-            `Connection test response status for ${apiUrl}:`,
-            testResponse.status,
-          );
+          
 
           const responseText = await testResponse.text();
-          console.log(
-            `Connection test raw response for ${apiUrl}:`,
-            responseText,
-          );
+          
 
           try {
             const parsedData = JSON.parse(responseText);
-            console.log(
-              `Connection test parsed data for ${apiUrl}:`,
-              parsedData,
-            );
+            
 
             // Only set isConnected to true if we have valid website data
             if (testResponse.ok && parsedData.website) {
-              console.log(`Connection successful with ${apiUrl}`);
+              
               connected = true;
               responseData = parsedData;
               // Break loop on first successful connection
@@ -181,19 +172,15 @@ export const loader = async ({ request }) => {
       }
 
       isConnected = connected;
-      console.log("Final connection status determined:", isConnected);
+      
     } catch (error) {
       console.error("Error testing connection:", error);
       isConnected = false;
     }
   }
 
-  console.log("=== LOADER END: Returning data ===");
-  console.log({
-    isPro,
-    apiKey: process.env.SHOPIFY_API_KEY || "(not set)",
-    savedKey: isConnected ? "Valid key exists" : null,
-  });
+  
+  
 
   return json({
     isPro,
@@ -221,17 +208,17 @@ async function getShopId(admin) {
 }
 
 export const action = async ({ request }) => {
-  console.log("=== ACTION START: Processing action request ===");
+  
   const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const accessKey = formData.get("accessKey");
   const action = formData.get("action");
-  console.log("Action type:", action);
-  console.log("Access key provided:", accessKey ? "Yes (value hidden)" : "No");
+  
+  
 
   try {
     if (action === "quick_connect") {
-      console.log("Processing quick_connect action");
+      
       const shop = session.shop;
       const storeName = shop.split(".")[0];
       const appHandle = process.env.SHOPIFY_APP_HANDLE || "voicero-app-shop";
@@ -249,23 +236,16 @@ export const action = async ({ request }) => {
         }/api/quickConnectCallback`,
       );
 
-      console.log("Redirect URL parameters prepared:", {
-        shop,
-        storeName,
-        appHandle,
-        site_url: `https://${shop}`,
-        admin_url: `https://admin.shopify.com/store/${storeName}/apps/${appHandle}/app`,
-        callback_url: callbackUrl,
-      });
+      
 
-      console.log("=== ACTION END: Returning redirect URL ===");
+      
       return {
         success: true,
         redirectUrl: `${urls.voiceroApi}/app/connect?site_url=${site_url}&redirect_url=${admin_url}&callback_url=${callbackUrl}&type=Shopify`,
       };
     } else if (action === "quick_connect_callback") {
       // This is called when the quick connect flow completes
-      console.log("Processing quick_connect_callback action");
+      
       try {
         const incomingKey = formData.get("access_key");
         if (!incomingKey) {
@@ -275,10 +255,10 @@ export const action = async ({ request }) => {
           );
         }
 
-        console.log("Received new access key from quick connect flow");
+        
 
         // First, check if there's an existing key we need to delete
-        console.log("Checking for existing access key");
+        
         const metafieldResponse = await admin.graphql(`
           query {
             shop {
@@ -291,11 +271,11 @@ export const action = async ({ request }) => {
         `);
 
         const metafieldData = await metafieldResponse.json();
-        console.log("Existing key check response:", metafieldData);
+        
 
         // If there's an existing metafield with a key, delete it first
         if (metafieldData.data?.shop?.metafield?.id) {
-          console.log("Found existing key, deleting it first");
+          
           const metafieldId = metafieldData.data.shop.metafield.id;
 
           const deleteResponse = await admin.graphql(`
@@ -313,7 +293,7 @@ export const action = async ({ request }) => {
           `);
 
           const deleteResult = await deleteResponse.json();
-          console.log("Delete key response:", deleteResult);
+          
 
           if (deleteResult.data?.metafieldDelete?.userErrors?.length > 0) {
             console.warn(
@@ -326,7 +306,7 @@ export const action = async ({ request }) => {
         // Now save the new key
         const shopId = await getShopId(admin);
 
-        console.log("Creating metafield to store access key...");
+        
         const saveResponse = await admin.graphql(
           `
           mutation CreateMetafield($input: MetafieldsSetInput!) {
@@ -357,7 +337,7 @@ export const action = async ({ request }) => {
         );
 
         const saveResult = await saveResponse.json();
-        console.log("Save key response:", saveResult);
+        
 
         if (saveResult.data?.metafieldsSet?.userErrors?.length > 0) {
           console.error(
@@ -382,18 +362,18 @@ export const action = async ({ request }) => {
         };
       }
     } else if (action === "manual_connect") {
-      console.log("Processing manual_connect action");
+      
       try {
         const trimmedKey = accessKey?.trim();
-        console.log("Trimmed key available:", !!trimmedKey);
-        console.log("Key length:", trimmedKey?.length || 0);
+        
+        
 
         if (!trimmedKey) {
           console.error("No access key provided");
           throw new Error("No access key provided");
         }
 
-        console.log("Attempting API connection with provided key...");
+        
         const headers = new Headers();
         headers.append("Accept", "application/json");
         headers.append("Authorization", `Bearer ${trimmedKey}`);
@@ -412,7 +392,7 @@ export const action = async ({ request }) => {
         // Try each URL until one succeeds
         for (const apiUrl of apiUrls) {
           try {
-            console.log(`Trying connection to: ${apiUrl}`);
+            
             const response = await fetch(apiUrl, {
               method: "GET",
               headers: {
@@ -422,32 +402,23 @@ export const action = async ({ request }) => {
               },
               mode: "cors",
             });
-            console.log(
-              `Connection API response status for ${apiUrl}:`,
-              response.status,
-            );
+            
 
             const responseText = await response.text();
-            console.log(
-              `Connection API raw response for ${apiUrl}:`,
-              responseText,
-            );
+            
 
             try {
               const data = JSON.parse(responseText);
-              console.log(`Connection API parsed data for ${apiUrl}:`, data);
+              
 
               if (response.ok && data.website) {
                 connectionSuccessful = true;
                 connectionResponse = response;
                 connectionData = data;
-                console.log(`Successful connection to ${apiUrl}`);
+                
                 break;
               } else {
-                console.log(
-                  `Connection to ${apiUrl} returned invalid data or error:`,
-                  data,
-                );
+                
                 connectionError = data.error || "Connection failed";
               }
             } catch (parseError) {
@@ -478,7 +449,7 @@ export const action = async ({ request }) => {
         const data = connectionData;
 
         // Update theme settings directly using the admin API
-        console.log("Fetching shop ID...");
+        
         const shopResponse = await admin.graphql(`
           query {
             shop {
@@ -488,11 +459,11 @@ export const action = async ({ request }) => {
         `);
 
         const shopData = await shopResponse.json();
-        console.log("Shop data received:", shopData);
+        
         const shopId = shopData.data.shop.id;
-        console.log("Shop ID:", shopId);
+        
 
-        console.log("Creating metafield to store access key...");
+        
         const metafieldResponse = await admin.graphql(
           `
           mutation CreateMetafield($input: MetafieldsSetInput!) {
@@ -523,7 +494,7 @@ export const action = async ({ request }) => {
         );
 
         const metafieldData = await metafieldResponse.json();
-        console.log("Metafield creation response:", metafieldData);
+        
 
         if (metafieldData.data?.metafieldsSet?.userErrors?.length > 0) {
           console.error(
@@ -533,7 +504,7 @@ export const action = async ({ request }) => {
           throw new Error("Failed to save access key to store");
         }
 
-        console.log("=== ACTION END: Manual connection successful ===");
+        
         return {
           success: true,
           accessKey: accessKey,
@@ -564,7 +535,7 @@ export const action = async ({ request }) => {
       }
     }
 
-    console.log("=== ACTION END: Returning error ===");
+    
     return {
       success: false,
       error: errorMessage,
@@ -674,7 +645,7 @@ const checkTrainingStatus = async (
   setUntrainedItems,
   setItemsInTraining,
 ) => {
-  console.log("Checking training status...");
+  
   const response = await fetch(`${urls.voiceroApi}/api/shopify/train/status`, {
     method: "GET",
     headers: {
@@ -692,13 +663,13 @@ const checkTrainingStatus = async (
   }
 
   const data = await response.json();
-  console.log("Training status response:", data);
+  
 
   // Separate items into untrained and in-training
   const untrained = {
     products: [],
     pages: [],
-    blogPosts: [],
+    posts: [], // Changed from blogPosts to posts
     collections: [],
     discounts: [],
   };
@@ -706,7 +677,7 @@ const checkTrainingStatus = async (
   const inTraining = {
     products: [],
     pages: [],
-    blogPosts: [],
+    posts: [], // Changed from blogPosts to posts
     collections: [],
     discounts: [],
   };
@@ -735,9 +706,7 @@ const checkTrainingStatus = async (
 
   // Show training banner if we have either items in training or untrained items
   if (hasItemsInTraining || hasUntrainedItems) {
-    console.log(
-      "Found items that need training or are in training, setting up training state",
-    );
+    
     setTrainingData({
       status: "processing",
       progress: 0,
@@ -752,7 +721,7 @@ const checkTrainingStatus = async (
 
     // If we have untrained items and no items in training, start the training process
     if (hasUntrainedItems && !hasItemsInTraining) {
-      console.log("Starting training for untrained items");
+      
       try {
         await trainUntrainedItems(
           fetcher.data.accessKey,
@@ -789,13 +758,13 @@ const checkTrainingStatus = async (
         }
 
         const statusData = await statusResponse.json();
-        console.log("Polling training status:", statusData);
+        
 
         // Process the status data
         const polledUntrained = {
           products: [],
           pages: [],
-          blogPosts: [],
+          posts: [], // Changed from blogPosts to posts
           collections: [],
           discounts: [],
         };
@@ -803,7 +772,7 @@ const checkTrainingStatus = async (
         const polledInTraining = {
           products: [],
           pages: [],
-          blogPosts: [],
+          posts: [], // Changed from blogPosts to posts
           collections: [],
           discounts: [],
         };
@@ -831,12 +800,10 @@ const checkTrainingStatus = async (
         );
 
         if (stillInTraining || stillUntrained) {
-          console.log(
-            "Training still in progress, will poll again in 15 seconds",
-          );
+          
           setTimeout(pollStatus, 15000);
         } else {
-          console.log("All items are trained, setting success state");
+          
           setTrainingData({
             status: "success",
             progress: 100,
@@ -855,7 +822,7 @@ const checkTrainingStatus = async (
     setTimeout(pollStatus, 15000);
   } else {
     // Only set success state if there are no items in training AND no untrained items
-    console.log("All items are trained, setting success state");
+    
     setTrainingData({
       status: "success",
       progress: 100,
@@ -866,16 +833,7 @@ const checkTrainingStatus = async (
   }
 
   // Log the current state
-  console.log("Training state:", {
-    hasItemsInTraining,
-    hasUntrainedItems,
-    inTrainingCounts: Object.fromEntries(
-      Object.entries(inTraining).map(([key, value]) => [key, value.length]),
-    ),
-    untrainedCounts: Object.fromEntries(
-      Object.entries(untrained).map(([key, value]) => [key, value.length]),
-    ),
-  });
+  
 
   return untrained;
 };
@@ -888,13 +846,13 @@ const trainUntrainedItems = async (
   setUntrainedItems,
   websiteData, // Add websiteData parameter
 ) => {
-  console.log("Starting to train untrained items:", untrainedItems);
+  
 
   // Get websiteId from any untrained item (they all belong to the same website)
   const websiteId =
     untrainedItems.products?.[0]?.websiteId ||
     untrainedItems.pages?.[0]?.websiteId ||
-    untrainedItems.blogPosts?.[0]?.websiteId ||
+    untrainedItems.posts?.[0]?.websiteId ||
     untrainedItems.collections?.[0]?.websiteId ||
     untrainedItems.discounts?.[0]?.websiteId;
 
@@ -958,7 +916,8 @@ const trainUntrainedItems = async (
     });
 
     // Add blog post training promises
-    untrainedItems.blogPosts?.forEach((post) => {
+    untrainedItems.posts?.forEach((post) => {
+      // Changed from blogPosts to posts
       trainingPromises.push(
         trainContentItem(accessKey, "post", post).then(() => {
           itemsStarted++;
@@ -1030,7 +989,7 @@ const trainUntrainedItems = async (
     setUntrainedItems({
       products: [],
       pages: [],
-      blogPosts: [],
+      posts: [], // Changed from blogPosts to posts
       collections: [],
       discounts: [],
     });
@@ -1056,7 +1015,7 @@ const trainUntrainedItems = async (
 
 // Add new helper function for training individual content
 const trainContentItem = async (accessKey, contentType, item) => {
-  console.log(`Training ${contentType} item:`, item);
+  
 
   const response = await fetch(
     `${urls.voiceroApi}/api/shopify/train/${contentType}`,
@@ -1091,7 +1050,7 @@ const calculateTotalItems = (data) => {
   const counts = {
     products: data.products?.length || 0,
     pages: data.pages?.length || 0,
-    blogPosts: data.blogPosts?.length || 0,
+    posts: data.posts?.length || 0, // Changed from blogPosts to posts
     collections: data.collections?.length || 0,
     discounts: data.discounts?.length || 0,
   };
@@ -1121,7 +1080,7 @@ const calculateEstimatedTime = (untrainedItems, currentCategory) => {
   const counts = {
     products: untrainedItems.products?.length || 0,
     pages: untrainedItems.pages?.length || 0,
-    blogPosts: untrainedItems.blogPosts?.length || 0,
+    posts: untrainedItems.posts?.length || 0, // Changed from blogPosts to posts
     collections: untrainedItems.collections?.length || 0,
     discounts: untrainedItems.discounts?.length || 0,
   };
@@ -1190,7 +1149,7 @@ export default function Index() {
   const [untrainedItems, setUntrainedItems] = useState({
     products: [],
     pages: [],
-    blogPosts: [],
+    posts: [], // Changed from blogPosts to posts
     collections: [],
     discounts: [],
   });
@@ -1206,7 +1165,7 @@ export default function Index() {
   const [itemsInTraining, setItemsInTraining] = useState({
     products: [],
     pages: [],
-    blogPosts: [],
+    posts: [], // Changed from blogPosts to posts
     collections: [],
     discounts: [],
   });
@@ -1277,12 +1236,12 @@ export default function Index() {
 
   // Check for access_key in URL
   useEffect(() => {
-    console.log("Checking for access_key in URL");
+    
     const url = new URL(window.location.href);
     const accessKeyParam = url.searchParams.get("access_key");
 
     if (accessKeyParam) {
-      console.log("Found access_key in URL, will use for connection");
+      
 
       // Clean up the URL by removing the access_key parameter
       url.searchParams.delete("access_key");
@@ -1298,9 +1257,9 @@ export default function Index() {
 
   // Modify the useEffect that handles successful connection
   useEffect(() => {
-    console.log("useEffect: handling fetcher.data response");
+    
     if (fetcher.data?.success && fetcher.data.accessKey) {
-      console.log("Successful connection, setting access key");
+      
       setAccessKey(fetcher.data.accessKey);
 
       // Only check status on initial load
@@ -1325,13 +1284,13 @@ export default function Index() {
           }
 
           const data = await response.json();
-          console.log("Initial training status response:", data);
+          
 
           // Separate items into untrained and in-training
           const untrained = {
             products: [],
             pages: [],
-            blogPosts: [],
+            posts: [], // Changed from blogPosts to posts
             collections: [],
             discounts: [],
           };
@@ -1339,7 +1298,7 @@ export default function Index() {
           const inTraining = {
             products: [],
             pages: [],
-            blogPosts: [],
+            posts: [], // Changed from blogPosts to posts
             collections: [],
             discounts: [],
           };
@@ -1369,9 +1328,7 @@ export default function Index() {
 
           // Show training banner if we have either items in training or untrained items
           if (hasItemsInTraining || hasUntrainedItems) {
-            console.log(
-              "Found items that need training or are in training, setting up training state",
-            );
+            
             setTrainingData({
               status: "processing",
               progress: 0,
@@ -1392,7 +1349,7 @@ export default function Index() {
 
             // If we have untrained items and no items in training, start the training process
             if (hasUntrainedItems && !hasItemsInTraining) {
-              console.log("Starting training for untrained items");
+              
               try {
                 await trainUntrainedItems(
                   fetcher.data.accessKey,
@@ -1429,13 +1386,13 @@ export default function Index() {
                 }
 
                 const statusData = await statusResponse.json();
-                console.log("Polling training status:", statusData);
+                
 
                 // Process the status data
                 const polledUntrained = {
                   products: [],
                   pages: [],
-                  blogPosts: [],
+                  posts: [], // Changed from blogPosts to posts
                   collections: [],
                   discounts: [],
                 };
@@ -1443,7 +1400,7 @@ export default function Index() {
                 const polledInTraining = {
                   products: [],
                   pages: [],
-                  blogPosts: [],
+                  posts: [], // Changed from blogPosts to posts
                   collections: [],
                   discounts: [],
                 };
@@ -1471,12 +1428,10 @@ export default function Index() {
                 );
 
                 if (stillInTraining || stillUntrained) {
-                  console.log(
-                    "Training still in progress, will poll again in 15 seconds",
-                  );
+                  
                   setTimeout(pollStatus, 15000);
                 } else {
-                  console.log("All items are trained, setting success state");
+                  
                   setTrainingData({
                     status: "success",
                     progress: 100,
@@ -1495,7 +1450,7 @@ export default function Index() {
             setTimeout(pollStatus, 15000);
           } else {
             // Only set success state if there are no items in training AND no untrained items
-            console.log("All items are trained, setting success state");
+            
             setTrainingData({
               status: "success",
               progress: 100,
@@ -1506,22 +1461,7 @@ export default function Index() {
           }
 
           // Log the current state
-          console.log("Training state:", {
-            hasItemsInTraining,
-            hasUntrainedItems,
-            inTrainingCounts: Object.fromEntries(
-              Object.entries(inTraining).map(([key, value]) => [
-                key,
-                value.length,
-              ]),
-            ),
-            untrainedCounts: Object.fromEntries(
-              Object.entries(untrained).map(([key, value]) => [
-                key,
-                value.length,
-              ]),
-            ),
-          });
+          
         } catch (error) {
           console.error("Error checking initial training status:", error);
           setError(`Failed to check training status: ${error.message}`);
@@ -1534,53 +1474,32 @@ export default function Index() {
 
     // Check if we got a response with namespace data
     if (fetcher.data?.namespace) {
-      console.log(
-        "Setting namespace from direct namespace field:",
-        fetcher.data.namespace,
-      );
+      
       setNamespace(fetcher.data.namespace);
     }
     // Check if we have namespace in VectorDbConfig
     else if (fetcher.data?.websiteData?.VectorDbConfig?.namespace) {
       const websiteNamespace =
         fetcher.data.websiteData.VectorDbConfig.namespace;
-      console.log("Setting namespace from VectorDbConfig:", websiteNamespace);
+      
       setNamespace(websiteNamespace);
     }
 
     // Log the complete website data in a clean format
     if (fetcher.data?.websiteData) {
-      console.log("=== WEBSITE DATA ===");
-      console.log(
-        JSON.stringify(
-          {
-            id: fetcher.data.websiteData.id,
-            name: fetcher.data.websiteData.name,
-            url: fetcher.data.websiteData.url,
-            type: fetcher.data.websiteData.type,
-            plan: fetcher.data.websiteData.plan,
-            active: fetcher.data.websiteData.active,
-            lastSyncedAt: fetcher.data.websiteData.lastSyncedAt,
-            queryLimit: fetcher.data.websiteData.queryLimit,
-            monthlyQueries: fetcher.data.websiteData.monthlyQueries,
-            contentCounts: fetcher.data.websiteData._count,
-            VectorDbConfig: fetcher.data.websiteData.VectorDbConfig,
-          },
-          null,
-          2,
-        ),
-      );
+      
+      
     }
   }, [fetcher.data]);
 
   // Auto-connect when we have an access key
   useEffect(() => {
-    console.log("useEffect: accessKey changed, current value:", !!accessKey);
-    console.log("fetcher.data?.success:", fetcher.data?.success);
+    
+    
 
     if (accessKey && !fetcher.data?.success) {
       // Only connect if we haven't already
-      console.log("Auto-connecting with access key");
+      
       setIsDataLoading(true);
       fetcher.submit(
         { accessKey, action: "manual_connect" },
@@ -1591,9 +1510,9 @@ export default function Index() {
 
   // Reset data loading state when we get data back from fetcher
   useEffect(() => {
-    console.log("useEffect: fetcher.data updated");
+    
     if (fetcher.data) {
-      console.log("Fetcher data received, resetting loading states");
+      
       setIsDataLoading(false);
       setIsConnecting(false);
     }
@@ -1610,37 +1529,37 @@ export default function Index() {
   }, [fetcher.data]);
 
   const handleManualConnect = async () => {
-    console.log("handleManualConnect called");
+    
     if (!accessKey) {
-      console.log("No access key provided, showing error");
+      
       setError("Please enter an access key");
       return;
     }
-    console.log("Proceeding with manual connect");
+    
     setError("");
     setIsConnecting(true);
 
     try {
       // First, check if there's an existing key we need to delete
-      console.log("Checking for existing access key");
+      
       const existingKeyResponse = await fetch("/api/accessKey", {
         method: "GET",
       });
       const existingKeyData = await existingKeyResponse.json();
-      console.log("Existing key check response:", existingKeyData);
+      
 
       // If there's an existing key, delete it first
       if (existingKeyData.success && existingKeyData.accessKey) {
-        console.log("Found existing key, deleting it first");
+        
         const deleteResponse = await fetch("/api/accessKey", {
           method: "DELETE",
         });
         const deleteResult = await deleteResponse.json();
-        console.log("Delete key response:", deleteResult);
+        
       }
 
       // Now set the new key
-      console.log("Setting new access key");
+      
       const saveResponse = await fetch("/api/accessKey", {
         method: "POST",
         headers: {
@@ -1651,14 +1570,14 @@ export default function Index() {
         }),
       });
       const saveResult = await saveResponse.json();
-      console.log("Save key response:", saveResult);
+      
 
       if (!saveResult.success) {
         throw new Error(`Failed to save access key: ${saveResult.message}`);
       }
 
       // Now connect with the new key
-      console.log("Submitting manual_connect action with new access key");
+      
       fetcher.submit(
         {
           accessKey,
@@ -1674,8 +1593,8 @@ export default function Index() {
   };
 
   const handleQuickConnect = () => {
-    console.log("handleQuickConnect called");
-    console.log("Submitting quick_connect action");
+    
+    
     fetcher.submit({ action: "quick_connect" }, { method: "POST" });
   };
 
@@ -1706,44 +1625,34 @@ export default function Index() {
   };
 
   const handleSync = async () => {
-    console.log("=== SYNC START: Beginning content sync process ===");
+    
     try {
       setIsSyncing(true);
       setError("");
-      console.log("Setting UI state: isSyncing=true");
+      
 
       // Step 1: Initial sync
-      console.log("Step 1: Initiating local API sync");
+      
       const syncInitResponse = await fetch("/api/sync", {
         method: "GET",
       });
-      console.log("Initial sync response status:", syncInitResponse.status);
+      
 
       const responseText = await syncInitResponse.text();
-      console.log("Initial sync raw response:", responseText);
+      
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log("Initial sync data parsed successfully");
+        
 
         // Log the complete data in a clean format
-        console.log("=== COMPLETE SYNC DATA ===");
-        console.log(JSON.stringify(data, null, 2));
+        
+        
 
         // If there's an error, log it in a more readable format
         if (data.error) {
-          console.log("=== SYNC ERROR ===");
-          console.log(
-            JSON.stringify(
-              {
-                error: data.error,
-                details: data.details,
-                graphQLErrors: data.graphQLErrors,
-              },
-              null,
-              2,
-            ),
-          );
+          
+          
         }
       } catch (e) {
         console.error("Failed to parse JSON response:", e);
@@ -1762,11 +1671,11 @@ export default function Index() {
           }`,
         );
       }
-      console.log("Initial sync completed successfully");
+      
 
       // Step 2: Send data to backend
-      console.log("Step 2: Sending sync data to backend");
-      console.log("Sync data size:", JSON.stringify(data).length, "bytes");
+      
+      
       const syncResponse = await fetch(`${urls.voiceroApi}/api/shopify/sync`, {
         method: "POST",
         headers: {
@@ -1779,7 +1688,7 @@ export default function Index() {
           data: data,
         }),
       });
-      console.log("Backend sync response status:", syncResponse.status);
+      
 
       if (!syncResponse.ok) {
         const errorData = await syncResponse.json();
@@ -1790,10 +1699,10 @@ export default function Index() {
           }`,
         );
       }
-      console.log("Backend sync completed successfully");
+      
 
       // Step 3: Start vectorization
-      console.log("Step 3: Starting vectorization process");
+      
       setLoadingText(
         "Vectorizing your store content... This may take a few minutes.",
       );
@@ -1809,7 +1718,7 @@ export default function Index() {
           },
         },
       );
-      console.log("Vectorization response status:", vectorizeResponse.status);
+      
 
       if (!vectorizeResponse.ok) {
         const errorData = await vectorizeResponse.json();
@@ -1823,7 +1732,7 @@ export default function Index() {
 
       // Process the regular JSON response
       const vectorizeData = await vectorizeResponse.json();
-      console.log("Vectorization response data:", vectorizeData);
+      
 
       // Check if the vectorization was successful
       if (!vectorizeData.success) {
@@ -1835,7 +1744,7 @@ export default function Index() {
 
       // Show some stats if available
       if (vectorizeData.stats) {
-        console.log("Vectorization stats:", vectorizeData.stats);
+        
         setLoadingText(
           `Vectorization complete! Added ${vectorizeData.stats.added} items to the vector database.`,
         );
@@ -1844,7 +1753,7 @@ export default function Index() {
       }
 
       // Step 4: Create or get assistant
-      console.log("Step 4: Setting up AI assistant");
+      
       setLoadingText("Setting up your AI assistant...");
       const assistantResponse = await fetch(
         `${urls.voiceroApi}/api/shopify/assistant`,
@@ -1857,7 +1766,7 @@ export default function Index() {
           },
         },
       );
-      console.log("Assistant setup response status:", assistantResponse.status);
+      
 
       if (!assistantResponse.ok) {
         const errorData = await assistantResponse.json();
@@ -1870,7 +1779,7 @@ export default function Index() {
       }
 
       const assistantData = await assistantResponse.json();
-      console.log("Assistant response data:", assistantData);
+      
 
       // Get website ID from the assistant response
       const websiteId = assistantData.websiteId;
@@ -1879,7 +1788,7 @@ export default function Index() {
       }
 
       // After assistant setup, start individual training
-      console.log("Starting individual content training");
+      
       setIsTraining(true);
       setLoadingText("Starting content training process...");
 
@@ -1903,7 +1812,7 @@ export default function Index() {
       );
 
       // Step 5: Train general QAs
-      console.log("Step 5: Training general QAs");
+      
       setLoadingText("Training general QAs...");
       setTrainingData((prev) => ({
         ...prev,
@@ -1938,7 +1847,7 @@ export default function Index() {
       }
 
       const generalTrainingData = await generalTrainingResponse.json();
-      console.log("General training response data:", generalTrainingData);
+      
 
       // Update training data to show completion
       setTrainingData((prev) => ({
@@ -1952,7 +1861,7 @@ export default function Index() {
       setLoadingText("Training complete! Your AI assistant is ready to use.");
       setIsSuccess(true);
       setIsSyncing(false);
-      console.log("=== SYNC END: All processes completed successfully ===");
+      
     } catch (error) {
       console.error("Sync process failed:", error);
       setError(
@@ -1961,7 +1870,7 @@ export default function Index() {
         </Banner>,
       );
       setIsSyncing(false);
-      console.log("=== SYNC END: Process failed with error ===");
+      
     }
   };
 
@@ -2002,16 +1911,16 @@ export default function Index() {
   }, [trainingData]);
 
   const handleViewStatus = async () => {
-    console.log("handleViewStatus called");
+    
     try {
       setIsDataLoading(true);
       setError("");
-      console.log("Setting UI state: isDataLoading=true");
+      
 
       // Check if we have the namespace
-      console.log("Current namespace:", namespace);
+      
       if (!namespace) {
-        console.log("No namespace found, showing error");
+        
         setError("No namespace found. Please connect to your website first.");
         setIsDataLoading(false);
         return;
@@ -2019,7 +1928,7 @@ export default function Index() {
 
       // Show current data in a banner if we have it
       if (trainingData) {
-        console.log("Displaying current training data in banner");
+        
         // Display status in a banner
         setError(
           <Banner status="info" onDismiss={() => setError("")}>
@@ -2030,7 +1939,7 @@ export default function Index() {
           </Banner>,
         );
       } else {
-        console.log("No training data yet, showing checking status message");
+        
         setError(
           <Banner status="info" onDismiss={() => setError("")}>
             <p>Checking status... Results will appear in 1-2 seconds.</p>
@@ -2041,7 +1950,7 @@ export default function Index() {
       console.error("Error checking status:", error);
       setError(`Error checking status: ${error.message}`);
     } finally {
-      console.log("Setting isDataLoading=false");
+      
       setIsDataLoading(false);
     }
   };
@@ -2049,98 +1958,60 @@ export default function Index() {
   return (
     <Page>
       <BlockStack gap="800">
-        {/* Training Status Banner - Show only if we have training data AND it's not in "not_running" state */}
-        {trainingData &&
-          (trainingData.status === "processing" ||
-            trainingData.status === "success") && (
-            <Banner
-              status={trainingData.status === "processing" ? "info" : "success"}
-            >
-              <BlockStack gap="300">
-                <InlineStack align="center" gap="200">
-                  {trainingData.status === "processing" && (
-                    <Spinner size="small" />
-                  )}
-                  {trainingData.status !== "processing" && (
-                    <Icon source={CheckIcon} color="success" />
-                  )}
-                  <Text variant="headingMd">
-                    AI Assistant Training{" "}
-                    {trainingData.status === "processing"
-                      ? "in Progress"
-                      : "Complete"}
+        {/* Training Status Banner - Show only if we have training data AND it's in "processing" state */}
+        {trainingData && trainingData.status === "processing" && (
+          <Banner status="info">
+            <BlockStack gap="300">
+              <InlineStack align="center" gap="200">
+                <Spinner size="small" />
+                <Text variant="headingMd">
+                  AI Assistant Training in Progress
+                </Text>
+              </InlineStack>
+
+              <>
+                <Text>{getTrainingStatusMessage()}</Text>
+
+                {/* Progress bar */}
+                <div style={{ width: "100%", marginTop: "8px" }}>
+                  <div
+                    style={{
+                      width: "100%",
+                      background: "#e0e0e0",
+                      borderRadius: "4px",
+                      height: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${getTrainingProgress()}%`,
+                        background: "#008060",
+                        borderRadius: "4px",
+                        height: "8px",
+                        transition: "width 0.5s ease-in-out",
+                      }}
+                    />
+                  </div>
+                  <Text variant="bodySm" alignment="end">
+                    {getTrainingProgress()}% complete
                   </Text>
-                </InlineStack>
+                </div>
 
-                {trainingData.status === "processing" && (
-                  <>
-                    <Text>{getTrainingStatusMessage()}</Text>
+                {/* Estimated time remaining */}
+                <Text variant="bodySm">
+                  Estimated time remaining: {formatTimeRemaining(timeRemaining)}
+                </Text>
 
-                    {/* Show items currently being trained */}
-
-                    {/* Progress bar */}
-                    <div style={{ width: "100%", marginTop: "8px" }}>
-                      <div
-                        style={{
-                          width: "100%",
-                          background: "#e0e0e0",
-                          borderRadius: "4px",
-                          height: "8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${getTrainingProgress()}%`,
-                            background: "#008060",
-                            borderRadius: "4px",
-                            height: "8px",
-                            transition: "width 0.5s ease-in-out",
-                          }}
-                        />
-                      </div>
-                      <Text variant="bodySm" alignment="end">
-                        {getTrainingProgress()}% complete
-                      </Text>
-                    </div>
-
-                    {/* Estimated time remaining */}
-                    <Text variant="bodySm">
-                      Estimated time remaining:{" "}
-                      {formatTimeRemaining(timeRemaining)}
-                    </Text>
-                  </>
-                )}
-
-                {trainingData.status !== "processing" && (
-                  <Text>
-                    Your AI assistant has completed training and is ready to
-                    use! Last synced:{" "}
-                    {fetcher.data?.websiteData?.lastSyncedAt
-                      ? new Date(
-                          fetcher.data.websiteData.lastSyncedAt,
-                        ).toLocaleString()
-                      : "Never"}
-                  </Text>
-                )}
-
-                {/* Only show Refresh Status button if training is still in progress */}
-                {/* {trainingData.status === "processing" && (
-                  <Button onClick={handleViewStatus} size="slim">
-                    Refresh Status
-                  </Button>
-                )} */}
-
-                {trainingData.status === "processing" && (
-                  <Text variant="bodySm">
-                    Note: Do not close this page while training is in progress.
-                    If you do it will pause the current training and will start
-                    again once you open the app again from where you left. You
-                    can leave the page and do other things, but do not close it.
-                  </Text>
-                )}
-              </BlockStack>
-            </Banner>
-          )}
+                <Text variant="bodySm">
+                  Note: Do not close this page while training is in progress. If
+                  you do it will pause the current training and will start again
+                  once you open the app again from where you left. You can leave
+                  the page and do other things, but do not close it.
+                </Text>
+              </>
+            </BlockStack>
+          </Banner>
+        )}
 
         <Layout>
           <Layout.Section>
@@ -2442,7 +2313,7 @@ export default function Index() {
                                                     `HTTP error! status: ${response.status}`,
                                                   );
                                                 }
-                                                // Refresh the website data
+                                                // Do a full refresh after toggling status
                                                 fetcher.submit(
                                                   {
                                                     accessKey,

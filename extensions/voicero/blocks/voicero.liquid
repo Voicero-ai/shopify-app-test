@@ -3,12 +3,27 @@
 {% endcomment %}
 
 <script>
-  // Initialize voicero with shop data
+  // Initialize voicero with shop data - but DON'T expose the access key directly in window
   window.voiceroConfig = {
-    shop: "{{ shop.permanent_domain }}",
-    accessKey: "{{ block.settings.access_key | default: shop.metafields.voicero.access_key }}"
+    shop: "{{ shop.permanent_domain }}"
   };
   
+  // Store access key in a closure that's not directly accessible from window
+  (function() {
+    const accessKey = "{{ block.settings.access_key | default: shop.metafields.voicero.access_key }}";
+    
+    // Create a secure method to get authorization headers without exposing the key
+    window.voiceroConfig.getAuthHeaders = function() {
+      return {
+        'Authorization': `Bearer ${accessKey}`
+      };
+    };
+    
+    // Create a method to check if we have a valid key
+    window.voiceroConfig.hasValidKey = function() {
+      return !!accessKey && accessKey.length > 0;
+    };
+  })();
   
   // Check if we have a saved state
   try {
@@ -23,8 +38,6 @@
       if (parsedState.isOpen && parsedState.activeInterface) {
         window.voiceroConfig.autoOpenInterface = true;
       }
-      
-      
     }
   } catch (e) {
     console.error("Error checking saved state:", e);
