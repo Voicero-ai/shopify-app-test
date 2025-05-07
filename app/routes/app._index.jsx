@@ -2181,21 +2181,16 @@ export default function Index() {
                                         <Button
                                           size="slim"
                                           onClick={() => {
-                                            fetch(
-                                              `${urls.voiceroApi}/api/websites/toggle-status`,
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                  Accept: "application/json",
-                                                  Authorization: `Bearer ${accessKey.trim()}`,
-                                                },
-                                                body: JSON.stringify({
-                                                  accessKey: accessKey.trim(),
-                                                }),
+                                            fetch("/api/toggle-status", {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
                                               },
-                                            )
+                                              body: JSON.stringify({
+                                                accessKey: accessKey.trim(),
+                                              }),
+                                            })
                                               .then((response) => {
                                                 if (!response.ok) {
                                                   throw new Error(
