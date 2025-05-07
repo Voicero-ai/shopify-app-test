@@ -55,12 +55,10 @@ const AVERAGE_TIMES = {
 };
 
 export const loader = async ({ request }) => {
-  
   const { admin } = await authenticate.admin(request);
-  
 
   // Get subscription status
-  
+
   const response = await admin.graphql(`
     query {
       appInstallation {
@@ -86,17 +84,16 @@ export const loader = async ({ request }) => {
   `);
 
   const data = await response.json();
-  
+
   const subscriptions = data.data.appInstallation.activeSubscriptions;
   const isPro = subscriptions.some(
     (sub) =>
       sub.status === "ACTIVE" &&
       sub.lineItems[0]?.plan?.pricingDetails?.price?.amount > 0,
   );
-  
 
   // Get access key from metafields
-  
+
   const metafieldResponse = await admin.graphql(`
     query {
       shop {
@@ -108,22 +105,17 @@ export const loader = async ({ request }) => {
   `);
 
   const metafieldData = await metafieldResponse.json();
-  
+
   const savedKey = metafieldData.data.shop.metafield?.value;
-  
 
   let isConnected = false;
   if (savedKey) {
-    
     try {
       const trimmedKey = savedKey.trim();
-      
-      
 
-      // Try both localhost and production URLs
+      // Use production API URL
       const apiUrls = [
-        `${urls.voiceroApi}/api/connect`, // Development
-        `${urls.voiceroApi}/api/connect`, // Production backup
+        `${urls.voiceroApi}/api/connect`, // Production URL
       ];
 
       let connected = false;
@@ -131,7 +123,6 @@ export const loader = async ({ request }) => {
 
       // Try each URL in sequence
       for (const apiUrl of apiUrls) {
-        
         try {
           const testResponse = await fetch(apiUrl, {
             method: "GET",
@@ -142,18 +133,14 @@ export const loader = async ({ request }) => {
             },
             mode: "cors",
           });
-          
 
           const responseText = await testResponse.text();
-          
 
           try {
             const parsedData = JSON.parse(responseText);
-            
 
             // Only set isConnected to true if we have valid website data
             if (testResponse.ok && parsedData.website) {
-              
               connected = true;
               responseData = parsedData;
               // Break loop on first successful connection
@@ -172,15 +159,11 @@ export const loader = async ({ request }) => {
       }
 
       isConnected = connected;
-      
     } catch (error) {
       console.error("Error testing connection:", error);
       isConnected = false;
     }
   }
-
-  
-  
 
   return json({
     isPro,
@@ -208,17 +191,13 @@ async function getShopId(admin) {
 }
 
 export const action = async ({ request }) => {
-  
   const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const accessKey = formData.get("accessKey");
   const action = formData.get("action");
-  
-  
 
   try {
     if (action === "quick_connect") {
-      
       const shop = session.shop;
       const storeName = shop.split(".")[0];
       const appHandle = process.env.SHOPIFY_APP_HANDLE || "voicero-app-shop";
@@ -236,16 +215,13 @@ export const action = async ({ request }) => {
         }/api/quickConnectCallback`,
       );
 
-      
-
-      
       return {
         success: true,
         redirectUrl: `${urls.voiceroApi}/app/connect?site_url=${site_url}&redirect_url=${admin_url}&callback_url=${callbackUrl}&type=Shopify`,
       };
     } else if (action === "quick_connect_callback") {
       // This is called when the quick connect flow completes
-      
+
       try {
         const incomingKey = formData.get("access_key");
         if (!incomingKey) {
@@ -255,10 +231,8 @@ export const action = async ({ request }) => {
           );
         }
 
-        
-
         // First, check if there's an existing key we need to delete
-        
+
         const metafieldResponse = await admin.graphql(`
           query {
             shop {
@@ -271,11 +245,9 @@ export const action = async ({ request }) => {
         `);
 
         const metafieldData = await metafieldResponse.json();
-        
 
         // If there's an existing metafield with a key, delete it first
         if (metafieldData.data?.shop?.metafield?.id) {
-          
           const metafieldId = metafieldData.data.shop.metafield.id;
 
           const deleteResponse = await admin.graphql(`
@@ -293,7 +265,6 @@ export const action = async ({ request }) => {
           `);
 
           const deleteResult = await deleteResponse.json();
-          
 
           if (deleteResult.data?.metafieldDelete?.userErrors?.length > 0) {
             console.warn(
@@ -306,7 +277,6 @@ export const action = async ({ request }) => {
         // Now save the new key
         const shopId = await getShopId(admin);
 
-        
         const saveResponse = await admin.graphql(
           `
           mutation CreateMetafield($input: MetafieldsSetInput!) {
@@ -337,7 +307,6 @@ export const action = async ({ request }) => {
         );
 
         const saveResult = await saveResponse.json();
-        
 
         if (saveResult.data?.metafieldsSet?.userErrors?.length > 0) {
           console.error(
@@ -362,18 +331,14 @@ export const action = async ({ request }) => {
         };
       }
     } else if (action === "manual_connect") {
-      
       try {
         const trimmedKey = accessKey?.trim();
-        
-        
 
         if (!trimmedKey) {
           console.error("No access key provided");
           throw new Error("No access key provided");
         }
 
-        
         const headers = new Headers();
         headers.append("Accept", "application/json");
         headers.append("Authorization", `Bearer ${trimmedKey}`);
@@ -392,7 +357,6 @@ export const action = async ({ request }) => {
         // Try each URL until one succeeds
         for (const apiUrl of apiUrls) {
           try {
-            
             const response = await fetch(apiUrl, {
               method: "GET",
               headers: {
@@ -402,23 +366,19 @@ export const action = async ({ request }) => {
               },
               mode: "cors",
             });
-            
 
             const responseText = await response.text();
-            
 
             try {
               const data = JSON.parse(responseText);
-              
 
               if (response.ok && data.website) {
                 connectionSuccessful = true;
                 connectionResponse = response;
                 connectionData = data;
-                
+
                 break;
               } else {
-                
                 connectionError = data.error || "Connection failed";
               }
             } catch (parseError) {
@@ -449,7 +409,7 @@ export const action = async ({ request }) => {
         const data = connectionData;
 
         // Update theme settings directly using the admin API
-        
+
         const shopResponse = await admin.graphql(`
           query {
             shop {
@@ -459,11 +419,9 @@ export const action = async ({ request }) => {
         `);
 
         const shopData = await shopResponse.json();
-        
-        const shopId = shopData.data.shop.id;
-        
 
-        
+        const shopId = shopData.data.shop.id;
+
         const metafieldResponse = await admin.graphql(
           `
           mutation CreateMetafield($input: MetafieldsSetInput!) {
@@ -494,7 +452,6 @@ export const action = async ({ request }) => {
         );
 
         const metafieldData = await metafieldResponse.json();
-        
 
         if (metafieldData.data?.metafieldsSet?.userErrors?.length > 0) {
           console.error(
@@ -504,7 +461,6 @@ export const action = async ({ request }) => {
           throw new Error("Failed to save access key to store");
         }
 
-        
         return {
           success: true,
           accessKey: accessKey,
@@ -535,7 +491,6 @@ export const action = async ({ request }) => {
       }
     }
 
-    
     return {
       success: false,
       error: errorMessage,
@@ -645,7 +600,6 @@ const checkTrainingStatus = async (
   setUntrainedItems,
   setItemsInTraining,
 ) => {
-  
   const response = await fetch(`${urls.voiceroApi}/api/shopify/train/status`, {
     method: "GET",
     headers: {
@@ -663,7 +617,6 @@ const checkTrainingStatus = async (
   }
 
   const data = await response.json();
-  
 
   // Separate items into untrained and in-training
   const untrained = {
@@ -706,7 +659,6 @@ const checkTrainingStatus = async (
 
   // Show training banner if we have either items in training or untrained items
   if (hasItemsInTraining || hasUntrainedItems) {
-    
     setTrainingData({
       status: "processing",
       progress: 0,
@@ -721,7 +673,6 @@ const checkTrainingStatus = async (
 
     // If we have untrained items and no items in training, start the training process
     if (hasUntrainedItems && !hasItemsInTraining) {
-      
       try {
         await trainUntrainedItems(
           fetcher.data.accessKey,
@@ -758,7 +709,6 @@ const checkTrainingStatus = async (
         }
 
         const statusData = await statusResponse.json();
-        
 
         // Process the status data
         const polledUntrained = {
@@ -800,10 +750,8 @@ const checkTrainingStatus = async (
         );
 
         if (stillInTraining || stillUntrained) {
-          
           setTimeout(pollStatus, 15000);
         } else {
-          
           setTrainingData({
             status: "success",
             progress: 100,
@@ -822,7 +770,7 @@ const checkTrainingStatus = async (
     setTimeout(pollStatus, 15000);
   } else {
     // Only set success state if there are no items in training AND no untrained items
-    
+
     setTrainingData({
       status: "success",
       progress: 100,
@@ -833,7 +781,6 @@ const checkTrainingStatus = async (
   }
 
   // Log the current state
-  
 
   return untrained;
 };
@@ -846,8 +793,6 @@ const trainUntrainedItems = async (
   setUntrainedItems,
   websiteData, // Add websiteData parameter
 ) => {
-  
-
   // Get websiteId from any untrained item (they all belong to the same website)
   const websiteId =
     untrainedItems.products?.[0]?.websiteId ||
@@ -1015,8 +960,6 @@ const trainUntrainedItems = async (
 
 // Add new helper function for training individual content
 const trainContentItem = async (accessKey, contentType, item) => {
-  
-
   const response = await fetch(
     `${urls.voiceroApi}/api/shopify/train/${contentType}`,
     {
@@ -1236,13 +1179,10 @@ export default function Index() {
 
   // Check for access_key in URL
   useEffect(() => {
-    
     const url = new URL(window.location.href);
     const accessKeyParam = url.searchParams.get("access_key");
 
     if (accessKeyParam) {
-      
-
       // Clean up the URL by removing the access_key parameter
       url.searchParams.delete("access_key");
       window.history.replaceState({}, document.title, url.toString());
@@ -1257,9 +1197,7 @@ export default function Index() {
 
   // Modify the useEffect that handles successful connection
   useEffect(() => {
-    
     if (fetcher.data?.success && fetcher.data.accessKey) {
-      
       setAccessKey(fetcher.data.accessKey);
 
       // Only check status on initial load
@@ -1284,7 +1222,6 @@ export default function Index() {
           }
 
           const data = await response.json();
-          
 
           // Separate items into untrained and in-training
           const untrained = {
@@ -1328,7 +1265,6 @@ export default function Index() {
 
           // Show training banner if we have either items in training or untrained items
           if (hasItemsInTraining || hasUntrainedItems) {
-            
             setTrainingData({
               status: "processing",
               progress: 0,
@@ -1349,7 +1285,6 @@ export default function Index() {
 
             // If we have untrained items and no items in training, start the training process
             if (hasUntrainedItems && !hasItemsInTraining) {
-              
               try {
                 await trainUntrainedItems(
                   fetcher.data.accessKey,
@@ -1386,7 +1321,6 @@ export default function Index() {
                 }
 
                 const statusData = await statusResponse.json();
-                
 
                 // Process the status data
                 const polledUntrained = {
@@ -1428,10 +1362,8 @@ export default function Index() {
                 );
 
                 if (stillInTraining || stillUntrained) {
-                  
                   setTimeout(pollStatus, 15000);
                 } else {
-                  
                   setTrainingData({
                     status: "success",
                     progress: 100,
@@ -1450,7 +1382,7 @@ export default function Index() {
             setTimeout(pollStatus, 15000);
           } else {
             // Only set success state if there are no items in training AND no untrained items
-            
+
             setTrainingData({
               status: "success",
               progress: 100,
@@ -1461,7 +1393,6 @@ export default function Index() {
           }
 
           // Log the current state
-          
         } catch (error) {
           console.error("Error checking initial training status:", error);
           setError(`Failed to check training status: ${error.message}`);
@@ -1474,32 +1405,26 @@ export default function Index() {
 
     // Check if we got a response with namespace data
     if (fetcher.data?.namespace) {
-      
       setNamespace(fetcher.data.namespace);
     }
     // Check if we have namespace in VectorDbConfig
     else if (fetcher.data?.websiteData?.VectorDbConfig?.namespace) {
       const websiteNamespace =
         fetcher.data.websiteData.VectorDbConfig.namespace;
-      
+
       setNamespace(websiteNamespace);
     }
 
     // Log the complete website data in a clean format
     if (fetcher.data?.websiteData) {
-      
-      
     }
   }, [fetcher.data]);
 
   // Auto-connect when we have an access key
   useEffect(() => {
-    
-    
-
     if (accessKey && !fetcher.data?.success) {
       // Only connect if we haven't already
-      
+
       setIsDataLoading(true);
       fetcher.submit(
         { accessKey, action: "manual_connect" },
@@ -1510,9 +1435,7 @@ export default function Index() {
 
   // Reset data loading state when we get data back from fetcher
   useEffect(() => {
-    
     if (fetcher.data) {
-      
       setIsDataLoading(false);
       setIsConnecting(false);
     }
@@ -1529,37 +1452,32 @@ export default function Index() {
   }, [fetcher.data]);
 
   const handleManualConnect = async () => {
-    
     if (!accessKey) {
-      
       setError("Please enter an access key");
       return;
     }
-    
+
     setError("");
     setIsConnecting(true);
 
     try {
       // First, check if there's an existing key we need to delete
-      
+
       const existingKeyResponse = await fetch("/api/accessKey", {
         method: "GET",
       });
       const existingKeyData = await existingKeyResponse.json();
-      
 
       // If there's an existing key, delete it first
       if (existingKeyData.success && existingKeyData.accessKey) {
-        
         const deleteResponse = await fetch("/api/accessKey", {
           method: "DELETE",
         });
         const deleteResult = await deleteResponse.json();
-        
       }
 
       // Now set the new key
-      
+
       const saveResponse = await fetch("/api/accessKey", {
         method: "POST",
         headers: {
@@ -1570,14 +1488,13 @@ export default function Index() {
         }),
       });
       const saveResult = await saveResponse.json();
-      
 
       if (!saveResult.success) {
         throw new Error(`Failed to save access key: ${saveResult.message}`);
       }
 
       // Now connect with the new key
-      
+
       fetcher.submit(
         {
           accessKey,
@@ -1593,8 +1510,6 @@ export default function Index() {
   };
 
   const handleQuickConnect = () => {
-    
-    
     fetcher.submit({ action: "quick_connect" }, { method: "POST" });
   };
 
@@ -1625,34 +1540,26 @@ export default function Index() {
   };
 
   const handleSync = async () => {
-    
     try {
       setIsSyncing(true);
       setError("");
-      
 
       // Step 1: Initial sync
-      
+
       const syncInitResponse = await fetch("/api/sync", {
         method: "GET",
       });
-      
 
       const responseText = await syncInitResponse.text();
-      
+
       let data;
       try {
         data = JSON.parse(responseText);
-        
 
         // Log the complete data in a clean format
-        
-        
 
         // If there's an error, log it in a more readable format
         if (data.error) {
-          
-          
         }
       } catch (e) {
         console.error("Failed to parse JSON response:", e);
@@ -1671,11 +1578,9 @@ export default function Index() {
           }`,
         );
       }
-      
 
       // Step 2: Send data to backend
-      
-      
+
       const syncResponse = await fetch(`${urls.voiceroApi}/api/shopify/sync`, {
         method: "POST",
         headers: {
@@ -1688,7 +1593,6 @@ export default function Index() {
           data: data,
         }),
       });
-      
 
       if (!syncResponse.ok) {
         const errorData = await syncResponse.json();
@@ -1699,10 +1603,9 @@ export default function Index() {
           }`,
         );
       }
-      
 
       // Step 3: Start vectorization
-      
+
       setLoadingText(
         "Vectorizing your store content... This may take a few minutes.",
       );
@@ -1718,7 +1621,6 @@ export default function Index() {
           },
         },
       );
-      
 
       if (!vectorizeResponse.ok) {
         const errorData = await vectorizeResponse.json();
@@ -1732,7 +1634,6 @@ export default function Index() {
 
       // Process the regular JSON response
       const vectorizeData = await vectorizeResponse.json();
-      
 
       // Check if the vectorization was successful
       if (!vectorizeData.success) {
@@ -1744,7 +1645,6 @@ export default function Index() {
 
       // Show some stats if available
       if (vectorizeData.stats) {
-        
         setLoadingText(
           `Vectorization complete! Added ${vectorizeData.stats.added} items to the vector database.`,
         );
@@ -1753,7 +1653,7 @@ export default function Index() {
       }
 
       // Step 4: Create or get assistant
-      
+
       setLoadingText("Setting up your AI assistant...");
       const assistantResponse = await fetch(
         `${urls.voiceroApi}/api/shopify/assistant`,
@@ -1766,7 +1666,6 @@ export default function Index() {
           },
         },
       );
-      
 
       if (!assistantResponse.ok) {
         const errorData = await assistantResponse.json();
@@ -1779,7 +1678,6 @@ export default function Index() {
       }
 
       const assistantData = await assistantResponse.json();
-      
 
       // Get website ID from the assistant response
       const websiteId = assistantData.websiteId;
@@ -1788,7 +1686,7 @@ export default function Index() {
       }
 
       // After assistant setup, start individual training
-      
+
       setIsTraining(true);
       setLoadingText("Starting content training process...");
 
@@ -1812,7 +1710,7 @@ export default function Index() {
       );
 
       // Step 5: Train general QAs
-      
+
       setLoadingText("Training general QAs...");
       setTrainingData((prev) => ({
         ...prev,
@@ -1847,7 +1745,6 @@ export default function Index() {
       }
 
       const generalTrainingData = await generalTrainingResponse.json();
-      
 
       // Update training data to show completion
       setTrainingData((prev) => ({
@@ -1861,7 +1758,6 @@ export default function Index() {
       setLoadingText("Training complete! Your AI assistant is ready to use.");
       setIsSuccess(true);
       setIsSyncing(false);
-      
     } catch (error) {
       console.error("Sync process failed:", error);
       setError(
@@ -1870,7 +1766,6 @@ export default function Index() {
         </Banner>,
       );
       setIsSyncing(false);
-      
     }
   };
 
@@ -1911,16 +1806,13 @@ export default function Index() {
   }, [trainingData]);
 
   const handleViewStatus = async () => {
-    
     try {
       setIsDataLoading(true);
       setError("");
-      
 
       // Check if we have the namespace
-      
+
       if (!namespace) {
-        
         setError("No namespace found. Please connect to your website first.");
         setIsDataLoading(false);
         return;
@@ -1928,7 +1820,6 @@ export default function Index() {
 
       // Show current data in a banner if we have it
       if (trainingData) {
-        
         // Display status in a banner
         setError(
           <Banner status="info" onDismiss={() => setError("")}>
@@ -1939,7 +1830,6 @@ export default function Index() {
           </Banner>,
         );
       } else {
-        
         setError(
           <Banner status="info" onDismiss={() => setError("")}>
             <p>Checking status... Results will appear in 1-2 seconds.</p>
@@ -1950,7 +1840,6 @@ export default function Index() {
       console.error("Error checking status:", error);
       setError(`Error checking status: ${error.message}`);
     } finally {
-      
       setIsDataLoading(false);
     }
   };

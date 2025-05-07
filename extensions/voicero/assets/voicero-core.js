@@ -553,7 +553,7 @@
         return;
       }
 
-      // Use localhost:3000 API endpoint instead of WordPress proxy
+      // Use production API endpoint
       const proxyUrl = "https://www.voicero.ai/api/connect";
 
       fetch(proxyUrl, {
