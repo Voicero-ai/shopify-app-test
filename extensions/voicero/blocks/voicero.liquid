@@ -59,7 +59,11 @@
     
     // First load the core script
     loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
-      
+      // Initialize action handler with shop configuration
+      if (window.VoiceroActionHandler && window.VoiceroActionHandler.init) {
+        window.VoiceroActionHandler.init();
+      }
+
       // Then load voice module
       loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
         
@@ -85,12 +89,26 @@
           }, 300);
         }
       });
+      
+      // Load action handler script
+      loadScript("{{ 'voicero-action-handler.js' | asset_url }}", function() {
+        // Initialize action handler with shop configuration
+        if (window.VoiceroActionHandler && window.VoiceroActionHandler.init) {
+          window.VoiceroActionHandler.init();
+        }
+      });
     });
   });
   
   // Also try to load immediately if DOM is already loaded
   if (document.readyState === "complete" || document.readyState === "interactive") {
+    {%- comment -%} theme-check:disable theme-check/MissingAsset {%- endcomment -%}
     loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+      // Initialize action handler with shop configuration
+      if (window.VoiceroActionHandler && window.VoiceroActionHandler.init) {
+        window.VoiceroActionHandler.init();
+      }
+      
       loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
         // Auto-open voice interface if it was the last active one
         if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
@@ -109,6 +127,14 @@
               window.VoiceroText.openTextChat();
             }
           }, 300);
+        }
+      });
+      
+      // Load action handler script
+      loadScript("{{ 'voicero-action-handler.js' | asset_url }}", function() {
+        // Initialize action handler with shop configuration
+        if (window.VoiceroActionHandler && window.VoiceroActionHandler.init) {
+          window.VoiceroActionHandler.init();
         }
       });
     });

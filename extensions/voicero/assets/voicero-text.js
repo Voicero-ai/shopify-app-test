@@ -5,6 +5,11 @@
 
 // Text interface variables
 const VoiceroText = {
+  // debounce visibility toggles
+  _isChatVisible: false, // tracks whether messages+header+input are up
+  _lastChatToggle: 0, // timestamp of last minimize/maximize
+  CHAT_TOGGLE_DEBOUNCE_MS: 200, // minimum time between toggles
+
   isWaitingForResponse: false,
   typingTimeout: null,
   typingIndicator: null,
@@ -167,15 +172,15 @@ const VoiceroText = {
 
     // Update window state if it hasn't been done already
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+      console.log("VoiceroText: Updating window state for text chat");
       window.VoiceroCore.updateWindowState({
         textOpen: true,
-        textOpenWindowUp: shouldBeMaximized, // Respect existing window state if available
+        textOpenWindowUp: true, // Always start maximized
         textWelcome: shouldShowWelcome, // Keep the existing welcome message state
-        coreOpen: false,
+        coreOpen: false, // Always false when opening chat
         voiceOpen: false,
         voiceOpenWindowUp: false,
       });
-    } else {
     }
 
     // Close voice interface if it's open
@@ -188,22 +193,12 @@ const VoiceroText = {
       }
     }
 
-    // Hide the toggle container when opening on mobile
-    // if (window.innerWidth <= 768) {
-    //   const toggleContainer = document.getElementById("voice-toggle-container");
-    //   if (toggleContainer) {
-    //     toggleContainer.style.display = "none";
-    //     toggleContainer.style.visibility = "hidden";
-    //     toggleContainer.style.opacity = "0";
-    //   }
-    // }
-
-    // Hide the chooser popup
-    const chooser = document.getElementById("interaction-chooser");
-    if (chooser) {
-      chooser.style.display = "none";
-      chooser.style.visibility = "hidden";
-      chooser.style.opacity = "0";
+    // Let VoiceroCore handle hiding buttons and chooser
+    if (
+      window.VoiceroCore &&
+      typeof window.VoiceroCore.hideMainButton === "function"
+    ) {
+      window.VoiceroCore.hideMainButton();
     }
 
     // Check if we already initialized
@@ -260,6 +255,58 @@ const VoiceroText = {
 
     // Load existing messages from session
     this.loadMessagesFromSession();
+
+    // If shouldShowWelcome is true, add the welcome message
+    if (shouldShowWelcome) {
+      const messagesContainer = this.shadowRoot
+        ? this.shadowRoot.getElementById("chat-messages")
+        : document.getElementById("chat-messages");
+
+      if (messagesContainer) {
+        // Clear existing messages if any
+        const children = Array.from(messagesContainer.children);
+        for (const child of children) {
+          if (child.id !== "initial-suggestions") {
+            messagesContainer.removeChild(child);
+          }
+        }
+
+        // Add welcome message
+        this.addMessage(
+          `
+          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important;">
+            <div class="welcome-title">Aura, your website concierge</div>
+            <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
+            <div class="welcome-note"><span class="welcome-pulse"></span>Ask me anything about this site!</div>
+          </div>
+          `,
+          "ai",
+          false,
+          true,
+        );
+
+        // Force colors on the welcome message
+        this.forceWelcomeMessageColors();
+      }
+    }
+
+    // Initialize visibility state
+    this._isChatVisible = true;
+    this._lastChatToggle = Date.now();
+
+    // After the interface is fully loaded and visible, check if it should be minimized
+    // based on the previous session state (delayed to prevent race conditions)
+    setTimeout(() => {
+      // Now check if we should be minimized according to session preferences
+      // We only check this AFTER ensuring the interface is visible
+      if (
+        window.VoiceroCore &&
+        window.VoiceroCore.session &&
+        window.VoiceroCore.session.textOpenWindowUp === false
+      ) {
+        this.minimizeChat();
+      }
+    }, 1500);
   },
 
   // Load existing messages from session and display them
@@ -443,14 +490,14 @@ const VoiceroText = {
   // Fetch website data from /api/connect endpoint
   fetchWebsiteData: function () {
     // SECURITY: Direct API access removed - now using server-side proxy through WordPress AJAX
-    if (!window.aiWebsiteConfig || !window.aiWebsiteConfig.ajaxUrl) {
+    if (!window.voiceroConfig || !window.voiceroConfig.ajaxUrl) {
       this.createFallbackPopupQuestions();
       return;
     }
 
     // Use WordPress AJAX endpoint instead of direct API access
-    const ajaxUrl = window.aiWebsiteConfig.ajaxUrl;
-    const nonce = window.aiWebsiteConfig.nonce || "";
+    const ajaxUrl = window.voiceroConfig.ajaxUrl;
+    const nonce = window.voiceroConfig.nonce || "";
 
     fetch(ajaxUrl, {
       method: "POST",
@@ -458,7 +505,7 @@ const VoiceroText = {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        action: "ai_website_get_info",
+        action: "voicero_get_info",
         nonce: nonce,
       }),
     })
@@ -831,17 +878,23 @@ const VoiceroText = {
 
         /* Hide scrollbar for different browsers */
         #chat-messages {
-          scrollbar-width: none; /* Firefox */
-          -ms-overflow-style: none; /* IE and Edge */
+          scrollbar-width: none !important; /* Firefox */
+          -ms-overflow-style: none !important; /* IE and Edge */
           padding: 15px !important; 
-          padding-top: 10px !important; // Changed from 0px
+          padding-top: 10px !important;
           margin: 0 !important;
-          background-color: #f2f2f7 !important; /* iOS light gray background */
-          border-radius: 12px 12px 0 0 !important; /* Add border radius to top */
+          background-color: #f2f2f7 !important;
+          border-radius: 12px 12px 0 0 !important;
+          transition: max-height 0.25s ease, opacity 0.25s ease !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          max-height: 35vh !important;
+          height: auto !important;
+          position: relative !important;
         }
         
         #chat-messages::-webkit-scrollbar {
-          display: none; /* Chrome, Safari and Opera */
+          display: none !important; /* Chrome, Safari, Opera */
         }
         
         #chat-controls-header {
@@ -1014,13 +1067,9 @@ const VoiceroText = {
         overflow: "hidden",
       });
 
-      // Re-use the core-injected host if it exists
-      let shadowHost = document.getElementById("voicero-text-chat-container");
-      if (!shadowHost) {
-        shadowHost = document.createElement("div");
-        shadowHost.id = "voicero-text-chat-container";
-        document.body.appendChild(shadowHost);
-      }
+      // Create shadow DOM host element
+      let shadowHost = document.createElement("div");
+      shadowHost.id = "voicero-text-chat-container";
 
       // Apply styles to match voice chat interface
       Object.assign(shadowHost.style, {
@@ -1043,14 +1092,12 @@ const VoiceroText = {
         backdropFilter: "none", // Remove any backdrop filter
         webkitBackdropFilter: "none", // Safari support
         opacity: "1", // Ensure full opacity
+        position: "relative", // <-- Make parent relative for absolute child
       });
+      document.body.appendChild(shadowHost);
 
-      // Attach shadow root if not already attached
-      if (!shadowHost.shadowRoot) {
-        this.shadowRoot = shadowHost.attachShadow({ mode: "open" });
-      } else {
-        this.shadowRoot = shadowHost.shadowRoot;
-      }
+      // Create shadow root
+      this.shadowRoot = shadowHost.attachShadow({ mode: "open" });
 
       // Add styles and HTML content to shadow root
       this.shadowRoot.innerHTML = `
@@ -1061,7 +1108,7 @@ const VoiceroText = {
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
           }
-          
+
           @keyframes gradientBorder {
             0% { background-position: 0% 50%; }
             25% { background-position: 25% 50%; }
@@ -1229,17 +1276,23 @@ const VoiceroText = {
 
           /* Hide scrollbar for different browsers */
           #chat-messages {
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none !important; /* Firefox */
+            -ms-overflow-style: none !important; /* IE and Edge */
             padding: 15px !important; 
-            padding-top: 10px !important; // Changed from 0px
+            padding-top: 10px !important;
             margin: 0 !important;
-            background-color: #f2f2f7 !important; /* iOS light gray background */
-            border-radius: 12px 12px 0 0 !important; /* Add border radius to top */
+            background-color: #f2f2f7 !important;
+            border-radius: 12px 12px 0 0 !important;
+            transition: max-height 0.25s ease, opacity 0.25s ease !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            max-height: 35vh !important;
+            height: auto !important;
+            position: relative !important;
           }
           
           #chat-messages::-webkit-scrollbar {
-            display: none; /* Chrome, Safari and Opera */
+            display: none !important; /* Chrome, Safari, Opera */
           }
           
           #chat-controls-header {
@@ -1386,46 +1439,13 @@ const VoiceroText = {
           .suggestion:hover {
             opacity: 0.9 !important;
           }
-          
-          /* IMPORTANT: New styles for maximize button to ensure visibility */
-          #maximize-chat {
-            display: none;
-            width: 100%;
-            text-align: center;
-            padding: 0;
-            margin: 0;
-            margin-top: 10px; /* Add top margin for spacing */
-            cursor: pointer;
-            transition: all 0.2s ease;
-            z-index: 999999;
-            position: relative;
-          }
-          
-          #maximize-chat button {
-            background: ${this.websiteColor || "#882be6"};
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px 20px 0 0;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 160px;
-            margin-bottom: -2px; /* Increased negative margin to ensure overlap */
-            position: relative;
-            z-index: 1000000; /* Higher z-index to ensure button shows above input */
-          }
         </style>
 
         <!-- IMPORTANT: Restructured layout - Maximize button first in the DOM order -->
         <!-- This is critical so it won't be affected by the messages container collapse -->
         <div 
           id="maximize-chat"
-          style="display: none; margin-top: 10px;"
+          style="display: none; margin-top: 0; position: absolute; bottom: 60px; left: 0; width: 100%; z-index: 999999;"
         >
           <button>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
@@ -1522,7 +1542,7 @@ const VoiceroText = {
         </div>
 
         <div id="chat-messages" style="
-          background: white !important;
+          background: #f2f2f7 !important;
           border-radius: 0 !important;
           padding: 0 !important;
           margin: 0 !important;
@@ -1679,8 +1699,7 @@ const VoiceroText = {
       this.setupButtonHandlers();
 
       return this.shadowRoot;
-    } catch (error) {
-    }
+    } catch (error) {}
   },
 
   // Set up button event handlers
@@ -1774,7 +1793,7 @@ const VoiceroText = {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
       // Use the WordPress proxy endpoint
-      fetch("https://www.voicero.ai/api/session/clear", {
+      fetch("http://localhost:3000/api/session/clear", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -1813,6 +1832,7 @@ const VoiceroText = {
           }
         })
         .catch((error) => {
+          // console.error("Failed to clear chat history:", error);
         });
     }
 
@@ -1848,7 +1868,7 @@ const VoiceroText = {
       // Add welcome message again
       this.addMessage(
         `
-        <div class="welcome-message">
+        <div class="welcome-message" style="width: 90% !important; max-width: 400px !important;">
           <div class="welcome-title">Aura, your website concierge</div>
           <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
           <div class="welcome-note"><span class="welcome-pulse"></span>Ask me anything about this site!</div>
@@ -1870,9 +1890,9 @@ const VoiceroText = {
   // Send chat message to API
   sendChatToApi: function (messageText, threadId) {
     // SECURITY: Direct API access removed - now using WordPress proxy
-    // if (!window.aiWebsiteConfig || !window.aiWebsiteConfig.ajaxUrl) {
-    //   return Promise.reject("WordPress configuration not available");
-    // }
+    if (!window.voiceroConfig || !window.voiceroConfig.ajaxUrl) {
+      return Promise.reject("WordPress configuration not available");
+    }
 
     // Show loading indicator
     this.setLoadingIndicator(true);
@@ -1920,11 +1940,14 @@ const VoiceroText = {
       requestBody.websiteId = window.VoiceroCore.websiteId;
     }
 
-    // Add current page URL
+    // Add current page URL and collect page data
     requestBody.currentPageUrl = window.location.href;
 
-    // Initialize pastContext as an object with messages array
-    requestBody.pastContext = { messages: [] };
+    // Collect page data for context
+    requestBody.pageData = this.collectPageData();
+
+    // Initialize pastContext array
+    requestBody.pastContext = [];
 
     // Check if we have session thread messages available
     if (
@@ -1974,14 +1997,14 @@ const VoiceroText = {
           const userMsg = sortedMessages[latestUserMsgIndex];
           const aiMsg = sortedMessages[latestUserMsgIndex + 1];
 
-          // Add with proper format and roles
-          requestBody.pastContext.messages.push({
-            role: "user",
-            content: userMsg.content,
-          });
-          requestBody.pastContext.messages.push({
-            role: "assistant",
-            content: aiMsg.content,
+          // Add with complete metadata
+          requestBody.pastContext.push({
+            question: userMsg.content,
+            answer: aiMsg.content,
+            createdAt: userMsg.createdAt,
+            pageUrl: userMsg.pageUrl,
+            id: userMsg.id,
+            threadId: userMsg.threadId,
           });
         }
       } else {
@@ -2004,20 +2027,16 @@ const VoiceroText = {
         lastUserIndex + 1 < this.messages.length &&
         this.messages[lastUserIndex + 1].role === "assistant"
       ) {
-        // Add with proper role format
-        requestBody.pastContext.messages.push({
-          role: "user",
-          content: this.messages[lastUserIndex].content,
-        });
-        requestBody.pastContext.messages.push({
-          role: "assistant",
-          content: this.messages[lastUserIndex + 1].content,
+        // Add only the most recent pair
+        requestBody.pastContext.push({
+          question: this.messages[lastUserIndex].content,
+          answer: this.messages[lastUserIndex + 1].content,
         });
       }
     }
 
     // Use WordPress proxy endpoint instead of direct API call
-    return fetch("https://www.voicero.ai/api/shopify/chat", {
+    return fetch("http://localhost:3000/api/shopify/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2186,16 +2205,29 @@ const VoiceroText = {
           let message = "";
           let action = null;
           let url = null;
+          let actionContext = null;
 
           // Check for the nested response object structure
           if (data && data.response && data.response.answer) {
             message = data.response.answer;
 
-            // Get action and URL from the nested response
+            // Get action and check for action_context
             if (data.response.action) {
               action = data.response.action;
+
+              // Get action_context if available
+              if (data.response.action_context) {
+                actionContext = data.response.action_context;
+
+                // For redirect actions, get URL from action_context
+                if (action === "redirect" && actionContext.url) {
+                  url = actionContext.url;
+                }
+              }
             }
-            if (data.response.url) {
+
+            // Fallback to old format if action_context is not available
+            if (!url && data.response.url) {
               url = data.response.url;
             }
           }
@@ -2205,8 +2237,20 @@ const VoiceroText = {
 
             if (data.action) {
               action = data.action;
+
+              // Get action_context if available
+              if (data.action_context) {
+                actionContext = data.action_context;
+
+                // For redirect actions, get URL from action_context
+                if (action === "redirect" && actionContext.url) {
+                  url = actionContext.url;
+                }
+              }
             }
-            if (data.url) {
+
+            // Fallback to old format if action_context is not available
+            if (!url && data.url) {
               url = data.url;
             }
           }
@@ -2264,6 +2308,10 @@ const VoiceroText = {
                 }
               }
             }
+          }
+
+          if (data.response && window.VoiceroActionHandler) {
+            window.VoiceroActionHandler.handle(data.response);
           }
 
           // Handle redirect if needed
@@ -2346,6 +2394,9 @@ const VoiceroText = {
       return;
     }
 
+    // Force maximize the chat window
+    this.maximizeChat();
+
     // Add user message to UI
     this.addMessage(text, "user");
 
@@ -2363,35 +2414,79 @@ const VoiceroText = {
 
   // Close the text chat interface
   closeTextChat: function () {
-    // Update window state first (set text closed, core open)
+    console.log("VoiceroText: Closing text chat");
+
+    // Disable the close button immediately to prevent double-close
+    const shadowHost = document.getElementById("voicero-text-chat-container");
+    let closeBtn = null;
+    if (shadowHost && shadowHost.shadowRoot) {
+      closeBtn = shadowHost.shadowRoot.getElementById("close-text-chat");
+      if (closeBtn) {
+        closeBtn.disabled = true;
+        closeBtn.style.opacity = "0.5";
+        closeBtn.style.pointerEvents = "none";
+      }
+    }
+
+    // Set closing flag
+    this.isClosingTextChat = true;
+
+    // First create reliable references to the elements we need
+    const textInterface = document.getElementById("text-chat-interface");
+
+    // Update window state first - this is critical
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+      // First update to close text chat
       window.VoiceroCore.updateWindowState({
         textOpen: false,
         textOpenWindowUp: false,
         coreOpen: true,
         voiceOpen: false,
+        autoMic: false,
         voiceOpenWindowUp: false,
+        suppressChooser: true,
       });
-    } else {
+
+      // Small delay to ensure state updates are processed
+      setTimeout(() => {
+        // Then ensure core is visible
+        if (window.VoiceroCore) {
+          window.VoiceroCore.ensureMainButtonVisible();
+        }
+      }, 100);
     }
 
-    // Hide the shadow host (which contains the chat interface)
-    const shadowHost = document.getElementById("voicero-text-chat-container");
+    // Hide both the interface and shadow host
+    if (textInterface) {
+      textInterface.style.display = "none";
+    }
     if (shadowHost) {
       shadowHost.style.display = "none";
     }
 
-    // Show the microphone button when closing
-    const toggleContainer = document.getElementById("voice-toggle-container");
-    if (toggleContainer) {
-      toggleContainer.style.display = "block";
-      toggleContainer.style.visibility = "visible";
-      toggleContainer.style.opacity = "1";
-    }
+    // Reset closing flag and re-enable the close button after a short delay
+    setTimeout(() => {
+      this.isClosingTextChat = false;
+      if (closeBtn) {
+        closeBtn.disabled = false;
+        closeBtn.style.opacity = "1";
+        closeBtn.style.pointerEvents = "auto";
+      }
+    }, 500);
   },
 
   // Minimize the chat interface
   minimizeChat: function () {
+    const now = Date.now();
+    if (
+      !this._isChatVisible ||
+      now - this._lastChatToggle < this.CHAT_TOGGLE_DEBOUNCE_MS
+    ) {
+      return; // either already minimized or called too soon
+    }
+    this._lastChatToggle = now;
+    this._isChatVisible = false;
+
     // Update window state first (text open but window minimized)
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
       window.VoiceroCore.updateWindowState({
@@ -2417,9 +2512,13 @@ const VoiceroText = {
 
     // Make the maximize button visible first
     if (maximizeBtn) {
-      // Show the maximize button with absolute positioning and higher z-index
       maximizeBtn.style.display = "block";
-      maximizeBtn.style.marginTop = "10px"; // Add top margin
+      maximizeBtn.style.marginTop = "0";
+      maximizeBtn.style.position = "absolute";
+      maximizeBtn.style.bottom = "60px";
+      maximizeBtn.style.left = "0";
+      maximizeBtn.style.width = "100%";
+      maximizeBtn.style.zIndex = "999999";
     }
 
     if (messagesContainer) {
@@ -2431,7 +2530,7 @@ const VoiceroText = {
         msg.style.display = "none";
       });
 
-      // Completely hide the messages container
+      // Just adjust maxHeight and opacity without removing from DOM
       messagesContainer.style.maxHeight = "0";
       messagesContainer.style.minHeight = "0";
       messagesContainer.style.height = "0";
@@ -2439,11 +2538,7 @@ const VoiceroText = {
       messagesContainer.style.margin = "0";
       messagesContainer.style.overflow = "hidden";
       messagesContainer.style.border = "none";
-      messagesContainer.style.display = "none"; // Add display: none
-      messagesContainer.style.visibility = "hidden"; // Add visibility: hidden
       messagesContainer.style.opacity = "0"; // Make fully transparent
-      messagesContainer.style.position = "absolute"; // Take out of flow
-      messagesContainer.style.pointerEvents = "none"; // Prevent any interaction
 
       // Also hide padding container inside
       const paddingContainer = messagesContainer.querySelector(
@@ -2467,18 +2562,20 @@ const VoiceroText = {
       inputWrapper.style.borderRadius = "12px";
       inputWrapper.style.marginTop = "0";
     }
-
-    // REMOVE the forced redraw - this might be causing the visibility issue
-    // document.getElementById("voicero-text-chat-container").style.display =
-    //  "none";
-    // setTimeout(() => {
-    //   document.getElementById("voicero-text-chat-container").style.display =
-    //     "block";
-    // }, 0);
   },
 
   // Maximize the chat interface
   maximizeChat: function () {
+    const now = Date.now();
+    if (
+      this._isChatVisible ||
+      now - this._lastChatToggle < this.CHAT_TOGGLE_DEBOUNCE_MS
+    ) {
+      return; // either already maximized or called too soon
+    }
+    this._lastChatToggle = now;
+    this._isChatVisible = true;
+
     // Update window state first (text open with window up)
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
       window.VoiceroCore.updateWindowState({
@@ -2502,49 +2599,23 @@ const VoiceroText = {
     const inputWrapper = shadowRoot.getElementById("chat-input-wrapper");
     const maximizeBtn = shadowRoot.getElementById("maximize-chat");
 
-    // Check if we need to add welcome message based on session state
-    let shouldShowWelcome = false;
-    if (this.session && typeof this.session.textWelcome !== "undefined") {
-      shouldShowWelcome = this.session.textWelcome;
-    }
-
-    // Check if we have any messages already visible in the container
-    const existingMessages = messagesContainer.querySelectorAll(
-      ".ai-message:not(.typing-wrapper), .user-message",
-    );
-    const hasVisibleMessages = existingMessages.length > 0;
-
-    // If welcome should be shown and no messages are visible, add it
-    if (shouldShowWelcome && !hasVisibleMessages) {
-      // Force global welcome styles BEFORE adding the welcome message
-      this.forceGlobalWelcomeStyles();
-
-      this.addMessage(
-        `
-        <div class="welcome-message">
-          <div class="welcome-title">Aura, your website concierge</div>
-          <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-          <div class="welcome-note"><span class="welcome-pulse"></span>Ask me anything about this site!</div>
-        </div>
-      `,
-        "ai",
-        false,
-        true,
-      );
-    }
-
     // Hide maximize button first
     if (maximizeBtn) {
       maximizeBtn.style.display = "none";
     }
 
     if (messagesContainer) {
-      // Restore visibility first
-      messagesContainer.style.display = "block";
-      messagesContainer.style.visibility = "visible";
+      // Restore proper scrolling functionality
+      messagesContainer.style.maxHeight = "35vh";
+      messagesContainer.style.minHeight = "auto";
+      messagesContainer.style.height = "auto";
+      messagesContainer.style.padding = "15px";
+      messagesContainer.style.paddingTop = "0";
+      messagesContainer.style.margin = "0";
+      messagesContainer.style.overflow = "auto";
+      messagesContainer.style.overflowY = "scroll";
+      messagesContainer.style.border = "";
       messagesContainer.style.opacity = "1";
-      messagesContainer.style.position = "relative";
-      messagesContainer.style.pointerEvents = "auto";
 
       // Show padding container
       const paddingContainer = messagesContainer.querySelector(
@@ -2564,34 +2635,16 @@ const VoiceroText = {
         msg.style.display = "flex";
       });
 
-      // Check if initial suggestions should be shown
-      if (shouldShowWelcome) {
-        const suggestions = messagesContainer.querySelector(
-          "#initial-suggestions",
-        );
-        if (suggestions) {
-          suggestions.style.display = "block";
-          suggestions.style.opacity = "1";
-          // Update suggestions
-          this.updatePopupQuestions();
-        }
-      }
-
-      // Restore the messages container height and padding
-      messagesContainer.style.maxHeight = "35vh";
-      messagesContainer.style.minHeight = "auto";
-      messagesContainer.style.height = "auto";
-      messagesContainer.style.padding = "15px";
-      messagesContainer.style.paddingTop = "0";
-      messagesContainer.style.margin = "0";
-      messagesContainer.style.overflow = "auto";
-      messagesContainer.style.border = "";
+      // Scroll to bottom after maximizing
+      setTimeout(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }, 100);
     }
 
     // Show the header
     if (headerContainer) {
       headerContainer.style.display = "flex";
-      headerContainer.style.zIndex = "9999999"; // Ensure high z-index when shown
+      headerContainer.style.zIndex = "9999999";
     }
 
     // Restore input wrapper styling
@@ -2600,16 +2653,8 @@ const VoiceroText = {
       inputWrapper.style.marginTop = "0";
     }
 
-    // REMOVE the forced redraw logic
-    // document.getElementById("voicero-text-chat-container").style.display =
-    //   "none";
-    // setTimeout(() => {
-    //   document.getElementById("voicero-text-chat-container").style.display =
-    //     "block";
-
-    // Ensure welcome message colors are applied without redraw
+    // Ensure welcome message colors are applied
     this.forceWelcomeMessageColors();
-    // }, 0);
   },
 
   // Add message to the chat interface (used for both user and AI messages)
@@ -3006,6 +3051,188 @@ const VoiceroText = {
         -webkit-text-fill-color: transparent !important;
       }
     `;
+  },
+
+  // Collect page data for better context
+  collectPageData: function () {
+    const pageData = {
+      url: window.location.href,
+      full_text: document.body.innerText.trim(),
+      buttons: [],
+      forms: [],
+      sections: [],
+      images: [],
+    };
+
+    // Only include elements that are within the body and not the header
+    const isInHeader = (element) => {
+      let parent = element.parentElement;
+      while (parent) {
+        if (parent.tagName && parent.tagName.toLowerCase() === "header") {
+          return true;
+        }
+        parent = parent.parentElement;
+      }
+      return false;
+    };
+
+    // Check if element is in footer
+    const isInFooter = (element) => {
+      let parent = element.parentElement;
+      while (parent) {
+        if (
+          parent.tagName &&
+          (parent.tagName.toLowerCase() === "footer" ||
+            parent.id === "colophon" ||
+            parent.id === "ast-scroll-top")
+        ) {
+          return true;
+        }
+        parent = parent.parentElement;
+      }
+      return false;
+    };
+
+    // Filter function to exclude unwanted elements
+    const shouldExcludeElement = (element) => {
+      if (!element) return false;
+
+      // Skip elements without IDs that are in header, footer, or admin bars
+      if (!element.id) {
+        if (isInHeader(element) || isInFooter(element)) {
+          return true;
+        }
+        return false;
+      }
+
+      const id = element.id.toLowerCase();
+
+      // Specific button IDs to exclude
+      if (id === "chat-website-button" || id === "voice-mic-button") {
+        return true;
+      }
+
+      // Exclude common WordPress admin elements
+      if (id === "wpadminbar" || id === "adminbarsearch" || id === "page") {
+        return true;
+      }
+
+      // Exclude masthead
+      if (id === "masthead" || id.includes("masthead")) {
+        return true;
+      }
+
+      // Exclude elements with ids starting with wp- or voicero
+      if (id.startsWith("wp-") || id.startsWith("voicero")) {
+        return true;
+      }
+
+      // Exclude voice toggle container
+      if (id === "voice-toggle-container") {
+        return true;
+      }
+
+      // Exclude elements related to voice-chat or text-chat
+      if (id.includes("voice-") || id.includes("text-chat")) {
+        return true;
+      }
+
+      return false;
+    };
+
+    // Collect all buttons that meet our criteria
+    const buttonElements = document.querySelectorAll("button");
+    buttonElements.forEach((button) => {
+      if (
+        !isInHeader(button) &&
+        !isInFooter(button) &&
+        !shouldExcludeElement(button)
+      ) {
+        pageData.buttons.push({
+          id: button.id || "",
+          text: button.innerText.trim(),
+        });
+      }
+    });
+
+    // Collect all forms and their inputs/selects that meet our criteria
+    const formElements = document.querySelectorAll("form");
+    formElements.forEach((form) => {
+      if (
+        !isInHeader(form) &&
+        !isInFooter(form) &&
+        !shouldExcludeElement(form)
+      ) {
+        const formData = {
+          id: form.id || "",
+          inputs: [],
+          selects: [],
+        };
+
+        // Get inputs
+        const inputs = form.querySelectorAll("input");
+        inputs.forEach((input) => {
+          formData.inputs.push({
+            name: input.name || "",
+            type: input.type || "",
+            value: input.value || "",
+          });
+        });
+
+        // Get selects
+        const selects = form.querySelectorAll("select");
+        selects.forEach((select) => {
+          const selectData = {
+            name: select.name || "",
+            options: [],
+          };
+
+          // Get options
+          const options = select.querySelectorAll("option");
+          options.forEach((option) => {
+            selectData.options.push({
+              value: option.value || "",
+              text: option.innerText.trim(),
+            });
+          });
+
+          formData.selects.push(selectData);
+        });
+
+        pageData.forms.push(formData);
+      }
+    });
+
+    // Collect important sections that meet our criteria
+    const sectionElements = document.querySelectorAll(
+      "div[id], section, article, main, aside",
+    );
+    sectionElements.forEach((section) => {
+      if (
+        !isInHeader(section) &&
+        !isInFooter(section) &&
+        !shouldExcludeElement(section)
+      ) {
+        pageData.sections.push({
+          id: section.id || "",
+          tag: section.tagName.toLowerCase(),
+          text_snippet: section.innerText.substring(0, 150).trim(), // First 150 chars
+        });
+      }
+    });
+
+    // Collect images that meet our criteria
+    const imageElements = document.querySelectorAll("img");
+    imageElements.forEach((img) => {
+      if (!isInHeader(img) && !isInFooter(img) && !shouldExcludeElement(img)) {
+        pageData.images.push({
+          src: img.src || "",
+          alt: img.alt || "",
+        });
+      }
+    });
+
+    return pageData;
   },
 };
 
