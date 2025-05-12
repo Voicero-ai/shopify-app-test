@@ -301,10 +301,10 @@ const VoiceroText = {
           // Add welcome message
           this.addMessage(
             `
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
-              <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-              <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
+            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
+              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
+              <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Text me like your best friend and I'll solve any problem you may have.</div>
+              <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
             </div>
             `,
             "ai",
@@ -476,10 +476,10 @@ const VoiceroText = {
           // Add welcome message
           this.addMessage(
             `
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
-              <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-              <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
+            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
+              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
+              <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Text me like your best friend and I'll solve any problem you may have.</div>
+              <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
             </div>
             `,
             "ai",
@@ -2002,12 +2002,17 @@ const VoiceroText = {
 
     const mainColor = this.websiteColor || "#882be6";
 
-    // Force welcome message border color
+    // Force welcome message styles
     const welcomeMessages =
       this.shadowRoot.querySelectorAll(".welcome-message");
     welcomeMessages.forEach((msg) => {
       // Explicitly remove border
       msg.style.border = "none";
+      // Preserve padding and add margins
+      msg.style.padding = "30px 15px";
+      msg.style.margin = "15px auto";
+      // Ensure height and spacing
+      msg.style.minHeight = "100px";
     });
 
     // Force welcome title colors
@@ -2017,6 +2022,17 @@ const VoiceroText = {
       title.style.webkitBackgroundClip = "text";
       title.style.backgroundClip = "text";
       title.style.webkitTextFillColor = "transparent";
+      // Add more spacing
+      title.style.marginBottom = "15px";
+      title.style.fontSize = "18px";
+    });
+
+    // Force welcome subtitle spacing
+    const welcomeSubtitles =
+      this.shadowRoot.querySelectorAll(".welcome-subtitle");
+    welcomeSubtitles.forEach((subtitle) => {
+      subtitle.style.marginBottom = "15px";
+      subtitle.style.fontSize = "14px";
     });
 
     // Force welcome highlight colors
@@ -2024,6 +2040,13 @@ const VoiceroText = {
       this.shadowRoot.querySelectorAll(".welcome-highlight");
     welcomeHighlights.forEach((highlight) => {
       highlight.style.color = `${mainColor} !important`;
+    });
+
+    // Force welcome note spacing
+    const welcomeNotes = this.shadowRoot.querySelectorAll(".welcome-note");
+    welcomeNotes.forEach((note) => {
+      note.style.marginTop = "15px";
+      note.style.fontSize = "12px";
     });
 
     // Force welcome pulse colors
@@ -2113,10 +2136,10 @@ const VoiceroText = {
       // Add welcome message again
       this.addMessage(
         `
-        <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
-          <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-          <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
+        <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
+          <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
+          <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Text me like your best friend and I'll solve any problem you may have.</div>
+          <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
         </div>
         `,
         "ai",
@@ -3401,18 +3424,31 @@ const VoiceroText = {
     styleTag.textContent = `
       .welcome-message {
         border: none !important;
-      }
-      .welcome-highlight {
-        color: ${mainColor} !important;
-      }
-      .welcome-pulse {
-        background-color: ${mainColor} !important;
+        padding: 30px 15px !important;
+        margin: 15px auto !important;
+        min-height: 100px !important;
       }
       .welcome-title {
         background: linear-gradient(90deg, ${mainColor}, ${mainColor}) !important;
         -webkit-background-clip: text !important;
         background-clip: text !important;
         -webkit-text-fill-color: transparent !important;
+        margin-bottom: 15px !important;
+        font-size: 18px !important;
+      }
+      .welcome-subtitle {
+        margin-bottom: 15px !important;
+        font-size: 14px !important;
+      }
+      .welcome-highlight {
+        color: ${mainColor} !important;
+      }
+      .welcome-note {
+        margin-top: 15px !important;
+        font-size: 12px !important;
+      }
+      .welcome-pulse {
+        background-color: ${mainColor} !important;
       }
     `;
   },

@@ -984,10 +984,10 @@ const VoiceroVoice = {
       if (!existingWelcomeMessage) {
         // Add welcome message with clear prompt
         this.addSystemMessage(`
-          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 20px 15px !important; margin: 15px auto !important;">
-            <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-            <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-            <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
+          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
+            <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
+            <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+            <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
           </div>
         `);
 
@@ -1335,8 +1335,8 @@ const VoiceroVoice = {
 
       // Add a temporary "initializing..." message instead of immediately showing "I'm listening..."
       this.addSystemMessage(`
-        <div id="listening-indicator-message" class="welcome-message" style="width: 90% !important; max-width: 400px !important; padding: 20px 15px !important; margin: 15px auto !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">
+        <div id="listening-indicator-message" class="welcome-message" style="width: 90% !important; max-width: 400px !important; padding: 30px 15px !important; margin: 15px auto !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
+          <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">
             Initializing microphone...
           </div>
         </div>
@@ -2822,10 +2822,10 @@ const VoiceroVoice = {
           if (!existingWelcomeMessage) {
             // Add welcome message
             this.addSystemMessage(`
-              <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 20px 15px !important; margin: 15px auto !important;">
-                <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-                <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-                <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
+              <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
+                <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
+                <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+                <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
               </div>
             `);
 
@@ -3084,7 +3084,7 @@ const VoiceroVoice = {
 
     // Add welcome message again with the exact same format as in openVoiceChat
     this.addSystemMessage(`
-      <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 20px 15px !important; margin: 15px auto !important;">
+      <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
         <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
         <div class="welcome-subtitle">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
         <div class="welcome-note"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor});"></span>Button glows during conversation</div>
@@ -3239,10 +3239,10 @@ const VoiceroVoice = {
         if (!existingWelcomeMessage) {
           // Add welcome message with clear prompt
           this.addSystemMessage(`
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 20px 15px !important; margin: 15px auto !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-              <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-              <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
+            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
+              <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
+              <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+              <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
             </div>
           `);
 
@@ -3563,7 +3563,7 @@ const VoiceroVoice = {
       );
       msg.style.setProperty("border", "none", "important");
 
-      msg.style.setProperty("padding", "20px 15px", "important");
+      msg.style.setProperty("padding", "30px 15px", "important");
       msg.style.setProperty("margin", "15px auto", "important");
 
       // Log the computed style after our changes
@@ -3614,7 +3614,7 @@ const VoiceroVoice = {
         msg.style.removeProperty("flex-direction");
         msg.style.removeProperty("justify-content");
 
-        msg.style.setProperty("padding", "20px 15px", "important");
+        msg.style.setProperty("padding", "30px 15px", "important");
         msg.style.setProperty("margin", "15px auto", "important");
 
         // Log after styling
