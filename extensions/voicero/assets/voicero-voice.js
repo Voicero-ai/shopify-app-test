@@ -3398,6 +3398,17 @@ const VoiceroVoice = {
     // First close the voice chat interface
     this.closeVoiceChat();
 
+    // Update window state to ensure text chat will be maximized
+    if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+      window.VoiceroCore.updateWindowState({
+        textOpen: true,
+        textOpenWindowUp: true, // Explicitly set to true to ensure maximized
+        voiceOpen: false,
+        voiceOpenWindowUp: false,
+        coreOpen: false,
+      });
+    }
+
     // Then open the text chat interface
     if (window.VoiceroText && window.VoiceroText.openTextChat) {
       setTimeout(() => {
@@ -3421,7 +3432,7 @@ const VoiceroVoice = {
     // Find all welcome messages in the DOM
     const welcomeMessages = document.querySelectorAll(".welcome-message");
     console.log(`Found ${welcomeMessages.length} welcome messages in the DOM`);
-    
+
     welcomeMessages.forEach((msg, index) => {
       const computedStyle = window.getComputedStyle(msg);
       console.log(`Welcome Message ${index + 1} BEFORE styling:`, {
@@ -3437,7 +3448,7 @@ const VoiceroVoice = {
         boxShadow: computedStyle.boxShadow,
         background: computedStyle.background,
         border: computedStyle.border,
-        inlineStyle: msg.getAttribute('style'),
+        inlineStyle: msg.getAttribute("style"),
       });
     });
 
@@ -3449,17 +3460,25 @@ const VoiceroVoice = {
       msg.style.removeProperty("display");
       msg.style.removeProperty("flex-direction");
       msg.style.removeProperty("justify-content");
-      
+
       // Set padding and margin to match text interface
       msg.style.setProperty("width", "90%", "important");
       msg.style.setProperty("max-width", "400px", "important");
-      msg.style.setProperty("box-shadow", "0 4px 15px rgba(0, 0, 0, 0.08)", "important");
-      msg.style.setProperty("background", "linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%)", "important");
+      msg.style.setProperty(
+        "box-shadow",
+        "0 4px 15px rgba(0, 0, 0, 0.08)",
+        "important",
+      );
+      msg.style.setProperty(
+        "background",
+        "linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%)",
+        "important",
+      );
       msg.style.setProperty("border", "none", "important");
-      
+
       msg.style.setProperty("padding", "20px 15px", "important");
       msg.style.setProperty("margin", "15px auto", "important");
-      
+
       // Log the computed style after our changes
       const computedStyle = window.getComputedStyle(msg);
       console.log(`Welcome Message ${index + 1} AFTER styling:`, {
@@ -3475,7 +3494,7 @@ const VoiceroVoice = {
         boxShadow: computedStyle.boxShadow,
         background: computedStyle.background,
         border: computedStyle.border,
-        inlineStyle: msg.getAttribute('style'),
+        inlineStyle: msg.getAttribute("style"),
       });
     });
 
@@ -3484,8 +3503,10 @@ const VoiceroVoice = {
       const shadowWelcomeMessages = document
         .getElementById("voicero-text-chat-container")
         .shadowRoot.querySelectorAll(".welcome-message");
-      console.log(`Found ${shadowWelcomeMessages.length} welcome messages in shadow DOM`);
-      
+      console.log(
+        `Found ${shadowWelcomeMessages.length} welcome messages in shadow DOM`,
+      );
+
       shadowWelcomeMessages.forEach((msg, index) => {
         const computedStyle = window.getComputedStyle(msg);
         console.log(`Shadow DOM Welcome Message ${index + 1} BEFORE styling:`, {
@@ -3496,19 +3517,19 @@ const VoiceroVoice = {
           justifyContent: computedStyle.justifyContent,
           padding: computedStyle.padding,
           margin: computedStyle.margin,
-          inlineStyle: msg.getAttribute('style'),
+          inlineStyle: msg.getAttribute("style"),
         });
-        
+
         // Remove height constraints and flex layout
         msg.style.removeProperty("height");
         msg.style.removeProperty("min-height");
         msg.style.removeProperty("display");
         msg.style.removeProperty("flex-direction");
         msg.style.removeProperty("justify-content");
-        
+
         msg.style.setProperty("padding", "20px 15px", "important");
         msg.style.setProperty("margin", "15px auto", "important");
-        
+
         // Log after styling
         const afterStyle = window.getComputedStyle(msg);
         console.log(`Shadow DOM Welcome Message ${index + 1} AFTER styling:`, {
@@ -3519,11 +3540,11 @@ const VoiceroVoice = {
           justifyContent: afterStyle.justifyContent,
           padding: afterStyle.padding,
           margin: afterStyle.margin,
-          inlineStyle: msg.getAttribute('style'),
+          inlineStyle: msg.getAttribute("style"),
         });
       });
     }
-    
+
     console.log("------------------------------------------");
     return true;
   },
@@ -3702,7 +3723,7 @@ VoiceroVoice.debugInterface = function () {
   console.log("---------- WELCOME MESSAGE DEBUG ----------");
   const welcomeMessages = document.querySelectorAll(".welcome-message");
   console.log(`Found ${welcomeMessages.length} welcome messages in the DOM`);
-  
+
   welcomeMessages.forEach((msg, index) => {
     const computedStyle = window.getComputedStyle(msg);
     console.log(`Welcome Message ${index + 1}:`, {
@@ -3725,7 +3746,10 @@ VoiceroVoice.debugInterface = function () {
 
   // Check if there are any inline styles
   welcomeMessages.forEach((msg, index) => {
-    console.log(`Welcome Message ${index + 1} inline styles:`, msg.getAttribute('style'));
+    console.log(
+      `Welcome Message ${index + 1} inline styles:`,
+      msg.getAttribute("style"),
+    );
   });
 
   console.log("------------------------------------------");

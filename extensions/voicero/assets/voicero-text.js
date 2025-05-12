@@ -3496,6 +3496,17 @@ const VoiceroText = {
     // First close the text chat interface
     this.closeTextChat();
 
+    // Update window state to ensure voice chat will be maximized
+    if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+      window.VoiceroCore.updateWindowState({
+        voiceOpen: true,
+        voiceOpenWindowUp: true, // Explicitly set to true to ensure maximized
+        textOpen: false,
+        textOpenWindowUp: false,
+        coreOpen: false,
+      });
+    }
+
     // Then open the voice chat interface
     if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
       setTimeout(() => {
