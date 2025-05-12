@@ -504,7 +504,7 @@ const VoiceroVoice = {
     // Create minimize button for the header
     const minimizeButton = document.createElement("button");
     minimizeButton.id = "minimize-voice-chat";
-    minimizeButton.setAttribute("onclick", "VoiceroVoice.minimizeVoiceChat()");
+    // Replace onclick attribute with event listener that will be added after all buttons are created
     minimizeButton.setAttribute("title", "Minimize");
     minimizeButton.style.cssText = `
       background: none;
@@ -527,7 +527,7 @@ const VoiceroVoice = {
     // Create toggle button for the header (to switch to text chat)
     const toggleButton = document.createElement("button");
     toggleButton.id = "toggle-to-text-chat";
-    toggleButton.setAttribute("onclick", "VoiceroVoice.toggleToTextChat()");
+    // Replace onclick attribute with event listener that will be added after all buttons are created
     toggleButton.setAttribute("title", "Switch to Text Chat");
     toggleButton.style.cssText = `
       background: none;
@@ -553,7 +553,7 @@ const VoiceroVoice = {
     // Create close button for the header
     const closeButton = document.createElement("button");
     closeButton.id = "close-voice-chat";
-    closeButton.setAttribute("onclick", "VoiceroVoice.closeVoiceChat()");
+    // Replace onclick attribute with event listener that will be added after all buttons are created
     closeButton.setAttribute("title", "Close");
     closeButton.style.cssText = `
       background: none;
@@ -605,6 +605,34 @@ const VoiceroVoice = {
     rightButtonsContainer.appendChild(toggleButton);
     rightButtonsContainer.appendChild(closeButton);
     controlsHeader.appendChild(rightButtonsContainer);
+    
+    // Add event listeners with session status checks
+    minimizeButton.addEventListener("click", () => {
+      // Check if session operations are in progress
+      if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        console.log("VoiceroVoice: Minimize button click ignored - session operation in progress");
+        return;
+      }
+      VoiceroVoice.minimizeVoiceChat();
+    });
+    
+    toggleButton.addEventListener("click", () => {
+      // Check if session operations are in progress
+      if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        console.log("VoiceroVoice: Toggle button click ignored - session operation in progress");
+        return;
+      }
+      VoiceroVoice.toggleToTextChat();
+    });
+    
+    closeButton.addEventListener("click", () => {
+      // Check if session operations are in progress
+      if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        console.log("VoiceroVoice: Close button click ignored - session operation in progress");
+        return;
+      }
+      VoiceroVoice.closeVoiceChat();
+    });
 
     // First add the controls header to the messages container
     messagesContainer.appendChild(loadingBar);

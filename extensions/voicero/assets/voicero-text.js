@@ -1850,12 +1850,26 @@ const VoiceroText = {
     // Remove onclick attributes and add event listeners
     if (minimizeBtn) {
       minimizeBtn.removeAttribute("onclick");
-      minimizeBtn.addEventListener("click", () => this.minimizeChat());
+      minimizeBtn.addEventListener("click", () => {
+        // Check if session operations are in progress
+        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+          console.log("VoiceroText: Minimize button click ignored - session operation in progress");
+          return;
+        }
+        this.minimizeChat();
+      });
     }
 
     if (maximizeBtn) {
       maximizeBtn.removeAttribute("onclick");
-      maximizeBtn.addEventListener("click", () => this.maximizeChat());
+      maximizeBtn.addEventListener("click", () => {
+        // Check if session operations are in progress
+        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+          console.log("VoiceroText: Maximize button click ignored - session operation in progress");
+          return;
+        }
+        this.maximizeChat();
+      });
 
       // We don't need to set the background color here anymore as it's already set in the HTML
       // Just ensure the button has display:flex for the icon alignment
@@ -1885,7 +1899,14 @@ const VoiceroText = {
 
     if (closeBtn) {
       closeBtn.removeAttribute("onclick");
-      closeBtn.addEventListener("click", () => this.closeTextChat());
+      closeBtn.addEventListener("click", () => {
+        // Check if session operations are in progress
+        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+          console.log("VoiceroText: Close button click ignored - session operation in progress");
+          return;
+        }
+        this.closeTextChat();
+      });
     }
 
     if (clearBtn) {
@@ -1895,7 +1916,14 @@ const VoiceroText = {
 
     if (toggleBtn) {
       toggleBtn.removeAttribute("onclick");
-      toggleBtn.addEventListener("click", () => this.toggleToVoiceChat());
+      toggleBtn.addEventListener("click", () => {
+        // Check if session operations are in progress
+        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+          console.log("VoiceroText: Toggle button click ignored - session operation in progress");
+          return;
+        }
+        this.toggleToVoiceChat();
+      });
     }
 
     // Force all welcome message elements to use theme color
