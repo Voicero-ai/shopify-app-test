@@ -605,30 +605,36 @@ const VoiceroVoice = {
     rightButtonsContainer.appendChild(toggleButton);
     rightButtonsContainer.appendChild(closeButton);
     controlsHeader.appendChild(rightButtonsContainer);
-    
+
     // Add event listeners with session status checks
     minimizeButton.addEventListener("click", () => {
       // Check if session operations are in progress
       if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-        console.log("VoiceroVoice: Minimize button click ignored - session operation in progress");
+        console.log(
+          "VoiceroVoice: Minimize button click ignored - session operation in progress",
+        );
         return;
       }
       VoiceroVoice.minimizeVoiceChat();
     });
-    
+
     toggleButton.addEventListener("click", () => {
       // Check if session operations are in progress
       if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-        console.log("VoiceroVoice: Toggle button click ignored - session operation in progress");
+        console.log(
+          "VoiceroVoice: Toggle button click ignored - session operation in progress",
+        );
         return;
       }
       VoiceroVoice.toggleToTextChat();
     });
-    
+
     closeButton.addEventListener("click", () => {
       // Check if session operations are in progress
       if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-        console.log("VoiceroVoice: Close button click ignored - session operation in progress");
+        console.log(
+          "VoiceroVoice: Close button click ignored - session operation in progress",
+        );
         return;
       }
       VoiceroVoice.closeVoiceChat();
@@ -1489,7 +1495,7 @@ const VoiceroVoice = {
                 );
 
                 const whisperResponse = await fetch(
-                  "http://localhost:3000/api/whisper",
+                  "https://www.voicero.ai/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1631,7 +1637,7 @@ const VoiceroVoice = {
                 );
 
                 const chatResponse = await fetch(
-                  "http://localhost:3000/api/shopify/chat",
+                  "https://www.voicero.ai/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
@@ -1772,7 +1778,7 @@ const VoiceroVoice = {
                 try {
                   // Request audio generation using TTS endpoint
                   const ttsResponse = await fetch(
-                    "http://localhost:3000/api/tts",
+                    "https://www.voicero.ai/api/tts",
                     {
                       method: "POST",
                       headers: {
@@ -2991,7 +2997,7 @@ const VoiceroVoice = {
   clearChatHistory: function () {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
-      const proxyUrl = "http://localhost:3000/api/session/clear";
+      const proxyUrl = "https://www.voicero.ai/api/session/clear";
 
       fetch(proxyUrl, {
         method: "POST",

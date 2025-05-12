@@ -597,7 +597,7 @@ const VoiceroText = {
   // Fetch website data from /api/connect endpoint
   fetchWebsiteData: function () {
     // Use direct API endpoint instead of WordPress AJAX
-    fetch("http://localhost:3000/api/connect", {
+    fetch("https://www.voicero.ai/api/connect", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1853,7 +1853,9 @@ const VoiceroText = {
       minimizeBtn.addEventListener("click", () => {
         // Check if session operations are in progress
         if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-          console.log("VoiceroText: Minimize button click ignored - session operation in progress");
+          console.log(
+            "VoiceroText: Minimize button click ignored - session operation in progress",
+          );
           return;
         }
         this.minimizeChat();
@@ -1865,7 +1867,9 @@ const VoiceroText = {
       maximizeBtn.addEventListener("click", () => {
         // Check if session operations are in progress
         if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-          console.log("VoiceroText: Maximize button click ignored - session operation in progress");
+          console.log(
+            "VoiceroText: Maximize button click ignored - session operation in progress",
+          );
           return;
         }
         this.maximizeChat();
@@ -1902,7 +1906,9 @@ const VoiceroText = {
       closeBtn.addEventListener("click", () => {
         // Check if session operations are in progress
         if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-          console.log("VoiceroText: Close button click ignored - session operation in progress");
+          console.log(
+            "VoiceroText: Close button click ignored - session operation in progress",
+          );
           return;
         }
         this.closeTextChat();
@@ -1919,7 +1925,9 @@ const VoiceroText = {
       toggleBtn.addEventListener("click", () => {
         // Check if session operations are in progress
         if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-          console.log("VoiceroText: Toggle button click ignored - session operation in progress");
+          console.log(
+            "VoiceroText: Toggle button click ignored - session operation in progress",
+          );
           return;
         }
         this.toggleToVoiceChat();
@@ -1972,7 +1980,7 @@ const VoiceroText = {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
       // Use direct API endpoint
-      fetch("http://localhost:3000/api/session/clear", {
+      fetch("https://www.voicero.ai/api/session/clear", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -2235,7 +2243,7 @@ const VoiceroText = {
     );
 
     // Use direct API endpoint instead of WordPress proxy
-    return fetch("http://localhost:3000/api/shopify/chat", {
+    return fetch("https://www.voicero.ai/api/shopify/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
