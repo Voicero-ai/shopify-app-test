@@ -1942,23 +1942,34 @@ const VoiceroVoice = {
                   }
                 }
               } catch (error) {
-                // Remove any placeholder messages
-                const messagesContainer =
-                  document.getElementById("voice-messages");
-                if (messagesContainer) {
-                  const placeholders = messagesContainer.querySelectorAll(
-                    ".ai-message.placeholder",
-                  );
-                  placeholders.forEach((el) => el.remove());
-                }
+                // Log the error for debugging
+                console.error("Voice processing error:", error);
 
-                // Update AI message with error
-                const aiMessageDiv = document.querySelector(
-                  "#voice-chat-interface .ai-message",
+                // Check if we already have a successful AI response message
+                const existingSuccessMessage = document.querySelector(
+                  "#voice-chat-interface .ai-message:not(.placeholder):not(.typing-wrapper)",
                 );
-                if (aiMessageDiv) {
-                  aiMessageDiv.textContent =
-                    "Sorry, I encountered an error processing your audio.";
+
+                // Only show error if we don't have a successful message already
+                if (!existingSuccessMessage) {
+                  // Remove any placeholder messages
+                  const messagesContainer =
+                    document.getElementById("voice-messages");
+                  if (messagesContainer) {
+                    const placeholders = messagesContainer.querySelectorAll(
+                      ".ai-message.placeholder",
+                    );
+                    placeholders.forEach((el) => el.remove());
+                  }
+
+                  // Update AI message with error
+                  const aiMessageDiv = document.querySelector(
+                    "#voice-chat-interface .ai-message",
+                  );
+                  if (aiMessageDiv) {
+                    aiMessageDiv.textContent =
+                      "Sorry, I encountered an error processing your audio.";
+                  }
                 }
               }
             } else {
@@ -3361,7 +3372,11 @@ const VoiceroVoice = {
         return false;
       }
 
-      const id = element.id.toLowerCase();
+      // Check if element.id is a string before calling toLowerCase()
+      const id =
+        typeof element.id === "string"
+          ? element.id.toLowerCase()
+          : String(element.id).toLowerCase();
 
       // Specific button IDs to exclude
       if (id === "chat-website-button" || id === "voice-mic-button") {

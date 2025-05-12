@@ -3522,7 +3522,11 @@ const VoiceroText = {
         return false;
       }
 
-      const id = element.id.toLowerCase();
+      // Check if element.id is a string before calling toLowerCase()
+      const id =
+        typeof element.id === "string"
+          ? element.id.toLowerCase()
+          : String(element.id).toLowerCase();
 
       // Specific button IDs to exclude
       if (id === "chat-website-button" || id === "voice-mic-button") {
