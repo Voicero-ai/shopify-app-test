@@ -284,30 +284,37 @@ const VoiceroText = {
         : document.getElementById("chat-messages");
 
       if (messagesContainer) {
-        // Clear existing messages if any
-        const children = Array.from(messagesContainer.children);
-        for (const child of children) {
-          if (child.id !== "initial-suggestions") {
-            messagesContainer.removeChild(child);
+        // Check if a welcome message already exists
+        const existingWelcomeMessage =
+          messagesContainer.querySelector(".welcome-message");
+
+        // Only show welcome message if one doesn't already exist
+        if (!existingWelcomeMessage) {
+          // Clear existing messages if any
+          const children = Array.from(messagesContainer.children);
+          for (const child of children) {
+            if (child.id !== "initial-suggestions") {
+              messagesContainer.removeChild(child);
+            }
           }
+
+          // Add welcome message
+          this.addMessage(
+            `
+            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
+              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
+              <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
+              <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
+            </div>
+            `,
+            "ai",
+            false,
+            true,
+          );
+
+          // Force colors on the welcome message
+          this.forceWelcomeMessageColors();
         }
-
-        // Add welcome message
-        this.addMessage(
-          `
-          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-            <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
-            <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-            <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
-          </div>
-          `,
-          "ai",
-          false,
-          true,
-        );
-
-        // Force colors on the welcome message
-        this.forceWelcomeMessageColors();
       }
     }
 
@@ -460,28 +467,35 @@ const VoiceroText = {
         : document.getElementById("chat-messages");
 
       if (messagesContainer) {
-        // Add welcome message
-        this.addMessage(
-          `
-          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-            <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
-            <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-            <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
-          </div>
-          `,
-          "ai",
-          false,
-          true,
-        );
+        // Check if a welcome message already exists
+        const existingWelcomeMessage =
+          messagesContainer.querySelector(".welcome-message");
 
-        // Force colors on the welcome message
-        this.forceWelcomeMessageColors();
+        // Only add a welcome message if one doesn't already exist
+        if (!existingWelcomeMessage) {
+          // Add welcome message
+          this.addMessage(
+            `
+            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
+              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
+              <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
+              <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
+            </div>
+            `,
+            "ai",
+            false,
+            true,
+          );
 
-        // Update window state to show welcome
-        if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
-          window.VoiceroCore.updateWindowState({
-            textWelcome: true,
-          });
+          // Force colors on the welcome message
+          this.forceWelcomeMessageColors();
+
+          // Update window state to show welcome
+          if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+            window.VoiceroCore.updateWindowState({
+              textWelcome: true,
+            });
+          }
         }
       }
     }
