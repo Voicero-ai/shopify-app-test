@@ -1671,6 +1671,8 @@
       // Set coreOpen to false if either text or voice interface is open
       if (windowState.textOpen === true || windowState.voiceOpen === true) {
         windowState.coreOpen = false;
+        // Hide the main button when voice or text interface is open
+        this.hideMainButton();
       } else if (!windowState.suppressChooser) {
         // Only set coreOpen to true if both interfaces are closed and chooser isn't suppressed
         windowState.coreOpen = true;
