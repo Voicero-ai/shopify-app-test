@@ -55,10 +55,6 @@
       // Track website active status - default to false until verified by API
       this.isWebsiteActive = false;
 
-      // BULLETPROOF FAILSAFE - Only set up if needed
-      // We'll set this up after API check instead of immediately
-      // this.setupButtonFailsafe();
-
       // Make sure apiConnected is false by default until we get a successful API response
       this.apiConnected = false;
 
@@ -77,6 +73,9 @@
       // Step 2: Initialize the API connection - this will create the button
       console.log("VoiceroCore: Checking API connection");
       this.checkApiConnection();
+
+      // Apply button animation to ensure it's attractive
+      this.applyButtonAnimation();
 
       // Clear initializing flag after a delay
       setTimeout(() => {
@@ -114,9 +113,8 @@
       // Make sure theme colors are updated
       this.updateThemeColor(this.websiteColor);
 
-      // Add CSS Animations
+      // Add CSS Animations for fade-in effect only (button styling is now in updateThemeColor)
       const styleEl = document.createElement("style");
-
       styleEl.innerHTML = `
       @keyframes fadeIn {
         from {
@@ -126,34 +124,6 @@
         to {
           opacity: 1;
           transform: translateY(0);
-        }
-      }
-      
-      #chat-website-button {
-        transition: all 0.2s ease !important;
-        animation: pulse 2s infinite !important;
-      }
-      
-      #chat-website-button:hover {
-        transform: scale(1.1) !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
-        animation: none !important;
-      }
-      
-      #chat-website-button:active {
-        transform: scale(0.95) !important;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
-      }
-      
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(136, 43, 230, 0.4);
-        }
-        70% {
-          box-shadow: 0 0 0 10px rgba(136, 43, 230, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(136, 43, 230, 0);
         }
       }
     `;
@@ -208,12 +178,15 @@
 
           // Add the main button first
           buttonContainer.innerHTML = `
-          <button id="chat-website-button" class="visible" style="background-color: ${themeColor}">
+          <button id="chat-website-button" class="visible" style="background-color: ${themeColor}; animation: pulse 2s infinite; position: relative;">
             <svg class="chat-icon" viewBox="0 0 24 24" width="24" height="24">
               <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
           </button>
         `;
+
+          // Apply enhanced button animation
+          this.applyButtonAnimation();
 
           // ALWAYS force visibility on all devices
           const chatButtonEl = document.getElementById("chat-website-button");
@@ -1764,8 +1737,12 @@
           margin: 0 !important;
           position: relative !important;
           z-index: 2147483647 !important;
+          animation: pulse 2s infinite !important;
         `;
       }
+
+      // Apply button animation
+      this.applyButtonAnimation();
     },
 
     // Add control buttons to interface
@@ -1997,9 +1974,10 @@
             .toString(16)
             .padStart(2, "0")}${darkerB.toString(16).padStart(2, "0")}`;
 
-          // Update the pulse animation with the current color
+          // Create a more robust enhanced pulsing style
           const pulseStyle = document.createElement("style");
           pulseStyle.innerHTML = `
+            /* Button Pulse Animation */
             @keyframes pulse {
               0% {
                 box-shadow: 0 0 0 0 rgba(${r}, ${g}, ${b}, 0.4);
@@ -2015,6 +1993,7 @@
             #chat-website-button {
               transition: all 0.2s ease !important;
               animation: pulse 2s infinite !important;
+              position: relative !important;
             }
             
             #chat-website-button:hover {
@@ -2026,6 +2005,36 @@
             #chat-website-button:active {
               transform: scale(0.95) !important;
               box-shadow: 0 2px 10px rgba(${r}, ${g}, ${b}, 0.2) !important;
+            }
+
+            /* Animated ring around button */
+            #chat-website-button::after {
+              content: '' !important;
+              position: absolute !important;
+              top: -8px !important;
+              left: -8px !important;
+              right: -8px !important;
+              bottom: -8px !important;
+              border-radius: 50% !important;
+              border: 2px solid rgba(${r}, ${g}, ${b}, 0.7) !important;
+              opacity: 0 !important;
+              animation: ringPulse 2s ease-out infinite !important;
+              pointer-events: none !important;
+            }
+            
+            @keyframes ringPulse {
+              0% {
+                transform: scale(0.95);
+                opacity: 0.7;
+              }
+              50% {
+                transform: scale(1.1);
+                opacity: 0;
+              }
+              100% {
+                transform: scale(0.95);
+                opacity: 0.7;
+              }
             }
           `;
 
@@ -2135,7 +2144,7 @@
 
         buttonContainer.insertAdjacentHTML(
           "beforeend",
-          `<button id="chat-website-button" class="visible" style="background-color:${themeColor};display:flex!important;visibility:visible!important;opacity:1!important;width:50px!important;height:50px!important;border-radius:50%!important;justify-content:center!important;align-items:center!important;color:white!important;box-shadow:0 4px 15px rgba(0,0,0,0.2)!important;border:none!important;cursor:pointer!important;transition:all 0.2s ease!important;padding:0!important;margin:0!important;position:relative!important;z-index:2147483647!important;">
+          `<button id="chat-website-button" class="visible" style="background-color:${themeColor};display:flex!important;visibility:visible!important;opacity:1!important;width:50px!important;height:50px!important;border-radius:50%!important;justify-content:center!important;align-items:center!important;color:white!important;box-shadow:0 4px 15px rgba(0,0,0,0.2)!important;border:none!important;cursor:pointer!important;transition:all 0.2s ease!important;padding:0!important;margin:0!important;position:relative!important;z-index:2147483647!important;animation:pulse 2s infinite!important;">
             <svg class="chat-icon" viewBox="0 0 24 24" width="24" height="24">
               <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
@@ -2523,6 +2532,106 @@
       const b = bigint & 255;
 
       return { r, g, b };
+    },
+
+    // Add button animation directly
+    applyButtonAnimation: function () {
+      // Create a standalone animation style that doesn't depend on other functions
+      const animStyle = document.createElement("style");
+
+      // Get the theme color
+      const color = this.websiteColor || "#882be6";
+
+      // Parse RGB components for animation
+      let r = 136,
+        g = 43,
+        b = 230; // Default fallback
+      try {
+        if (color.startsWith("#")) {
+          r = parseInt(color.slice(1, 3), 16);
+          g = parseInt(color.slice(3, 5), 16);
+          b = parseInt(color.slice(5, 7), 16);
+        }
+      } catch (e) {
+        console.error("Color parsing error:", e);
+      }
+
+      // Define button animations
+      animStyle.innerHTML = `
+        /* Button pulse effect */
+        @keyframes voiceroButtonPulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(${r}, ${g}, ${b}, 0.7);
+            transform: scale(1);
+          }
+          70% {
+            box-shadow: 0 0 0 15px rgba(${r}, ${g}, ${b}, 0);
+            transform: scale(1.05);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(${r}, ${g}, ${b}, 0);
+            transform: scale(1);
+          }
+        }
+        
+        /* Special ring animation */
+        @keyframes voiceroRingPulse {
+          0% {
+            transform: scale(0.9);
+            opacity: 0.7;
+          }
+          70% {
+            transform: scale(1.2);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(0.9);
+            opacity: 0;
+          }
+        }
+        
+        /* Apply animation to button */
+        #chat-website-button {
+          animation: voiceroButtonPulse 2s infinite cubic-bezier(0.66, 0, 0.33, 1) !important;
+          position: relative !important;
+        }
+        
+        /* Add ring effect */
+        #chat-website-button::after {
+          content: "" !important;
+          position: absolute !important;
+          width: 100% !important;
+          height: 100% !important;
+          top: 0 !important;
+          left: 0 !important;
+          border-radius: 50% !important;
+          box-shadow: 0 0 0 5px rgba(${r}, ${g}, ${b}, 0.5) !important;
+          animation: voiceroRingPulse 2s infinite cubic-bezier(0.66, 0, 0.33, 1) !important;
+          pointer-events: none !important;
+        }
+      `;
+
+      // Add an ID to find and remove it later if needed
+      animStyle.id = "voicero-button-animation";
+
+      // Remove existing animation if present
+      const existingAnim = document.getElementById("voicero-button-animation");
+      if (existingAnim) {
+        existingAnim.remove();
+      }
+
+      // Add to document
+      document.head.appendChild(animStyle);
+
+      // Also apply animation directly to button for redundancy
+      setTimeout(() => {
+        const button = document.getElementById("chat-website-button");
+        if (button) {
+          button.style.animation =
+            "voiceroButtonPulse 2s infinite cubic-bezier(0.66, 0, 0.33, 1)";
+          button.style.position = "relative";
+        }
+      }, 100);
     },
   };
 
