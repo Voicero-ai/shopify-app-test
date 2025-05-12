@@ -290,9 +290,9 @@ const VoiceroText = {
         this.addMessage(
           `
           <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-            <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
+            <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
             <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-            <div class="welcome-note"><span class="welcome-pulse" style="background-color: rgb(99, 102, 241);"></span>Ask me anything about this site!</div>
+            <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
           </div>
           `,
           "ai",
@@ -1475,7 +1475,7 @@ const VoiceroText = {
         >
           <button style="
             position: relative;
-            background: rgb(99, 102, 241);
+            background: ${this.websiteColor || "#882be6"};
             border: none;
             color: white;
             padding: 10px 20px;
@@ -1790,9 +1790,25 @@ const VoiceroText = {
       // Just ensure the button has display:flex for the icon alignment
       const maximizeButton = maximizeBtn.querySelector("button");
       if (maximizeButton) {
+        // Reapply the main styling to ensure it's consistent
+        maximizeButton.style.position = "relative";
+        maximizeButton.style.background = this.websiteColor || "#882be6"; // Use the dynamic website color
+        maximizeButton.style.border = "none";
+        maximizeButton.style.color = "white";
+        maximizeButton.style.padding = "10px 20px";
+        maximizeButton.style.borderRadius = "20px 20px 0 0";
+        maximizeButton.style.fontSize = "14px";
+        maximizeButton.style.fontWeight = "500";
+        maximizeButton.style.cursor = "pointer";
         maximizeButton.style.display = "flex";
         maximizeButton.style.alignItems = "center";
         maximizeButton.style.justifyContent = "center";
+        maximizeButton.style.minWidth = "160px";
+        maximizeButton.style.marginBottom = "-30px"; // Updated to match the HTML creation
+        maximizeButton.style.height = "40px";
+        maximizeButton.style.overflow = "visible";
+        maximizeButton.style.boxShadow = "none";
+        maximizeButton.style.width = "auto";
       }
     }
 
@@ -1819,7 +1835,7 @@ const VoiceroText = {
   forceWelcomeMessageColors: function () {
     if (!this.shadowRoot) return;
 
-    const mainColor = "rgb(99, 102, 241)";
+    const mainColor = this.websiteColor || "#882be6";
 
     // Force welcome message border color
     const welcomeMessages =
@@ -1933,9 +1949,9 @@ const VoiceroText = {
       this.addMessage(
         `
         <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
+          <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
           <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
-          <div class="welcome-note"><span class="welcome-pulse" style="background-color: rgb(99, 102, 241);"></span>Ask me anything about this site!</div>
+          <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
         </div>
         `,
         "ai",
@@ -2585,7 +2601,7 @@ const VoiceroText = {
       if (maximizeButton) {
         // Reapply the main styling to ensure it's consistent
         maximizeButton.style.position = "relative";
-        maximizeButton.style.background = "rgb(99, 102, 241)"; // Use color from voice chat
+        maximizeButton.style.background = this.websiteColor || "#882be6"; // Use the dynamic website color
         maximizeButton.style.border = "none";
         maximizeButton.style.color = "white";
         maximizeButton.style.padding = "10px 20px";
@@ -3133,8 +3149,8 @@ const VoiceroText = {
 
   // Force welcome message colors globally with !important
   forceGlobalWelcomeStyles: function () {
-    // Use the fixed purple color
-    const mainColor = "rgb(99, 102, 241)";
+    // Use the website color
+    const mainColor = this.websiteColor || "#882be6";
 
     // Create or update global style tag
     let styleTag = document.getElementById("voicero-forced-styles");

@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "025df740c8a79a0853a7939da465efb0"
-application_url = "https://images-estimated-remarkable-suitable.trycloudflare.com"
+application_url = "https://labels-soviet-garcia-certainly.trycloudflare.com"
 embedded = true
 name = "voicero-app-shop-test"
 handle = "voicero-app-shop-test"
@@ -31,9 +31,9 @@ scopes = "read_content,read_products,read_discounts,write_content,read_metaobjec
 
 [auth]
 redirect_urls = [
-  "https://images-estimated-remarkable-suitable.trycloudflare.com/auth/callback",
-  "https://images-estimated-remarkable-suitable.trycloudflare.com/auth/shopify/callback",
-  "https://images-estimated-remarkable-suitable.trycloudflare.com/api/auth/callback"
+  "https://labels-soviet-garcia-certainly.trycloudflare.com/auth/callback",
+  "https://labels-soviet-garcia-certainly.trycloudflare.com/auth/shopify/callback",
+  "https://labels-soviet-garcia-certainly.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
