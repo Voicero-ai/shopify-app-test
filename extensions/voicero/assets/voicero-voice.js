@@ -1725,13 +1725,6 @@ const VoiceroVoice = {
                     );
                   }
 
-                  // Parse the JSON payload
-                  const { success, url } = await ttsResponse.json();
-
-                  if (!success || !url) {
-                    throw new Error("Malformed TTS response (no URL)");
-                  }
-
                   // Remove typing indicator before adding the real response
                   this.removeTypingIndicator();
 
@@ -1748,8 +1741,26 @@ const VoiceroVoice = {
                     VoiceroCore.saveState();
                   }
 
-                  // Play the audio response
-                  const audio = new Audio(url);
+                  const contentType = ttsResponse.headers.get('Content-Type');
+                  let audio;
+
+                  if (contentType && contentType.includes('audio/')) {
+                    // Handle binary audio response
+                    const audioBlob = await ttsResponse.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audio = new Audio(audioUrl);
+                  } else {
+                    // Handle JSON response with URL
+                    const responseData = await ttsResponse.json();
+                    const { success, url } = responseData;
+
+                    if (!success || !url) {
+                      throw new Error("Malformed TTS response (no URL)");
+                    }
+                    
+                    // Play the audio response from the URL
+                    audio = new Audio(url);
+                  }
 
                   // Create a promise to handle audio completion
                   const audioPlaybackPromise = new Promise((resolve) => {
