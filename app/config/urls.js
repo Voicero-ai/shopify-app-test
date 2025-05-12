@@ -6,7 +6,7 @@ const urls = {
 
   // Voicero API URLs
   voiceroApi: "http://localhost:3000",
-  newVoiceroApi: "http://localhost:3000",
+  newVoiceroApi: "https://www.voicero.ai",
 
   // Training API URLs
   trainingApiBase: "http://localhost:3000",
