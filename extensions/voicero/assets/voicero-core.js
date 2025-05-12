@@ -422,9 +422,7 @@
                 VoiceroCore.hideChooser();
               } else {
                 console.log("VoiceroCore: Showing chooser");
-                chooser.style.display = "flex";
-                chooser.style.visibility = "visible";
-                chooser.style.opacity = "1";
+                VoiceroCore.showChooser();
               }
             });
           }
@@ -2465,17 +2463,7 @@
             VoiceroCore.hideChooser();
           } else {
             console.log("Button handler: Showing chooser");
-            chooser.style.cssText = `
-              display: flex !important;
-              visibility: visible !important;
-              opacity: 1 !important;
-              pointer-events: auto !important;
-              position: fixed !important;
-              bottom: 80px !important;
-              right: 20px !important;
-              z-index: 10001 !important;
-            `;
-            chooser.classList.add("visible");
+            VoiceroCore.showChooser();
           }
 
           // Reset toggle flag after a delay
