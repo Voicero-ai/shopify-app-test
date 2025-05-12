@@ -213,52 +213,6 @@
             `;
           }
 
-          // Add "Powered by Voicero" text as a small hyperlink at the bottom
-          if (!document.getElementById("voicero-powered-by")) {
-            buttonContainer.insertAdjacentHTML(
-              "beforeend",
-              `<a 
-                id="voicero-powered-by" 
-                href="https://voicero.ai" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style="
-                  display: block !important;
-                  font-size: 10px !important;
-                  color: #888 !important;
-                  text-decoration: none !important;
-                  margin-top: 5px !important;
-                  text-align: right !important;
-                  width: 100% !important;
-                  opacity: 0.7 !important;
-                  font-family: Arial, sans-serif !important;
-                "
-              >Powered by Voicero</a>`,
-            );
-
-            // Add disclaimer footer
-            buttonContainer.insertAdjacentHTML(
-              "beforeend",
-              `<div style="
-                text-align: center;
-                margin-top: 18px;
-                line-height: 1;
-              ">
-                <div style="
-                  font-size: 10px;
-                  color: black;
-                  opacity: 0.8;
-                  margin-bottom: 2px;
-                ">Powered by Voicero</div>
-                <div style="
-                  font-size: 8px;
-                  color: black;
-                  opacity: 0.6;
-                ">Voicero AI can make mistakes</div>
-              </div>`,
-            );
-          }
-
           // Add the chooser as a separate element
           buttonContainer.insertAdjacentHTML(
             "beforeend",
@@ -343,6 +297,24 @@
               <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
+            </div>
+            
+            <div style="
+              text-align: center;
+              margin-top: 18px;
+              line-height: 1;
+            ">
+              <div style="
+                font-size: 10px;
+                color: black;
+                opacity: 0.8;
+                margin-bottom: 2px;
+              ">Powered by Voicero</div>
+              <div style="
+                font-size: 8px;
+                color: black;
+                opacity: 0.6;
+              ">Voicero AI can make mistakes</div>
             </div>
           </div>
         `,
@@ -1580,6 +1552,24 @@
             <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
+          </div>
+          
+          <div style="
+            text-align: center;
+            margin-top: 18px;
+            line-height: 1;
+          ">
+            <div style="
+              font-size: 10px;
+              color: black;
+              opacity: 0.8;
+              margin-bottom: 2px;
+            ">Powered by Voicero</div>
+            <div style="
+              font-size: 8px;
+              color: black;
+              opacity: 0.6;
+            ">Voicero AI can make mistakes</div>
           </div>
         </div>`,
       );
