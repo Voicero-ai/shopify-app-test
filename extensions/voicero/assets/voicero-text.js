@@ -597,7 +597,7 @@ const VoiceroText = {
   // Fetch website data from /api/connect endpoint
   fetchWebsiteData: function () {
     // Use direct API endpoint instead of WordPress AJAX
-    fetch("https://www.voicero.ai/api/connect", {
+    fetch("http://localhost:3000/api/connect", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1944,7 +1944,7 @@ const VoiceroText = {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
       // Use direct API endpoint
-      fetch("https://www.voicero.ai/api/session/clear", {
+      fetch("http://localhost:3000/api/session/clear", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -2200,8 +2200,14 @@ const VoiceroText = {
       });
     }
 
+    // Log request body for debugging
+    console.log(
+      "[VOICERO TEXT] Sending to /chat:",
+      JSON.stringify(requestBody, null, 2),
+    );
+
     // Use direct API endpoint instead of WordPress proxy
-    return fetch("https://www.voicero.ai/api/shopify/chat", {
+    return fetch("http://localhost:3000/api/shopify/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2366,6 +2372,10 @@ const VoiceroText = {
           removeTypingIndicator();
 
           // Log the complete response data
+          console.log(
+            "[VOICERO TEXT] Received from /chat:",
+            JSON.stringify(data, null, 2),
+          );
 
           // Extract message from new response format
           let message = "";

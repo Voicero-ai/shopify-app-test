@@ -21,7 +21,7 @@
     };
 
   const VoiceroCore = {
-    apiBaseUrls: ["https://www.voicero.ai"],
+    apiBaseUrls: ["http://localhost:3000"],
     apiBaseUrl: null, // Store the working API URL
     apiConnected: false, // Track connection status
     session: null, // Store the current session
@@ -112,10 +112,11 @@
       }
 
       // Make sure theme colors are updated
-      this.updateThemeColor();
+      this.updateThemeColor(this.websiteColor);
 
       // Add CSS Animations
       const styleEl = document.createElement("style");
+
       styleEl.innerHTML = `
       @keyframes fadeIn {
         from {
@@ -125,6 +126,34 @@
         to {
           opacity: 1;
           transform: translateY(0);
+        }
+      }
+      
+      #chat-website-button {
+        transition: all 0.2s ease !important;
+        animation: pulse 2s infinite !important;
+      }
+      
+      #chat-website-button:hover {
+        transform: scale(1.1) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+        animation: none !important;
+      }
+      
+      #chat-website-button:active {
+        transform: scale(0.95) !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+      }
+      
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(136, 43, 230, 0.4);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(136, 43, 230, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(136, 43, 230, 0);
         }
       }
     `;
@@ -180,8 +209,8 @@
           // Add the main button first
           buttonContainer.innerHTML = `
           <button id="chat-website-button" class="visible" style="background-color: ${themeColor}">
-            <svg class="bot-icon" viewBox="0 0 24 24" width="24" height="24">
-              <path fill="currentColor" d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+            <svg class="chat-icon" viewBox="0 0 24 24" width="24" height="24">
+              <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
           </button>
         `;
@@ -308,10 +337,12 @@
             mainButton.addEventListener("click", function (e) {
               e.preventDefault();
               e.stopPropagation();
-              
+
               // Check if session operations are in progress
               if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                console.log("VoiceroCore: Button click ignored - session operation in progress");
+                console.log(
+                  "VoiceroCore: Button click ignored - session operation in progress",
+                );
                 return;
               }
 
@@ -380,10 +411,12 @@
             voiceButton.addEventListener("click", (e) => {
               e.preventDefault();
               e.stopPropagation();
-              
+
               // Check if session operations are in progress
               if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                console.log("VoiceroCore: Voice button click ignored - session operation in progress");
+                console.log(
+                  "VoiceroCore: Voice button click ignored - session operation in progress",
+                );
                 return;
               }
 
@@ -427,10 +460,12 @@
             textButton.addEventListener("click", (e) => {
               e.preventDefault();
               e.stopPropagation();
-              
+
               // Check if session operations are in progress
               if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                console.log("VoiceroCore: Text button click ignored - session operation in progress");
+                console.log(
+                  "VoiceroCore: Text button click ignored - session operation in progress",
+                );
                 return;
               }
 
@@ -581,6 +616,13 @@
             this.isWebsiteActive = data.websiteFound;
             this.websiteId = data.website?.id;
 
+            // Set website color if provided by API
+            if (data.website?.color) {
+              this.websiteColor = data.website.color;
+              // Update theme colors immediately
+              this.updateThemeColor(this.websiteColor);
+            }
+
             console.log("VoiceroCore: Website ID:", this.websiteId);
 
             // Create the button now that we have API connection
@@ -594,7 +636,6 @@
                 const parsedSession = JSON.parse(savedSession);
                 this.session = parsedSession;
                 this.sessionId = parsedSession.id;
-                
 
                 // Fetch latest session data from API
                 fetch(`${baseUrl}/api/session?sessionId=${this.sessionId}`, {
@@ -674,7 +715,7 @@
                               ) {
                                 window.VoiceroText.minimizeChat();
                               }
-                            }, 100);
+                            }, 100); // Small delay
                           }
                         }
                       }
@@ -845,7 +886,7 @@
       }
 
       // Ask our REST proxy for this specific sessionId
-      const proxyUrl = `https://www.voicero.ai/api/session?sessionId=${sessionId}`;
+      const proxyUrl = `http://localhost:3000/api/session?sessionId=${sessionId}`;
 
       fetch(proxyUrl, {
         method: "GET",
@@ -1076,24 +1117,27 @@
     },
 
     // Check if session operations are in progress
-    isSessionBusy: function() {
+    isSessionBusy: function () {
       // If a session operation is explicitly marked as in progress
       if (this.isSessionOperationInProgress) {
         // Check if it's been too long (might be stuck)
         const currentTime = Date.now();
-        const timeSinceLastOperation = currentTime - this.lastSessionOperationTime;
-        
+        const timeSinceLastOperation =
+          currentTime - this.lastSessionOperationTime;
+
         if (timeSinceLastOperation > this.sessionOperationTimeout) {
-          console.warn("VoiceroCore: Session operation timeout exceeded, resetting flag");
+          console.warn(
+            "VoiceroCore: Session operation timeout exceeded, resetting flag",
+          );
           this.isSessionOperationInProgress = false;
           return false;
         }
         return true;
       }
-      
+
       return this.isInitializingSession;
     },
-    
+
     // Create a new session
     createSession: function () {
       console.log("VoiceroCore: Starting session creation");
@@ -1110,7 +1154,7 @@
       this.lastSessionOperationTime = Date.now();
       console.log("VoiceroCore: Session initialization started");
 
-      const proxyUrl = "https://www.voicero.ai/api/session";
+      const proxyUrl = "http://localhost:3000/api/session";
       const requestBody = JSON.stringify({
         websiteId: this.websiteId,
       });
@@ -1216,7 +1260,7 @@
       // Only run if jQuery is available
       if (typeof window.jQuery === "undefined") {
         // Use fetch as a fallback if jQuery isn't available
-        fetch("https://www.voicero.ai/api/session", {
+        fetch("http://localhost:3000/api/session", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1248,7 +1292,7 @@
 
       // Use jQuery if available
       window.jQuery.ajax({
-        url: "https://www.voicero.ai/api/session",
+        url: "http://localhost:3000/api/session",
         type: "POST",
         data: JSON.stringify({ websiteId: this.websiteId }),
         contentType: "application/json",
@@ -1547,13 +1591,15 @@
 
         newVoiceButton.addEventListener("click", () => {
           console.log("!!!VOICERO DEBUG!!! Voice button clicked");
-          
+
           // Check if session operations are in progress
           if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-            console.log("VoiceroCore: Voice button click ignored - session operation in progress");
+            console.log(
+              "VoiceroCore: Voice button click ignored - session operation in progress",
+            );
             return;
           }
-          
+
           if (chooser) {
             chooser.style.display = "none";
             chooser.style.visibility = "hidden";
@@ -1596,13 +1642,15 @@
 
         newTextButton.addEventListener("click", () => {
           console.log("!!!VOICERO DEBUG!!! Text button clicked");
-          
+
           // Check if session operations are in progress
           if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-            console.log("VoiceroCore: Text button click ignored - session operation in progress");
+            console.log(
+              "VoiceroCore: Text button click ignored - session operation in progress",
+            );
             return;
           }
-          
+
           if (chooser) {
             chooser.style.display = "none";
             chooser.style.visibility = "hidden";
@@ -1848,7 +1896,7 @@
         }
 
         // Make API call to persist the changes
-        const proxyUrl = "https://www.voicero.ai/api/session/windows";
+        const proxyUrl = "http://localhost:3000/api/session/windows";
 
         // Format the request body to match what the Next.js API expects
         const requestBody = {
@@ -1896,13 +1944,13 @@
                 window.VoiceroVoice.session = data.session;
               }
             }
-            
+
             this.isSessionOperationInProgress = false;
             this.lastSessionOperationTime = Date.now();
           })
           .catch((error) => {
             console.error("VoiceroCore: Window state update failed:", error);
-            
+
             this.isSessionOperationInProgress = false;
             this.lastSessionOperationTime = Date.now();
           });
@@ -1962,6 +2010,22 @@
               100% {
                 box-shadow: 0 0 0 0 rgba(${r}, ${g}, ${b}, 0);
               }
+            }
+            
+            #chat-website-button {
+              transition: all 0.2s ease !important;
+              animation: pulse 2s infinite !important;
+            }
+            
+            #chat-website-button:hover {
+              transform: scale(1.1) !important;
+              box-shadow: 0 6px 20px rgba(${r}, ${g}, ${b}, 0.3) !important;
+              animation: none !important;
+            }
+            
+            #chat-website-button:active {
+              transform: scale(0.95) !important;
+              box-shadow: 0 2px 10px rgba(${r}, ${g}, ${b}, 0.2) !important;
             }
           `;
 
@@ -2072,8 +2136,8 @@
         buttonContainer.insertAdjacentHTML(
           "beforeend",
           `<button id="chat-website-button" class="visible" style="background-color:${themeColor};display:flex!important;visibility:visible!important;opacity:1!important;width:50px!important;height:50px!important;border-radius:50%!important;justify-content:center!important;align-items:center!important;color:white!important;box-shadow:0 4px 15px rgba(0,0,0,0.2)!important;border:none!important;cursor:pointer!important;transition:all 0.2s ease!important;padding:0!important;margin:0!important;position:relative!important;z-index:2147483647!important;">
-            <svg class="bot-icon" viewBox="0 0 24 24" width="24" height="24">
-              <path fill="currentColor" d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+            <svg class="chat-icon" viewBox="0 0 24 24" width="24" height="24">
+              <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
           </button>`,
         );
@@ -2109,10 +2173,12 @@
       newButton.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Check if session operations are in progress
         if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-          console.log("VoiceroCore: Button click ignored - session operation in progress");
+          console.log(
+            "VoiceroCore: Button click ignored - session operation in progress",
+          );
           return;
         }
 
@@ -2216,10 +2282,12 @@
               voiceButton.addEventListener("click", () => {
                 // Check if session operations are in progress
                 if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                  console.log("VoiceroCore: Voice button click ignored - session operation in progress");
+                  console.log(
+                    "VoiceroCore: Voice button click ignored - session operation in progress",
+                  );
                   return;
                 }
-                
+
                 if (chooser) {
                   chooser.style.display = "none";
                 }
@@ -2256,10 +2324,12 @@
               textButton.addEventListener("click", () => {
                 // Check if session operations are in progress
                 if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                  console.log("VoiceroCore: Text button click ignored - session operation in progress");
+                  console.log(
+                    "VoiceroCore: Text button click ignored - session operation in progress",
+                  );
                   return;
                 }
-                
+
                 if (chooser) {
                   chooser.style.display = "none";
                 }
@@ -2433,6 +2503,26 @@
 
       console.log("[DEBUG] All checks passed, should show chooser");
       return true;
+    },
+
+    // Helper function to convert hex color to RGB
+    hexToRgb: function (hex) {
+      // Check if it's already a valid hex color
+      if (!hex || typeof hex !== "string" || !hex.startsWith("#")) {
+        // Return default if not a valid hex
+        return { r: 136, g: 43, b: 230 };
+      }
+
+      // Remove # if present
+      hex = hex.replace(/^#/, "");
+
+      // Parse hex values
+      const bigint = parseInt(hex, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+
+      return { r, g, b };
     },
   };
 

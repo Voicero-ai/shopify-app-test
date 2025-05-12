@@ -44,13 +44,46 @@ const VoiceroVoice = {
     this.setupContainers();
 
     // Get website color from Core if available
-    if (window.VoiceroCore && window.VoiceroCore.websiteColor) {
-      this.websiteColor = window.VoiceroCore.websiteColor;
-      console.log("VoiceroVoice: Using website color:", this.websiteColor);
+    if (window.VoiceroCore) {
+      // First check color directly from VoiceroCore
+      if (window.VoiceroCore.websiteColor) {
+        this.websiteColor = window.VoiceroCore.websiteColor;
+        console.log(
+          "VoiceroVoice: Using website color from VoiceroCore:",
+          this.websiteColor,
+        );
+      }
+      // Then also check if there's a color in the session object
+      else if (
+        window.VoiceroCore.session &&
+        window.VoiceroCore.session.website &&
+        window.VoiceroCore.session.website.color
+      ) {
+        this.websiteColor = window.VoiceroCore.session.website.color;
+        console.log(
+          "VoiceroVoice: Using website color from session:",
+          this.websiteColor,
+        );
+      }
+      // Otherwise use default color
+      else {
+        this.websiteColor = "#882be6";
+        console.log("VoiceroVoice: Using default color:", this.websiteColor);
+      }
     } else {
       // Use default color
       this.websiteColor = "#882be6";
+      console.log(
+        "VoiceroVoice: VoiceroCore not available, using default color:",
+        this.websiteColor,
+      );
     }
+
+    // Set CSS variable for theme color to ensure consistency
+    document.documentElement.style.setProperty(
+      "--voicero-theme-color",
+      this.websiteColor,
+    );
 
     // Set up welcome message observer
     this.setupWelcomeMessageObserver();
@@ -119,9 +152,9 @@ const VoiceroVoice = {
       }
 
       @keyframes pulseListening {
-        0% { transform: scale(1); background: #ff4444; }
-        50% { transform: scale(1.1); background: #ff2222; }
-        100% { transform: scale(1); background: #ff4444; }
+        0% { transform: scale(1); background: ${this.websiteColor}; }
+        50% { transform: scale(1.1); background: ${this.adjustColor(this.websiteColor, -0.2)}; }
+        100% { transform: scale(1); background: ${this.websiteColor}; }
       }
       
       @keyframes colorRotate {
@@ -236,9 +269,7 @@ const VoiceroVoice = {
         font-weight: 700;
         margin-bottom: 5px;
         font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-        background: linear-gradient(90deg, ${
-          this.websiteColor || "#882be6"
-        }, ${this.websiteColor || "#882be6"});
+        background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor}));
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -254,7 +285,7 @@ const VoiceroVoice = {
       }
       
       .welcome-highlight {
-        color: ${this.websiteColor || "#882be6"};
+        color: var(--voicero-theme-color, ${this.websiteColor});
         font-weight: 600;
       }
       
@@ -270,7 +301,7 @@ const VoiceroVoice = {
         display: inline-block;
         width: 8px;
         height: 8px;
-        background-color: ${this.websiteColor || "#882be6"};
+        background-color: var(--voicero-theme-color, ${this.websiteColor});
         border-radius: 50%;
         margin-right: 4px;
         animation: welcomePulse 1.5s infinite;
@@ -562,7 +593,7 @@ const VoiceroVoice = {
       left: 0;
       height: 3px;
       width: 0%;
-      background: linear-gradient(90deg, #882be6, #ff4444, #882be6);
+      background: linear-gradient(90deg, ${this.websiteColor}, #ff4444, ${this.websiteColor});
       background-size: 200% 100%;
       border-radius: 3px;
       display: none;
@@ -806,6 +837,9 @@ const VoiceroVoice = {
 
   // Open voice chat interface
   openVoiceChat: function () {
+    // Sync theme color before opening
+    this.syncThemeColor();
+
     console.log("VoiceroVoice: Opening voice chat interface");
 
     // Set current time to prevent reopening too quickly
@@ -910,9 +944,9 @@ const VoiceroVoice = {
       // Add welcome message with clear prompt
       this.addSystemMessage(`
         <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px 15px !important; margin: 12px auto !important; min-height: 100px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; height: 100px !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-          <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight">start talking</span></div>
-          <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"}; width: 8px; height: 8px;"></span>Button glows during conversation</div>
+          <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
+          <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+          <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
         </div>
       `);
 
@@ -1260,7 +1294,7 @@ const VoiceroVoice = {
       // Add a temporary "initializing..." message instead of immediately showing "I'm listening..."
       this.addSystemMessage(`
         <div id="listening-indicator-message" class="welcome-message" style="width: 90% !important; max-width: 400px !important; padding: 12px 15px !important; margin: 12px auto !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; min-height: 100px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; height: 100px !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">
+          <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">
             Initializing microphone...
           </div>
         </div>
@@ -1427,7 +1461,7 @@ const VoiceroVoice = {
                 );
 
                 const whisperResponse = await fetch(
-                  "https://www.voicero.ai/api/whisper",
+                  "http://localhost:3000/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1543,8 +1577,33 @@ const VoiceroVoice = {
                 this.addTypingIndicator();
 
                 // Now send the transcription to the Shopify chat endpoint
+                const requestBody = {
+                  message: transcription,
+                  type: "voice",
+                  threadId:
+                    this.currentThreadId ||
+                    (window.VoiceroCore &&
+                    window.VoiceroCore.thread &&
+                    window.VoiceroCore.thread.threadId
+                      ? window.VoiceroCore.thread.threadId
+                      : null),
+                  websiteId:
+                    window.VoiceroCore && window.VoiceroCore.websiteId
+                      ? window.VoiceroCore.websiteId
+                      : null,
+                  currentPageUrl: window.location.href,
+                  pageData: this.collectPageData(),
+                  pastContext: this.getPastContext(),
+                };
+
+                // Log the request body for debugging
+                console.log(
+                  "[VOICERO VOICE] Sending to /chat:",
+                  JSON.stringify(requestBody, null, 2),
+                );
+
                 const chatResponse = await fetch(
-                  "https://www.voicero.ai/api/shopify/chat",
+                  "http://localhost:3000/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
@@ -1554,30 +1613,19 @@ const VoiceroVoice = {
                         ? window.voiceroConfig.getAuthHeaders()
                         : {}),
                     },
-                    body: JSON.stringify({
-                      message: transcription,
-                      type: "voice",
-                      threadId:
-                        this.currentThreadId ||
-                        (window.VoiceroCore &&
-                        window.VoiceroCore.thread &&
-                        window.VoiceroCore.thread.threadId
-                          ? window.VoiceroCore.thread.threadId
-                          : null),
-                      websiteId:
-                        window.VoiceroCore && window.VoiceroCore.websiteId
-                          ? window.VoiceroCore.websiteId
-                          : null,
-                      currentPageUrl: window.location.href,
-                      pageData: this.collectPageData(),
-                      pastContext: this.getPastContext(),
-                    }),
+                    body: JSON.stringify(requestBody),
                   },
                 );
                 if (!chatResponse.ok)
                   throw new Error("Chat API request failed");
 
                 const chatData = await chatResponse.json();
+
+                // Log the response data for debugging
+                console.log(
+                  "[VOICERO VOICE] Received from /chat:",
+                  JSON.stringify(chatData, null, 2),
+                );
 
                 // Store thread ID from response
                 if (chatData.threadId) {
@@ -1696,7 +1744,7 @@ const VoiceroVoice = {
                 try {
                   // Request audio generation using TTS endpoint
                   const ttsResponse = await fetch(
-                    "https://www.voicero.ai/api/tts",
+                    "http://localhost:3000/api/tts",
                     {
                       method: "POST",
                       headers: {
@@ -1741,10 +1789,10 @@ const VoiceroVoice = {
                     VoiceroCore.saveState();
                   }
 
-                  const contentType = ttsResponse.headers.get('Content-Type');
+                  const contentType = ttsResponse.headers.get("Content-Type");
                   let audio;
 
-                  if (contentType && contentType.includes('audio/')) {
+                  if (contentType && contentType.includes("audio/")) {
                     // Handle binary audio response
                     const audioBlob = await ttsResponse.blob();
                     const audioUrl = URL.createObjectURL(audioBlob);
@@ -1757,7 +1805,7 @@ const VoiceroVoice = {
                     if (!success || !url) {
                       throw new Error("Malformed TTS response (no URL)");
                     }
-                    
+
                     // Play the audio response from the URL
                     audio = new Audio(url);
                   }
@@ -2544,7 +2592,7 @@ const VoiceroVoice = {
 
     if (role === "user") {
       messageContent.style.cssText = `
-        background: ${this.websiteColor || "#882be6"};
+        background: var(--voicero-theme-color, ${this.websiteColor});
         color: white;
         border-radius: 18px;
         padding: 12px 16px;
@@ -2602,7 +2650,8 @@ const VoiceroVoice = {
           messagesContainer.querySelectorAll(".read-status");
         userStatusDivs.forEach((div) => {
           div.textContent = "Read";
-          div.style.color = this.websiteColor || "#882be6";
+          div.style.color =
+            "var(--voicero-theme-color, " + this.websiteColor + ")";
         });
       }
     }
@@ -2725,9 +2774,9 @@ const VoiceroVoice = {
           // Add welcome message
           this.addSystemMessage(`
             <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px 15px !important; margin: 12px auto !important; min-height: 100px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; height: 100px !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-              <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight">start talking</span></div>
-              <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"}; width: 8px; height: 8px;"></span>Button glows during conversation</div>
+              <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
+              <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+              <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
             </div>
           `);
 
@@ -2914,7 +2963,7 @@ const VoiceroVoice = {
   clearChatHistory: function () {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
-      const proxyUrl = "https://www.voicero.ai/api/session/clear";
+      const proxyUrl = "http://localhost:3000/api/session/clear";
 
       fetch(proxyUrl, {
         method: "POST",
@@ -2986,9 +3035,9 @@ const VoiceroVoice = {
     // Add welcome message again with the exact same format as in openVoiceChat
     this.addSystemMessage(`
       <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px 15px !important; margin: 12px auto !important; min-height: 100px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; height: 100px !important;">
-        <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-        <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight">start talking</span></div>
-        <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"}; width: 8px; height: 8px;"></span>Button glows during conversation</div>
+        <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
+        <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+        <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
       </div>
     `);
 
@@ -3453,6 +3502,65 @@ const VoiceroVoice = {
     this.welcomeMessageObserver = observer;
 
     return true;
+  },
+
+  // Sync theme color with VoiceroCore
+  syncThemeColor: function () {
+    let newColor = null;
+
+    // Check for color in VoiceroCore
+    if (window.VoiceroCore) {
+      if (window.VoiceroCore.websiteColor) {
+        newColor = window.VoiceroCore.websiteColor;
+      } else if (
+        window.VoiceroCore.session &&
+        window.VoiceroCore.session.website &&
+        window.VoiceroCore.session.website.color
+      ) {
+        newColor = window.VoiceroCore.session.website.color;
+      }
+    }
+
+    // Only update if we got a color and it's different from the current one
+    if (newColor && newColor !== this.websiteColor) {
+      console.log(
+        "VoiceroVoice: Updating theme color from",
+        this.websiteColor,
+        "to",
+        newColor,
+      );
+      this.websiteColor = newColor;
+
+      // Update CSS variable
+      document.documentElement.style.setProperty(
+        "--voicero-theme-color",
+        this.websiteColor,
+      );
+
+      // Update mic button if it exists
+      const micButton = document.getElementById("voice-mic-button");
+      if (micButton && !this.isRecording) {
+        micButton.style.background = this.websiteColor;
+      }
+
+      // Update any user messages
+      const userMessages = document.querySelectorAll(
+        ".user-message .message-content",
+      );
+      userMessages.forEach((msg) => {
+        msg.style.background =
+          "var(--voicero-theme-color, " + this.websiteColor + ")";
+      });
+
+      // Update read status indicators
+      const readStatuses = document.querySelectorAll(".read-status");
+      readStatuses.forEach((status) => {
+        if (status.textContent === "Read") {
+          status.style.color =
+            "var(--voicero-theme-color, " + this.websiteColor + ")";
+        }
+      });
+    }
   },
 };
 

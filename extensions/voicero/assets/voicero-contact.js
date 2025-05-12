@@ -15,20 +15,23 @@ const VoiceroContact = {
     // Determine which interface is active
     let messagesContainer;
     let interfaceType = "text"; // Default to text interface
-    
+
     // Check if called from voice interface
-    if (document.getElementById("voice-messages") && 
-        window.VoiceroCore && 
-        window.VoiceroCore.appState && 
-        window.VoiceroCore.appState.activeInterface === "voice") {
+    if (
+      document.getElementById("voice-messages") &&
+      window.VoiceroCore &&
+      window.VoiceroCore.appState &&
+      window.VoiceroCore.appState.activeInterface === "voice"
+    ) {
       messagesContainer = document.getElementById("voice-messages");
       interfaceType = "voice";
-    } 
+    }
     // Otherwise use text interface
     else if (window.VoiceroText && window.VoiceroText.shadowRoot) {
-      messagesContainer = window.VoiceroText.shadowRoot.getElementById("chat-messages");
+      messagesContainer =
+        window.VoiceroText.shadowRoot.getElementById("chat-messages");
     }
-    
+
     // Exit if neither interface is available
     if (!messagesContainer) {
       console.error("VoiceroText/Voice interface not available");
@@ -209,7 +212,7 @@ const VoiceroContact = {
         if (messageInput.value.trim().length < 5) {
           this.showFormError(
             messageInput,
-            "Message must be at least 5 characters long"
+            "Message must be at least 5 characters long",
           );
           return;
         }
@@ -219,7 +222,7 @@ const VoiceroContact = {
           emailInput.value.trim(),
           messageInput.value.trim(),
           formContainer,
-          interfaceType
+          interfaceType,
         );
       });
     }
@@ -231,9 +234,14 @@ const VoiceroContact = {
         formContainer.remove();
 
         // Add a cancellation message based on interface type
-        const cancelMessage = "No problem! Let me know if you have any other questions.";
-        
-        if (interfaceType === "voice" && window.VoiceroVoice && window.VoiceroVoice.addMessage) {
+        const cancelMessage =
+          "No problem! Let me know if you have any other questions.";
+
+        if (
+          interfaceType === "voice" &&
+          window.VoiceroVoice &&
+          window.VoiceroVoice.addMessage
+        ) {
           window.VoiceroVoice.addMessage(cancelMessage, "ai");
         } else if (window.VoiceroText && window.VoiceroText.addMessage) {
           window.VoiceroText.addMessage(cancelMessage, "ai");
@@ -347,7 +355,7 @@ const VoiceroContact = {
     }
 
     // Send the request to the WordPress REST API
-    fetch("https://www.voicero.ai/api/contact/help", {
+    fetch("http://localhost:3000/api/contact/help", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -367,10 +375,10 @@ const VoiceroContact = {
               // If we can't parse the JSON, use the status text
               console.error(
                 "Contact form error response parsing failed:",
-                jsonError
+                jsonError,
               );
               throw new Error(
-                `Request failed: ${response.status} ${response.statusText}`
+                `Request failed: ${response.status} ${response.statusText}`,
               );
             });
         }
@@ -381,9 +389,14 @@ const VoiceroContact = {
         formContainer.remove();
 
         // Show success message based on interface type
-        const successMessage = "Thank you for your message! We've received your request and will get back to you soon.";
-        
-        if (interfaceType === "voice" && window.VoiceroVoice && window.VoiceroVoice.addMessage) {
+        const successMessage =
+          "Thank you for your message! We've received your request and will get back to you soon.";
+
+        if (
+          interfaceType === "voice" &&
+          window.VoiceroVoice &&
+          window.VoiceroVoice.addMessage
+        ) {
           window.VoiceroVoice.addMessage(successMessage, "ai");
         } else if (window.VoiceroText && window.VoiceroText.addMessage) {
           window.VoiceroText.addMessage(successMessage, "ai");
@@ -414,7 +427,7 @@ const VoiceroContact = {
         if (formActions) {
           formActions.parentNode.insertBefore(
             errorDiv,
-            formActions.nextSibling
+            formActions.nextSibling,
           );
         }
       });
