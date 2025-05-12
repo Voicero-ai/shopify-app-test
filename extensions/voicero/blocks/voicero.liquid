@@ -98,6 +98,20 @@
         }
       });
     });
+
+    // Load support module
+    loadScript("{{ 'voicero-support.js' | asset_url }}", function() {
+      if (window.VoiceroSupport && window.VoiceroSupport.init) {
+        window.VoiceroSupport.init();
+      }
+    });
+
+    // Load contact module
+    loadScript("{{ 'voicero-contact.js' | asset_url }}", function() {
+      if (window.VoiceroContact && window.VoiceroContact.init) {
+        window.VoiceroContact.init();
+      }
+    });
   });
   
   // Also try to load immediately if DOM is already loaded

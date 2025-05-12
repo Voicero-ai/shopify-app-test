@@ -21,7 +21,7 @@
     };
 
   const VoiceroCore = {
-    apiBaseUrls: ["http://localhost:3000"],
+    apiBaseUrls: ["https://www.voicero.ai"],
     apiBaseUrl: null, // Store the working API URL
     apiConnected: false, // Track connection status
     session: null, // Store the current session
@@ -569,18 +569,13 @@
             // Check for existing session
             const savedSession = localStorage.getItem("voicero_session");
             if (savedSession) {
-              console.log("VoiceroCore: Found saved session:", savedSession);
               try {
                 const parsedSession = JSON.parse(savedSession);
                 this.session = parsedSession;
                 this.sessionId = parsedSession.id;
-                console.log(
-                  "VoiceroCore: Using existing session ID:",
-                  this.sessionId,
-                );
+                
 
                 // Fetch latest session data from API
-                console.log("VoiceroCore: Fetching latest session data");
                 fetch(`${baseUrl}/api/session?sessionId=${this.sessionId}`, {
                   method: "GET",
                   headers: {
@@ -829,7 +824,7 @@
       }
 
       // Ask our REST proxy for this specific sessionId
-      const proxyUrl = `http://localhost:3000/api/session?sessionId=${sessionId}`;
+      const proxyUrl = `https://www.voicero.ai/api/session?sessionId=${sessionId}`;
 
       fetch(proxyUrl, {
         method: "GET",
@@ -1073,7 +1068,7 @@
       this.isInitializingSession = true;
       console.log("VoiceroCore: Session initialization started");
 
-      const proxyUrl = "http://localhost:3000/api/session";
+      const proxyUrl = "https://www.voicero.ai/api/session";
       const requestBody = JSON.stringify({
         websiteId: this.websiteId,
       });
@@ -1173,7 +1168,7 @@
       // Only run if jQuery is available
       if (typeof window.jQuery === "undefined") {
         // Use fetch as a fallback if jQuery isn't available
-        fetch("http://localhost:3000/api/session", {
+        fetch("https://www.voicero.ai/api/session", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1205,7 +1200,7 @@
 
       // Use jQuery if available
       window.jQuery.ajax({
-        url: "http://localhost:3000/api/session",
+        url: "https://www.voicero.ai/api/session",
         type: "POST",
         data: JSON.stringify({ websiteId: this.websiteId }),
         contentType: "application/json",
@@ -1786,7 +1781,7 @@
         }
 
         // Make API call to persist the changes
-        const proxyUrl = "http://localhost:3000/api/session/windows";
+        const proxyUrl = "https://www.voicero.ai/api/session/windows";
 
         // Format the request body to match what the Next.js API expects
         const requestBody = {

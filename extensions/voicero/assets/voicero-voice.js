@@ -76,7 +76,7 @@ const VoiceroVoice = {
     const resetStyle = document.createElement("style");
     resetStyle.innerHTML = `
       #voice-messages {
-        padding: 15px !important; 
+        padding: 12px !important; 
         padding-top: 0 !important;
         margin: 0 !important;
         background-color: #f2f2f7 !important; /* iOS light gray background */
@@ -87,7 +87,7 @@ const VoiceroVoice = {
       }
 
       #voice-controls-header {
-        margin-bottom: 15px !important;
+        margin-bottom: 10px !important;
         margin-top: 0 !important;
         background-color: #f2f2f7 !important;
         position: sticky !important;
@@ -99,7 +99,7 @@ const VoiceroVoice = {
         width: 100% !important;
         left: 0 !important;
         right: 0 !important;
-        padding: 10px 15px !important;
+        padding: 8px 12px !important;
         box-sizing: border-box !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
@@ -204,20 +204,20 @@ const VoiceroVoice = {
       .welcome-message {
         text-align: center;
         background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%);
-        border-radius: 18px;
-        padding: 12px 15px;
-        margin: 12px auto;
+        border-radius: 16px;
+        padding: 4px 8px;
+        margin: 2px auto;
         width: 85%;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
         position: relative;
         overflow: hidden;
-        border: 1px solid rgba(136, 43, 230, 0.1);
+        border: 1px solid rgba(136, 43, 230, 0.05);
       }
       
       .welcome-title {
-        font-size: 18px;
+        font-size: 14px;
         font-weight: 700;
-        margin-bottom: 5px;
+        margin-bottom: 0;
         font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
         background: linear-gradient(90deg, ${
           this.websiteColor || "#882be6"
@@ -229,11 +229,11 @@ const VoiceroVoice = {
       }
       
       .welcome-subtitle {
-        font-size: 14px;
-        line-height: 1.4;
+        font-size: 12px;
+        line-height: 1.2;
         color: #666;
         font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-        margin-bottom: 3px;
+        margin: 1px 0;
       }
       
       .welcome-highlight {
@@ -242,20 +242,20 @@ const VoiceroVoice = {
       }
       
       .welcome-note {
-        font-size: 12px;
+        font-size: 10px;
         opacity: 0.75;
         font-style: italic;
-        margin-top: 5px;
+        margin-top: 1px;
         color: #888;
       }
       
       .welcome-pulse {
         display: inline-block;
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         background-color: #ff4444;
         border-radius: 50%;
-        margin-right: 4px;
+        margin-right: 3px;
         animation: welcomePulse 1.5s infinite;
       }
       
@@ -429,6 +429,7 @@ const VoiceroVoice = {
     const clearButton = document.createElement("button");
     clearButton.id = "clear-voice-chat";
     clearButton.setAttribute("onclick", "VoiceroVoice.clearChatHistory()");
+    clearButton.setAttribute("title", "Clear Chat History");
     clearButton.style.cssText = `
       background: none;
       border: none;
@@ -456,6 +457,7 @@ const VoiceroVoice = {
     const minimizeButton = document.createElement("button");
     minimizeButton.id = "minimize-voice-chat";
     minimizeButton.setAttribute("onclick", "VoiceroVoice.minimizeVoiceChat()");
+    minimizeButton.setAttribute("title", "Minimize");
     minimizeButton.style.cssText = `
       background: none;
       border: none;
@@ -474,10 +476,37 @@ const VoiceroVoice = {
     `;
     controlsHeader.appendChild(minimizeButton);
 
+    // Create toggle button for the header (to switch to text chat)
+    const toggleButton = document.createElement("button");
+    toggleButton.id = "toggle-to-text-chat";
+    toggleButton.setAttribute("onclick", "VoiceroVoice.toggleToTextChat()");
+    toggleButton.setAttribute("title", "Switch to Text Chat");
+    toggleButton.style.cssText = `
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    `;
+    toggleButton.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
+        <path d="M14 9l-2 2-2-2"></path>
+        <path d="M12 11v4"></path>
+        <line x1="8" y1="16" x2="16" y2="16"></line>
+      </svg>
+    `;
+    controlsHeader.appendChild(toggleButton);
+
     // Create close button for the header
     const closeButton = document.createElement("button");
     closeButton.id = "close-voice-chat";
     closeButton.setAttribute("onclick", "VoiceroVoice.closeVoiceChat()");
+    closeButton.setAttribute("title", "Close");
     closeButton.style.cssText = `
       background: none;
       border: none;
@@ -525,6 +554,7 @@ const VoiceroVoice = {
 
     // Move the minimize and close buttons to the right container
     rightButtonsContainer.appendChild(minimizeButton);
+    rightButtonsContainer.appendChild(toggleButton);
     rightButtonsContainer.appendChild(closeButton);
     controlsHeader.appendChild(rightButtonsContainer);
 
@@ -862,10 +892,10 @@ const VoiceroVoice = {
     ) {
       // Add welcome message with clear prompt
       this.addSystemMessage(`
-        <div class="welcome-message" style="width: 90% !important; max-width: 400px !important;">
-          <div class="welcome-title">Aura, your website concierge</div>
-          <div class="welcome-subtitle">Click the mic & <span class="welcome-highlight">start talking</span></div>
-          <div class="welcome-note"><span class="welcome-pulse"></span>Button glows during conversation</div>
+        <div class="welcome-message" style="width: 90% !important; max-width: 380px !important; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 4px 8px !important; margin: 2px auto !important;">
+          <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent; margin-bottom: 0; font-size: 14px;">Aura, your website concierge</div>
+          <div class="welcome-subtitle" style="margin: 1px 0; font-size: 12px;">Click mic & <span class="welcome-highlight">start talking</span></div>
+          <div class="welcome-note" style="margin-top: 1px; font-size: 10px;"><span class="welcome-pulse" style="background-color: rgb(99, 102, 241); width: 6px; height: 6px;"></span>Button glows during conversation</div>
         </div>
       `);
     } else {
@@ -1210,15 +1240,8 @@ const VoiceroVoice = {
 
       // Add a temporary "initializing..." message instead of immediately showing "I'm listening..."
       this.addSystemMessage(`
-        <div id="listening-indicator-message" class="welcome-message" style="width: 90% !important; max-width: 400px !important; padding: 4px 10px; margin: 4px auto;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${
-            this.websiteColor || "#882be6"
-          }), ${this.adjustColor(
-            `var(--voicero-theme-color, ${this.websiteColor || "#882be6"})`,
-            0.2,
-          )}, var(--voicero-theme-color, ${
-            this.websiteColor || "#882be6"
-          })); -webkit-background-clip: text; background-clip: text; margin-bottom: 0;">
+        <div id="listening-indicator-message" class="welcome-message" style="width: 90% !important; max-width: 400px !important; padding: 4px 10px; margin: 4px auto; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
+          <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent; margin-bottom: 0;">
             Initializing microphone...
           </div>
         </div>
@@ -1382,7 +1405,7 @@ const VoiceroVoice = {
                 );
 
                 const whisperResponse = await fetch(
-                  "http://localhost:3000/api/whisper",
+                  "https://www.voicero.ai/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1420,6 +1443,71 @@ const VoiceroVoice = {
                       ? whisperData.text
                       : "Could not transcribe audio");
 
+                // CHECK IF TRANSCRIPTION IS MEANINGFUL
+                // If Whisper returns an empty string, very short nonsense, or the default error message, don't process further
+                if (
+                  !transcription ||
+                  transcription.trim() === "" ||
+                  transcription === "Could not transcribe audio" ||
+                  transcription.length < 2
+                ) {
+                  console.log(
+                    "Voice interface: Empty or invalid transcription detected, stopping processing",
+                  );
+                  // Show a message to the user that nothing was heard
+                  this.addSystemMessage(`
+                    <div class="voice-prompt" style="background: #e5e5ea; color: #666;">
+                      I didn't hear anything. Please try speaking again.
+                    </div>
+                  `);
+                  return;
+                }
+
+                // Additional checks for nonsensical transcriptions
+                const cleanedTranscription = transcription.trim();
+                const wordCount = cleanedTranscription.split(/\s+/).length;
+
+                // Common patterns of random noise transcriptions
+                const appearsToBeForeignOrNonsense = (text) => {
+                  // Check for transcripts that are just a few random characters
+                  if (
+                    text.length < 5 &&
+                    !/^(hi|hey|yo|yes|no|ok)$/i.test(text)
+                  ) {
+                    return true;
+                  }
+
+                  // Check for very short transcripts that don't form common words or questions
+                  if (
+                    wordCount <= 2 &&
+                    text.length < 12 &&
+                    !/(hi|hey|yo|yes|no|ok|what|who|when|where|why|how|can|help|thanks|is|are)/i.test(
+                      text,
+                    )
+                  ) {
+                    return true;
+                  }
+
+                  // Check for random character sequences often produced with background noise
+                  if (
+                    /^[a-z]{1,2}[aeiou]{1,2}[a-z]{1,2}$/i.test(text) ||
+                    /^[^a-z0-9\s]{3,}$/i.test(text)
+                  ) {
+                    return true;
+                  }
+
+                  return false;
+                };
+
+                if (appearsToBeForeignOrNonsense(cleanedTranscription)) {
+                  console.log(
+                    "Voice interface: Nonsensical transcription detected:",
+                    cleanedTranscription,
+                  );
+
+                  return;
+                }
+
                 // Add the user message with transcription (restored from placeholder update)
                 this.addMessage(transcription, "user");
 
@@ -1434,11 +1522,12 @@ const VoiceroVoice = {
 
                 // Now send the transcription to the Shopify chat endpoint
                 const chatResponse = await fetch(
-                  "http://localhost:3000/api/shopify/chat",
+                  "https://www.voicero.ai/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
+                      Accept: "application/json",
                       ...(window.voiceroConfig?.getAuthHeaders
                         ? window.voiceroConfig.getAuthHeaders()
                         : {}),
@@ -1458,6 +1547,7 @@ const VoiceroVoice = {
                           ? window.VoiceroCore.websiteId
                           : null,
                       currentPageUrl: window.location.href,
+                      pageData: this.collectPageData(),
                       pastContext: this.getPastContext(),
                     }),
                   },
@@ -1582,9 +1672,9 @@ const VoiceroVoice = {
                 const extractedUrls = processedResponse.urls;
 
                 try {
-                  // Request audio generation using TTS endpoint via WordPress proxy
+                  // Request audio generation using TTS endpoint
                   const ttsResponse = await fetch(
-                    "http://localhost:3000/api/tts",
+                    "https://www.voicero.ai/api/tts",
                     {
                       method: "POST",
                       headers: {
@@ -1607,7 +1697,7 @@ const VoiceroVoice = {
                       details = await ttsResponse.text();
                     }
                     throw new Error(
-                      `TTS proxy failed (${
+                      `TTS request failed (${
                         ttsResponse.status
                       }): ${details.substring(0, 200)}`,
                     );
@@ -1617,7 +1707,7 @@ const VoiceroVoice = {
                   const { success, url } = await ttsResponse.json();
 
                   if (!success || !url) {
-                    throw new Error("Malformed TTS proxy response (no URL)");
+                    throw new Error("Malformed TTS response (no URL)");
                   }
 
                   // Remove typing indicator before adding the real response
@@ -2130,32 +2220,38 @@ const VoiceroVoice = {
       window.VoiceroCore.thread.messages.length > 0
     ) {
       const messages = window.VoiceroCore.thread.messages;
-      let lastUserMsg = null;
-      let lastAiMsg = null;
 
-      // Find the last user and AI messages
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
+      // Sort messages by creation time
+      const sortedMessages = [...messages].sort((a, b) => {
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      });
 
-        if (!lastUserMsg && msg.role === "user") {
-          lastUserMsg = msg;
-        }
+      // Get last 5 user questions and last 5 AI responses
+      const userMessages = sortedMessages
+        .filter((msg) => msg.role === "user")
+        .slice(-5);
 
-        if (!lastAiMsg && msg.role === "assistant") {
-          lastAiMsg = msg;
-        }
+      const aiMessages = sortedMessages
+        .filter((msg) => msg.role === "assistant")
+        .slice(-5);
 
-        // Break once we've found both
-        if (lastUserMsg && lastAiMsg) {
-          break;
-        }
-      }
+      // Combine all messages in chronological order
+      const lastMessages = [...userMessages, ...aiMessages].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      );
 
-      // Add messages to context in chronological order
-      if (lastAiMsg) {
-        try {
+      // Add each message to context
+      lastMessages.forEach((msg) => {
+        if (msg.role === "user") {
+          context.messages.push({
+            role: "user",
+            content: msg.content,
+            id: msg.id,
+            createdAt: msg.createdAt,
+          });
+        } else if (msg.role === "assistant") {
           // For AI messages, try to extract the answer from JSON if needed
-          let content = lastAiMsg.content;
+          let content = msg.content;
           try {
             const parsed = JSON.parse(content);
             if (parsed.answer) {
@@ -2168,18 +2264,45 @@ const VoiceroVoice = {
           context.messages.push({
             role: "assistant",
             content: content,
+            id: msg.id,
+            createdAt: msg.createdAt,
           });
-        } catch (e) {}
-      }
-
-      if (lastUserMsg) {
-        context.messages.push({
-          role: "user",
-          content: lastUserMsg.content,
-        });
-      }
+        }
+      });
     } else {
+      // If no thread exists, check if we have any local messages stored
+      if (
+        window.VoiceroCore &&
+        window.VoiceroCore.appState &&
+        window.VoiceroCore.appState.voiceMessages
+      ) {
+        const voiceMessages = window.VoiceroCore.appState.voiceMessages;
+
+        // Add user message if available
+        if (voiceMessages.user) {
+          context.messages.push({
+            role: "user",
+            content: voiceMessages.user,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        // Add AI message if available
+        if (voiceMessages.ai) {
+          context.messages.push({
+            role: "assistant",
+            content: voiceMessages.ai,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
     }
+
+    // Console log past context to verify implementation
+    console.log(
+      "Voice Past Context (Last 5 messages from each role):",
+      context,
+    );
 
     return context;
   },
@@ -2355,6 +2478,11 @@ const VoiceroVoice = {
     const messageEl = document.createElement("div");
     messageEl.className = role === "user" ? "user-message" : "ai-message";
 
+    // Generate a unique message ID for this message and store it as a data attribute
+    const messageId =
+      "msg_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    messageEl.dataset.messageId = messageId;
+
     if (
       content === "Generating response..." ||
       content.includes("Thinking...") ||
@@ -2373,7 +2501,7 @@ const VoiceroVoice = {
     `;
 
     let messageContent = document.createElement("div");
-    messageContent.className = "message-content";
+    messageContent.className = "message-content voice-message-content";
 
     if (formatMarkdown && role === "ai" && VoiceroCore) {
       messageContent.innerHTML = VoiceroCore.formatMarkdown(content);
@@ -2449,6 +2577,26 @@ const VoiceroVoice = {
     messageEl.appendChild(messageContent);
     messagesContainer.appendChild(messageEl);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    // If this is an AI message (not a placeholder), attach the "Report AI response" button using VoiceroSupport
+    if (
+      role === "ai" &&
+      content !== "Generating response..." &&
+      !content.includes("Thinking...") &&
+      content !== "..." &&
+      window.VoiceroSupport &&
+      typeof window.VoiceroSupport.attachReportButtonToMessage === "function"
+    ) {
+      try {
+        // Small delay to ensure the message is fully rendered
+        setTimeout(() => {
+          window.VoiceroSupport.attachReportButtonToMessage(messageEl, "voice");
+        }, 50);
+      } catch (e) {
+        console.error("Failed to attach report button to voice message:", e);
+      }
+    }
+
     return messageEl;
   },
 
@@ -2543,10 +2691,10 @@ const VoiceroVoice = {
         if (shouldShowWelcome && existingMessages.length === 0) {
           // Add welcome message
           this.addSystemMessage(`
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important;">
-              <div class="welcome-title">Aura, your website concierge</div>
-              <div class="welcome-subtitle">Click the mic & <span class="welcome-highlight">start talking</span></div>
-              <div class="welcome-note"><span class="welcome-pulse"></span>Button glows during conversation</div>
+            <div class="welcome-message" style="width: 90% !important; max-width: 380px !important; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 4px 8px !important; margin: 2px auto !important;">
+              <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent; margin-bottom: 0; font-size: 14px;">Aura, your website concierge</div>
+              <div class="welcome-subtitle" style="margin: 1px 0; font-size: 12px;">Click mic & <span class="welcome-highlight">start talking</span></div>
+              <div class="welcome-note" style="margin-top: 1px; font-size: 10px;"><span class="welcome-pulse" style="background-color: rgb(99, 102, 241); width: 6px; height: 6px;"></span>Button glows during conversation</div>
             </div>
           `);
         }
@@ -2670,7 +2818,7 @@ const VoiceroVoice = {
     messageDiv.style.cssText = `
       display: flex;
       justify-content: center;
-      margin-bottom: 16px;
+      margin-bottom: 8px;
     `;
 
     // Create the message content
@@ -2679,16 +2827,16 @@ const VoiceroVoice = {
     contentDiv.innerHTML = text;
     contentDiv.style.cssText = `      background: #e5e5ea;
       color: #333;
-      border-radius: 18px;
-      padding: 12px 15px;
+      border-radius: 16px;
+      padding: 6px 10px;
       width: 90% !important;
       max-width: 400px !important;
       word-wrap: break-word;
-      font-size: 14px;
-      line-height: 1.4;
+      font-size: 13px;
+      line-height: 1.2;
       text-align: center;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      margin: 12px auto;
+      margin: 4px auto;
     `;
 
     // Add content to message
@@ -2705,13 +2853,16 @@ const VoiceroVoice = {
   clearChatHistory: function () {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
-      const proxyUrl = "http://localhost:3000/api/session/clear";
+      const proxyUrl = "https://www.voicero.ai/api/session/clear";
 
       fetch(proxyUrl, {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          ...(window.voiceroConfig?.getAuthHeaders
+            ? window.voiceroConfig.getAuthHeaders()
+            : {}),
         },
         body: JSON.stringify({
           sessionId: window.VoiceroCore.sessionId,
@@ -2773,10 +2924,10 @@ const VoiceroVoice = {
 
     // Add welcome message again with the exact same format as in openVoiceChat
     this.addSystemMessage(`
-      <div class="welcome-message" style="width: 90% !important; max-width: 400px !important;">
-        <div class="welcome-title">Aura, your website concierge</div>
-        <div class="welcome-subtitle">Click the mic & <span class="welcome-highlight">start talking</span></div>
-        <div class="welcome-note"><span class="welcome-pulse"></span>Button glows during conversation</div>
+      <div class="welcome-message" style="width: 90% !important; max-width: 380px !important; padding: 4px 8px !important; margin: 2px auto !important;">
+        <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent; margin-bottom: 0; font-size: 14px;">Aura, your website concierge</div>
+        <div class="welcome-subtitle" style="margin: 1px 0; font-size: 12px;">Click mic & <span class="welcome-highlight">start talking</span></div>
+        <div class="welcome-note" style="margin-top: 1px; font-size: 10px;"><span class="welcome-pulse" style="background-color: rgb(99, 102, 241); width: 6px; height: 6px;"></span>Button glows during conversation</div>
       </div>
     `);
   },
@@ -3126,6 +3277,28 @@ const VoiceroVoice = {
 
     return pageData;
   },
+
+  // Toggle from voice chat to text chat
+  toggleToTextChat: function () {
+    console.log("VoiceroVoice: Toggling from voice to text chat");
+
+    // First close the voice chat interface
+    this.closeVoiceChat();
+
+    // Then open the text chat interface
+    if (window.VoiceroText && window.VoiceroText.openTextChat) {
+      setTimeout(() => {
+        window.VoiceroText.openTextChat();
+
+        // Make sure it's maximized
+        if (window.VoiceroText.maximizeChat) {
+          setTimeout(() => {
+            window.VoiceroText.maximizeChat();
+          }, 100);
+        }
+      }, 100);
+    }
+  },
 };
 
 // Expose global functions
@@ -3219,23 +3392,12 @@ VoiceroVoice.activateAutoMic = function () {
 
 // Initialize when core is ready
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("VoiceroVoice: DOMContentLoaded event fired");
-
   const existingInterface = document.getElementById("voice-chat-interface");
   if (existingInterface) {
-    console.log("VoiceroVoice: Removing existing interface");
     existingInterface.remove();
   }
 
   if (typeof VoiceroCore !== "undefined") {
-    console.log("VoiceroVoice: VoiceroCore is defined, initializing");
-    console.log("VoiceroVoice: Current session state:", {
-      session: VoiceroCore.session,
-      appState: VoiceroCore.appState,
-      isOpen: VoiceroCore.appState?.isOpen,
-      activeInterface: VoiceroCore.appState?.activeInterface,
-    });
-
     VoiceroVoice.init();
 
     // Initialize the hasShownVoiceWelcome flag if it doesn't exist
@@ -3244,7 +3406,6 @@ document.addEventListener("DOMContentLoaded", () => {
       VoiceroCore.appState &&
       VoiceroCore.appState.hasShownVoiceWelcome === undefined
     ) {
-      console.log("VoiceroVoice: Initializing hasShownVoiceWelcome flag");
       VoiceroCore.appState.hasShownVoiceWelcome = false;
       VoiceroCore.saveState();
     }
@@ -3256,28 +3417,19 @@ document.addEventListener("DOMContentLoaded", () => {
         VoiceroCore.appState.isOpen &&
         VoiceroCore.appState.activeInterface === "voice");
 
-    console.log("VoiceroVoice: Should reactivate?", {
-      localStorage: localStorage.getItem("voicero_reactivate_voice"),
-      appState: VoiceroCore.appState,
-      shouldReactivate,
-    });
-
     if (shouldReactivate) {
-      console.log("VoiceroVoice: Reactivating voice interface");
       localStorage.removeItem("voicero_reactivate_voice");
 
       // Wait a moment for everything to initialize properly
       setTimeout(() => {
         // Force update VoiceroCore state to ensure UI matches state
         if (VoiceroCore && VoiceroCore.appState) {
-          console.log("VoiceroVoice: Updating app state for reactivation");
           VoiceroCore.appState.isOpen = true;
           VoiceroCore.appState.activeInterface = "voice";
           VoiceroCore.appState.isVoiceMinimized = false;
           VoiceroCore.saveState();
         }
         // Open voice chat interface
-        console.log("VoiceroVoice: Opening voice chat interface");
         VoiceroVoice.openVoiceChat();
 
         // Also start the microphone automatically if needed
@@ -3287,32 +3439,20 @@ document.addEventListener("DOMContentLoaded", () => {
             VoiceroCore.session &&
             VoiceroCore.session.autoMic === true);
 
-        console.log("VoiceroVoice: Should activate mic?", {
-          localStorage: localStorage.getItem("voicero_auto_mic"),
-          session: VoiceroCore.session,
-          shouldActivateMic,
-        });
-
         if (shouldActivateMic) {
           localStorage.removeItem("voicero_auto_mic");
           setTimeout(() => {
-            console.log("VoiceroVoice: Activating microphone");
+            // Use our new function for complete mic activation
             VoiceroVoice.activateAutoMic();
           }, 800);
         }
       }, 1000);
     }
   } else {
-    console.log("VoiceroVoice: VoiceroCore not defined, waiting for it");
     let attempts = 0;
     const checkCoreInterval = setInterval(() => {
       attempts++;
       if (typeof VoiceroCore !== "undefined") {
-        console.log(
-          "VoiceroVoice: VoiceroCore became available after",
-          attempts,
-          "attempts",
-        );
         clearInterval(checkCoreInterval);
         VoiceroVoice.init();
 
@@ -3322,9 +3462,6 @@ document.addEventListener("DOMContentLoaded", () => {
           VoiceroCore.appState &&
           VoiceroCore.appState.hasShownVoiceWelcome === undefined
         ) {
-          console.log(
-            "VoiceroVoice: Initializing hasShownVoiceWelcome flag (delayed)",
-          );
           VoiceroCore.appState.hasShownVoiceWelcome = false;
           VoiceroCore.saveState();
         }
@@ -3335,27 +3472,15 @@ document.addEventListener("DOMContentLoaded", () => {
           (VoiceroCore.appState &&
             VoiceroCore.appState.isOpen &&
             VoiceroCore.appState.activeInterface === "voice");
-
-        console.log("VoiceroVoice: Should reactivate? (delayed)", {
-          localStorage: localStorage.getItem("voicero_reactivate_voice"),
-          appState: VoiceroCore.appState,
-          shouldReactivate,
-        });
-
         if (shouldReactivate) {
-          console.log("VoiceroVoice: Reactivating voice interface (delayed)");
           localStorage.removeItem("voicero_reactivate_voice");
           setTimeout(() => {
             if (VoiceroCore && VoiceroCore.appState) {
-              console.log(
-                "VoiceroVoice: Updating app state for reactivation (delayed)",
-              );
               VoiceroCore.appState.isOpen = true;
               VoiceroCore.appState.activeInterface = "voice";
               VoiceroCore.appState.isVoiceMinimized = false;
               VoiceroCore.saveState();
             }
-            console.log("VoiceroVoice: Opening voice chat interface (delayed)");
             VoiceroVoice.openVoiceChat();
 
             const shouldActivateMic =
@@ -3364,27 +3489,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 VoiceroCore.session &&
                 VoiceroCore.session.autoMic === true);
 
-            console.log("VoiceroVoice: Should activate mic? (delayed)", {
-              localStorage: localStorage.getItem("voicero_auto_mic"),
-              session: VoiceroCore.session,
-              shouldActivateMic,
-            });
-
             if (shouldActivateMic) {
               localStorage.removeItem("voicero_auto_mic");
               setTimeout(() => {
-                console.log("VoiceroVoice: Activating microphone (delayed)");
+                // Use our new function for complete mic activation
                 VoiceroVoice.activateAutoMic();
               }, 800);
             }
           }, 1000);
         }
       } else if (attempts >= 50) {
-        console.log(
-          "VoiceroVoice: Gave up waiting for VoiceroCore after",
-          attempts,
-          "attempts",
-        );
         clearInterval(checkCoreInterval);
       }
     }, 100);
