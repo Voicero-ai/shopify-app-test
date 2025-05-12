@@ -408,7 +408,7 @@ const VoiceroVoice = {
       z-index: 2147483647;
       user-select: none;
       margin: 0;
-      border-radius: 12px;
+      border-radius: 0 0 12px 12px;
       box-shadow: none;
       overflow: hidden;
       background: transparent;
@@ -427,7 +427,7 @@ const VoiceroVoice = {
       `
       background: #f2f2f7 !important;
       background-color: #f2f2f7 !important;
-      border-radius: 12px 12px 0 0 !important;
+      border-radius: 0 !important;
       padding: 15px !important;
       padding-top: 0 !important;
       margin: 0 !important;
@@ -695,8 +695,8 @@ const VoiceroVoice = {
       margin: 0;
     `;
 
-    // Add maximize button and microphone button - updated with new styles to match text interface
-    inputContainer.innerHTML = `
+    // Add inner container HTML content with matching border radius
+    const innerContainerHtml = `
       <button
         id="maximize-voice-chat"
         onclick="VoiceroVoice.maximizeVoiceChat()"
@@ -738,7 +738,7 @@ const VoiceroVoice = {
           align-items: center;
           justify-content: center;
           background: white;
-          border-radius: 0 0 12px 12px;
+          border-radius: 0 0 10px 10px;
           padding: 10px 15px;
           height: 60px;
         "
@@ -786,6 +786,9 @@ const VoiceroVoice = {
         </button>
       </div>
     `;
+
+    // Set the inner HTML
+    inputContainer.innerHTML = innerContainerHtml;
 
     // Assemble interface
     if (!messagesContainer) {
@@ -919,6 +922,9 @@ const VoiceroVoice = {
       });
     }
 
+    // Apply consistent border radius for maximized state
+    this.updateVoiceChatBorderRadius(false);
+
     // Close text interface if it's open
     const textInterface = document.getElementById(
       "voicero-text-chat-container",
@@ -955,7 +961,7 @@ const VoiceroVoice = {
         min-width: 280px !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
-        border-radius: 12px 12px 0 0 !important;
+        border-radius: 0 0 12px 12px !important; /* Square top, rounded bottom corners */
       `;
     }
 
@@ -1062,6 +1068,9 @@ const VoiceroVoice = {
       });
     }
 
+    // Apply consistent border radius styling for minimized state
+    this.updateVoiceChatBorderRadius(true);
+
     // Get the messages container
     const messagesContainer = document.getElementById("voice-messages");
     const headerContainer = document.getElementById("voice-controls-header");
@@ -1085,6 +1094,7 @@ const VoiceroVoice = {
       messagesContainer.style.padding = "0";
       messagesContainer.style.overflow = "hidden";
       messagesContainer.style.border = "none";
+      messagesContainer.style.borderRadius = "0"; // Remove border radius
     }
 
     // Hide the header
@@ -1157,6 +1167,9 @@ const VoiceroVoice = {
         textOpenWindowUp: false,
       });
     }
+
+    // Apply consistent border radius styling for maximized state
+    this.updateVoiceChatBorderRadius(false);
 
     this.reopenVoiceChat();
 
@@ -3742,6 +3755,56 @@ const VoiceroVoice = {
             "var(--voicero-theme-color, " + this.websiteColor + ")";
         }
       });
+    }
+  },
+
+  // New helper function to ensure consistent border radius styles
+  updateVoiceChatBorderRadius: function (isMinimized) {
+    if (!document) return;
+
+    const inputWrapper = document.getElementById("voice-input-wrapper");
+    if (!inputWrapper) return;
+
+    // Get the inner container
+    const innerWrapper = inputWrapper.querySelector("div");
+    if (!innerWrapper) return;
+
+    const messagesContainer = document.getElementById("voice-messages");
+    const headerContainer = document.getElementById("voice-controls-header");
+    const voiceInterface = document.getElementById("voice-chat-interface");
+
+    if (isMinimized) {
+      // Full border radius for minimized state
+      inputWrapper.style.borderRadius = "12px";
+      innerWrapper.style.borderRadius = "10px";
+
+      if (voiceInterface) {
+        voiceInterface.style.borderRadius = "12px";
+      }
+
+      if (messagesContainer) {
+        messagesContainer.style.borderRadius = "0";
+      }
+
+      if (headerContainer) {
+        headerContainer.style.borderRadius = "0";
+      }
+    } else {
+      // Bottom-only border radius for maximized state
+      inputWrapper.style.borderRadius = "0 0 12px 12px";
+      innerWrapper.style.borderRadius = "0 0 10px 10px";
+
+      if (voiceInterface) {
+        voiceInterface.style.borderRadius = "0 0 12px 12px";
+      }
+
+      if (messagesContainer) {
+        messagesContainer.style.borderRadius = "0";
+      }
+
+      if (headerContainer) {
+        headerContainer.style.borderRadius = "0";
+      }
     }
   },
 };
