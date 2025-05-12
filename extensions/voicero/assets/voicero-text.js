@@ -2756,9 +2756,21 @@ const VoiceroText = {
     // Hide both the interface and shadow host
     if (textInterface) {
       textInterface.style.display = "none";
+      textInterface.style.visibility = "hidden";
+      textInterface.style.opacity = "0";
     }
     if (shadowHost) {
       shadowHost.style.display = "none";
+      shadowHost.style.visibility = "hidden";
+      shadowHost.style.opacity = "0";
+    }
+
+    // Don't try to hide the chooser - let VoiceroCore handle it centrally
+    // Remove the code that calls hideChooser
+
+    // Let VoiceroCore handle the button visibility
+    if (window.VoiceroCore) {
+      window.VoiceroCore.ensureMainButtonVisible();
     }
 
     // Reset closing flag

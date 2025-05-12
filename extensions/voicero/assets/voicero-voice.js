@@ -122,7 +122,7 @@ const VoiceroVoice = {
     const resetStyle = document.createElement("style");
     resetStyle.innerHTML = `
       #voice-messages {
-        padding: 12px !important; 
+        padding: 16px !important; 
         padding-top: 0 !important;
         margin: 0 !important;
         background-color: #f2f2f7 !important; /* iOS light gray background */
@@ -1225,11 +1225,23 @@ const VoiceroVoice = {
     // Hide voice interface
     if (voiceInterface) {
       voiceInterface.style.display = "none";
+      voiceInterface.style.visibility = "hidden";
+      voiceInterface.style.opacity = "0";
     }
+
+    // Don't try to hide the chooser - let VoiceroCore handle it centrally
+    // Remove the code that calls hideChooser
 
     // Let VoiceroCore handle the button visibility
     if (window.VoiceroCore) {
       window.VoiceroCore.ensureMainButtonVisible();
+
+      // Additional call to ensure main button after a delay
+      setTimeout(() => {
+        if (window.VoiceroCore) {
+          window.VoiceroCore.ensureMainButtonVisible();
+        }
+      }, 300);
     }
 
     // Reset closing flag

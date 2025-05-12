@@ -165,9 +165,12 @@
   display: block;
 }
 
-/* Remove this rule as we're handling display/visibility in JS */
-#interaction-chooser[style*="display: block"] {
-  display: none;
+/* Change this to force override any existing rules */
+#interaction-chooser[style*="display: none"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Ensure interaction options are clickable */

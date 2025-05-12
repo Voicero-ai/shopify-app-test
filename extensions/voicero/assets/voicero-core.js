@@ -32,12 +32,14 @@
     isWebsiteActive: false, // Track website active status
     isSessionOperationInProgress: false, // Track if any session operation is in progress
     lastSessionOperationTime: 0, // Track when the last session operation completed
-    sessionOperationTimeout: 2000, // Timeout in ms to consider session operation as stuck
+    sessionOperationTimeout: 10000, // 10 seconds timeout for session operations
+    chooserToggleInProgress: false, // Add flag to track chooser toggling
 
     // Queue for pending window state updates
     pendingWindowStateUpdates: [],
     // Queue for pending session operations
     pendingSessionOperations: [],
+    sessionState: {},
 
     // Initialize on page load
     init: function () {
@@ -45,6 +47,9 @@
 
       // Set up global reference
       window.VoiceroCore = this;
+
+      // Inject CSS fixes first to ensure proper visibility from the start
+      this.injectCssFixes();
 
       // Set initializing flag to prevent button flickering during startup
       this.isInitializing = true;
@@ -325,7 +330,7 @@
           const chooser = document.getElementById("interaction-chooser");
 
           if (mainButton && chooser) {
-            mainButton.addEventListener("click", function (e) {
+            mainButton.addEventListener("click", (e) => {
               e.preventDefault();
               e.stopPropagation();
 
@@ -337,6 +342,13 @@
                 return;
               }
 
+              // Always check current chooser visibility first
+              const computedStyle = window.getComputedStyle(chooser);
+              const isChooserVisible =
+                computedStyle.display !== "none" &&
+                computedStyle.visibility !== "hidden" &&
+                computedStyle.opacity !== "0";
+
               // Check if any interfaces are open and close them (acting as home button)
               const voiceInterface = document.getElementById(
                 "voice-chat-interface",
@@ -345,48 +357,74 @@
                 "voicero-text-chat-container",
               );
 
-              let interfacesOpen = false;
+              // More reliable checking for interface visibility by examining both style and computed style
+              const isVoiceVisible =
+                voiceInterface &&
+                (window.getComputedStyle(voiceInterface).display === "block" ||
+                  voiceInterface.style.display === "block");
 
-              if (voiceInterface && voiceInterface.style.display === "block") {
+              const isTextVisible =
+                textInterface &&
+                (window.getComputedStyle(textInterface).display === "block" ||
+                  textInterface.style.display === "block");
+
+              // Console log the visibility states for debugging
+              console.log("Interface visibility:", {
+                isChooserVisible,
+                isVoiceVisible: voiceInterface
+                  ? {
+                      computedStyle:
+                        window.getComputedStyle(voiceInterface).display,
+                      inlineStyle: voiceInterface.style.display,
+                    }
+                  : "no interface",
+                isTextVisible: textInterface
+                  ? {
+                      computedStyle:
+                        window.getComputedStyle(textInterface).display,
+                      inlineStyle: textInterface.style.display,
+                    }
+                  : "no interface",
+              });
+
+              // If an interface is open, close it
+              if (isVoiceVisible) {
+                console.log("VoiceroCore: Closing voice interface");
                 // Close voice interface
                 if (window.VoiceroVoice && window.VoiceroVoice.closeVoiceChat) {
                   window.VoiceroVoice.closeVoiceChat();
-                  interfacesOpen = true;
                 } else {
                   voiceInterface.style.display = "none";
-                  interfacesOpen = true;
                 }
+
+                // Make sure chooser is hidden
+                VoiceroCore.hideChooser();
+                return;
               }
 
-              if (textInterface && textInterface.style.display === "block") {
+              if (isTextVisible) {
+                console.log("VoiceroCore: Closing text interface");
                 // Close text interface
                 if (window.VoiceroText && window.VoiceroText.closeTextChat) {
                   window.VoiceroText.closeTextChat();
-                  interfacesOpen = true;
                 } else {
                   textInterface.style.display = "none";
-                  interfacesOpen = true;
                 }
+
+                // Make sure chooser is hidden
+                VoiceroCore.hideChooser();
+                return;
               }
 
-              // If no interfaces were open, then toggle the chooser
-              if (!interfacesOpen) {
-                // Get the current display style - needs to check computed style
-                const computedStyle = window.getComputedStyle(chooser);
-                const isVisible =
-                  computedStyle.display !== "none" &&
-                  computedStyle.visibility !== "hidden" &&
-                  computedStyle.opacity !== "0";
-
-                if (isVisible) {
-                  chooser.style.display = "none";
-                  chooser.style.visibility = "hidden";
-                  chooser.style.opacity = "0";
-                } else {
-                  chooser.style.display = "flex";
-                  chooser.style.visibility = "visible";
-                  chooser.style.opacity = "1";
-                }
+              // If we get here, no interfaces are open, so toggle the chooser
+              if (isChooserVisible) {
+                console.log("VoiceroCore: Hiding chooser");
+                VoiceroCore.hideChooser();
+              } else {
+                console.log("VoiceroCore: Showing chooser");
+                chooser.style.display = "flex";
+                chooser.style.visibility = "visible";
+                chooser.style.opacity = "1";
               }
             });
           }
@@ -1326,135 +1364,51 @@
 
     // Show the chooser interface when an active interface is closed
     showChooser: function () {
-      console.log("!!!VOICERO DEBUG!!! showChooser called");
-      console.log("!!!VOICERO DEBUG!!! Session:", JSON.stringify(this.session));
+      console.log("VoiceroCore: showChooser called");
 
-      // Check if suppressChooser is true and immediately return
-      if (this.session && this.session.suppressChooser) {
+      // Prevent race conditions with multiple show/hide calls
+      if (this.chooserToggleInProgress) {
         console.log(
-          "!!!VOICERO DEBUG!!! suppressChooser is true, not showing chooser",
+          "VoiceroCore: Chooser toggle already in progress, skipping",
         );
         return;
       }
 
-      // Clear any existing choosers to prevent duplicates
-      const allChoosers = document.querySelectorAll("#interaction-chooser");
-      console.log(
-        "!!!VOICERO DEBUG!!! Found " + allChoosers.length + " chooser elements",
-      );
+      this.chooserToggleInProgress = true;
 
-      if (allChoosers.length > 1) {
-        console.log(
-          "!!!VOICERO DEBUG!!! Removing " +
-            (allChoosers.length - 1) +
-            " duplicate choosers",
-        );
-        // Remove all but the last one
-        for (let i = 0; i < allChoosers.length - 1; i++) {
-          if (allChoosers[i] && allChoosers[i].parentNode) {
-            allChoosers[i].parentNode.removeChild(allChoosers[i]);
-          }
-        }
-      }
-
-      // Create a new chooser to ensure it's fresh
-      this.createChooser();
-
-      const chooser = document.getElementById("interaction-chooser");
-      if (chooser) {
-        console.log("!!!VOICERO DEBUG!!! Setting chooser to visible");
-
-        // FORCE VISIBILITY WITH DIRECT ATTRIBUTE SETTING
-        chooser.setAttribute(
-          "style",
-          "position: fixed !important;" +
-            "bottom: 80px !important;" +
-            "right: 20px !important;" +
-            "z-index: 10001 !important;" +
-            "background-color: #c8c8c8 !important;" +
-            "border-radius: 12px !important;" +
-            "box-shadow: 6px 6px 0 " +
-            (this.websiteColor || "#882be6") +
-            " !important;" +
-            "padding: 15px !important;" +
-            "width: 280px !important;" +
-            "border: 1px solid rgb(0, 0, 0) !important;" +
-            "display: flex !important;" +
-            "visibility: visible !important;" +
-            "opacity: 1 !important;" +
-            "flex-direction: column !important;" +
-            "align-items: center !important;" +
-            "margin: 0 !important;" +
-            "transform: none !important;",
-        );
-
-        // Make sure the buttons are properly styled
-        const voiceButton = document.getElementById("voice-chooser-button");
-        const textButton = document.getElementById("text-chooser-button");
-
-        if (voiceButton) {
-          console.log("!!!VOICERO DEBUG!!! Fixing voice button style");
-
-          voiceButton.setAttribute(
-            "style",
-            "position: relative !important;" +
-              "display: flex !important;" +
-              "align-items: center !important;" +
-              "padding: 10px 10px !important;" +
-              "margin-bottom: 10px !important;" +
-              "margin-left: -30px !important;" +
-              "cursor: pointer !important;" +
-              "border-radius: 8px !important;" +
-              "background-color: white !important;" +
-              "border: 1px solid rgb(0, 0, 0) !important;" +
-              "box-shadow: 4px 4px 0 rgb(0, 0, 0) !important;" +
-              "transition: all 0.2s ease !important;" +
-              "width: 200px !important;",
+      try {
+        // Check if suppressChooser is true and immediately return
+        if (this.session && this.session.suppressChooser) {
+          console.log(
+            "VoiceroCore: suppressChooser is true, not showing chooser",
           );
+          return;
         }
 
-        if (textButton) {
-          console.log("!!!VOICERO DEBUG!!! Fixing text button style");
+        // Create a new chooser to ensure it's fresh
+        this.createChooser();
 
-          textButton.setAttribute(
-            "style",
-            "position: relative !important;" +
-              "display: flex !important;" +
-              "align-items: center !important;" +
-              "padding: 10px 10px !important;" +
-              "margin-left: -30px !important;" +
-              "cursor: pointer !important;" +
-              "border-radius: 8px !important;" +
-              "background-color: white !important;" +
-              "border: 1px solid rgb(0, 0, 0) !important;" +
-              "box-shadow: 4px 4px 0 rgb(0, 0, 0) !important;" +
-              "transition: all 0.2s ease !important;" +
-              "width: 200px !important;",
-          );
+        const chooser = document.getElementById("interaction-chooser");
+        if (chooser) {
+          chooser.style.cssText = `
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            position: fixed !important;
+            bottom: 80px !important;
+            right: 20px !important;
+            z-index: 10001 !important;
+          `;
+
+          // Also add a visible class for CSS selectors
+          chooser.classList.add("visible");
         }
-
-        // Check the final computed style
-        const computedStyle = window.getComputedStyle(chooser);
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser display:",
-          computedStyle.display,
-        );
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser visibility:",
-          computedStyle.visibility,
-        );
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser opacity:",
-          computedStyle.opacity,
-        );
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser flexDirection:",
-          computedStyle.flexDirection,
-        );
-      } else {
-        console.log(
-          "!!!VOICERO DEBUG!!! CRITICAL ERROR: Chooser not found in DOM after creation",
-        );
+      } finally {
+        // Always reset the flag, even if there's an error
+        setTimeout(() => {
+          this.chooserToggleInProgress = false;
+        }, 300);
       }
     },
 
@@ -1555,7 +1509,7 @@
               width: 200px;
             "
           >
-            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center;">
+            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
               Message
             </span>
             <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -1813,18 +1767,12 @@
         windowState.coreOpen = true;
         // Always recreate the chooser to ensure correct styling
         this.createChooser();
-        // Then show it after a short delay
-        setTimeout(() => {
-          // Double-check that suppressChooser hasn't been set in the meantime
-          if (!this.session || !this.session.suppressChooser) {
-            console.log("[DEBUG] Showing chooser after delay");
-            this.showChooser();
-          } else {
-            console.log(
-              "[DEBUG] Not showing chooser because suppressChooser is true",
-            );
-          }
-        }, 100);
+
+        // Don't automatically show the chooser - let button click handle toggling visibility
+        console.log(
+          "VoiceroCore: Interfaces closed, but not automatically showing chooser",
+        );
+        // Remove the setTimeout call that shows the chooser
       }
 
       // Store original suppressChooser value
@@ -2223,7 +2171,7 @@
         mainButton.parentNode.replaceChild(newButton, mainButton);
       }
 
-      // Add the new bulletproof click handler
+      // Add fresh click handler with all necessary checks
       newButton.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -2236,232 +2184,344 @@
           return;
         }
 
-        // Create chooser if it doesn't exist
-        let chooser = document.getElementById("interaction-chooser");
-        if (!chooser) {
-          const themeColor = this.websiteColor || "#882be6";
-          const buttonContainer = document.getElementById(
-            "voice-toggle-container",
+        // Check if chooser toggle is in progress and avoid conflicts
+        if (VoiceroCore.chooserToggleInProgress) {
+          console.log(
+            "VoiceroCore: Button click ignored - chooser toggle in progress",
           );
+          return;
+        }
 
-          if (buttonContainer) {
-            buttonContainer.insertAdjacentHTML(
-              "beforeend",
-              `<div
-                id="interaction-chooser"
+        // Set the toggle flag to prevent race conditions
+        VoiceroCore.chooserToggleInProgress = true;
+
+        let chooser = document.getElementById("interaction-chooser");
+        // Create chooser if it doesn't exist
+        if (!chooser) {
+          // Get container
+          const container = document.getElementById("voice-toggle-container");
+          if (!container) return;
+
+          // Create chooser HTML
+          const themeColor = this.websiteColor || "#882be6";
+          container.insertAdjacentHTML(
+            "beforeend",
+            `<div
+              id="interaction-chooser"
+              style="
+                position: fixed !important;
+                bottom: 80px !important;
+                right: 20px !important;
+                z-index: 10001 !important;
+                background-color: #c8c8c8 !important;
+                border-radius: 12px !important;
+                box-shadow: 6px 6px 0 ${themeColor} !important;
+                padding: 15px !important;
+                width: 280px !important;
+                border: 1px solid rgb(0, 0, 0) !important;
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                margin: 0 !important;
+                transform: none !important;
+                pointer-events: auto !important;
+              "
+            >
+              <div
+                id="voice-chooser-button"
+                class="interaction-option voice"
                 style="
-                  position: fixed !important;
-                  bottom: 80px !important;
-                  right: 20px !important;
-                  z-index: 10001 !important;
-                  background-color: #c8c8c8 !important;
-                  border-radius: 12px !important;
-                  box-shadow: 6px 6px 0 ${themeColor} !important;
-                  padding: 15px !important;
-                  width: 280px !important;
-                  border: 1px solid rgb(0, 0, 0) !important;
-                  display: none !important;
-                  visibility: hidden !important;
-                  opacity: 0 !important;
-                  flex-direction: column !important;
-                  align-items: center !important;
-                  margin: 0 !important;
-                  transform: none !important;
-                  pointer-events: auto !important;
+                  position: relative;
+                  display: flex;
+                  align-items: center;
+                  padding: 10px 10px;
+                  margin-bottom: 10px;
+                  margin-left: -30px;
+                  cursor: pointer;
+                  border-radius: 8px;
+                  background-color: white;
+                  border: 1px solid rgb(0, 0, 0);
+                  box-shadow: 4px 4px 0 rgb(0, 0, 0);
+                  transition: all 0.2s ease;
+                  width: 200px;
                 "
               >
-                <div
-                  id="voice-chooser-button"
-                  class="interaction-option voice"
-                  style="
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                    padding: 10px 10px;
-                    margin-bottom: 10px;
-                    margin-left: -30px;
-                    cursor: pointer;
-                    border-radius: 8px;
-                    background-color: white;
-                    border: 1px solid rgb(0, 0, 0);
-                    box-shadow: 4px 4px 0 rgb(0, 0, 0);
-                    transition: all 0.2s ease;
-                    width: 200px;
-                  "
-                >
-                  <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
-                    Voice Conversation
-                  </span>
-                  <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                    <path d="M12 19v4"/>
-                    <path d="M8 23h8"/>
-                  </svg>
-                </div>
+                <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
+                  Voice Conversation
+                </span>
+                <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <path d="M12 19v4"/>
+                  <path d="M8 23h8"/>
+                </svg>
+              </div>
 
-                <div
-                  id="text-chooser-button"
-                  class="interaction-option text"
-                  style="
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                    padding: 10px 10px;
-                    margin-left: -30px;
-                    cursor: pointer;
-                    border-radius: 8px;
-                    background-color: white;
-                    border: 1px solid rgb(0, 0, 0);
-                    box-shadow: 4px 4px 0 rgb(0, 0, 0);
-                    transition: all 0.2s ease;
-                    width: 200px;
-                  "
-                >
-                  <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
-                    Message
-                  </span>
-                  <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                </div>
-              </div>`,
-            );
+              <div
+                id="text-chooser-button"
+                class="interaction-option text"
+                style="
+                  position: relative;
+                  display: flex;
+                  align-items: center;
+                  padding: 10px 10px;
+                  margin-left: -30px;
+                  cursor: pointer;
+                  border-radius: 8px;
+                  background-color: white;
+                  border: 1px solid rgb(0, 0, 0);
+                  box-shadow: 4px 4px 0 rgb(0, 0, 0);
+                  transition: all 0.2s ease;
+                  width: 200px;
+                "
+              >
+                <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
+                  Message
+                </span>
+                <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+            </div>`,
+          );
 
-            chooser = document.getElementById("interaction-chooser");
+          chooser = document.getElementById("interaction-chooser");
 
-            // Add click handlers to the new options
-            const voiceButton = document.getElementById("voice-chooser-button");
-            if (voiceButton) {
-              voiceButton.addEventListener("click", () => {
-                // Check if session operations are in progress
-                if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                  console.log(
-                    "VoiceroCore: Voice button click ignored - session operation in progress",
-                  );
-                  return;
-                }
-
-                if (chooser) {
-                  chooser.style.display = "none";
-                }
-
-                // Create voice interface if needed
-                let voiceInterface = document.getElementById(
-                  "voice-chat-interface",
+          // Add click handlers to the new options
+          const voiceButton = document.getElementById("voice-chooser-button");
+          if (voiceButton) {
+            voiceButton.addEventListener("click", () => {
+              // Check if session operations are in progress
+              if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                console.log(
+                  "VoiceroCore: Voice button click ignored - session operation in progress",
                 );
-                if (!voiceInterface) {
-                  container.insertAdjacentHTML(
-                    "beforeend",
-                    `<div id="voice-chat-interface" style="display: none;"></div>`,
-                  );
-                }
+                return;
+              }
 
-                // Try to open voice interface
-                if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
-                  window.VoiceroVoice.openVoiceChat();
-                  // Force maximize after opening
-                  setTimeout(() => {
-                    if (
-                      window.VoiceroVoice &&
-                      window.VoiceroVoice.maximizeVoiceChat
-                    ) {
-                      window.VoiceroVoice.maximizeVoiceChat();
-                    }
-                  }, 100);
-                }
-              });
-            }
+              if (chooser) {
+                chooser.style.display = "none";
+              }
 
-            const textButton = document.getElementById("text-chooser-button");
-            if (textButton) {
-              textButton.addEventListener("click", () => {
-                // Check if session operations are in progress
-                if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-                  console.log(
-                    "VoiceroCore: Text button click ignored - session operation in progress",
-                  );
-                  return;
-                }
-
-                if (chooser) {
-                  chooser.style.display = "none";
-                }
-
-                // Create text interface if needed
-                let textInterface = document.getElementById(
-                  "voicero-text-chat-container",
+              // Create voice interface if needed
+              let voiceInterface = document.getElementById(
+                "voice-chat-interface",
+              );
+              if (!voiceInterface) {
+                container.insertAdjacentHTML(
+                  "beforeend",
+                  `<div id="voice-chat-interface" style="display: none;"></div>`,
                 );
-                if (!textInterface) {
-                  container.insertAdjacentHTML(
-                    "beforeend",
-                    `<div id="voicero-text-chat-container" style="display: none;"></div>`,
-                  );
-                }
+              }
 
-                // Try to open text interface
-                if (window.VoiceroText && window.VoiceroText.openTextChat) {
-                  window.VoiceroText.openTextChat();
-                  // Force maximize after opening
-                  setTimeout(() => {
-                    if (window.VoiceroText && window.VoiceroText.maximizeChat) {
-                      window.VoiceroText.maximizeChat();
-                    }
-                  }, 100);
-                }
-              });
-            }
+              // Try to open voice interface
+              if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
+                window.VoiceroVoice.openVoiceChat();
+                // Force maximize after opening
+                setTimeout(() => {
+                  if (
+                    window.VoiceroVoice &&
+                    window.VoiceroVoice.maximizeVoiceChat
+                  ) {
+                    window.VoiceroVoice.maximizeVoiceChat();
+                  }
+                }, 100);
+              }
+            });
+          }
+
+          const textButton = document.getElementById("text-chooser-button");
+          if (textButton) {
+            textButton.addEventListener("click", () => {
+              // Check if session operations are in progress
+              if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                console.log(
+                  "VoiceroCore: Text button click ignored - session operation in progress",
+                );
+                return;
+              }
+
+              if (chooser) {
+                chooser.style.display = "none";
+              }
+
+              // Create text interface if needed
+              let textInterface = document.getElementById(
+                "voicero-text-chat-container",
+              );
+              if (!textInterface) {
+                container.insertAdjacentHTML(
+                  "beforeend",
+                  `<div id="voicero-text-chat-container" style="display: none;"></div>`,
+                );
+              }
+
+              // Try to open text interface
+              if (window.VoiceroText && window.VoiceroText.openTextChat) {
+                window.VoiceroText.openTextChat();
+                // Force maximize after opening
+                setTimeout(() => {
+                  if (window.VoiceroText && window.VoiceroText.maximizeChat) {
+                    window.VoiceroText.maximizeChat();
+                  }
+                }, 100);
+              }
+            });
           }
         }
 
         // If chooser exists now, show it
         chooser = document.getElementById("interaction-chooser");
+
         if (chooser) {
-          // Check current visibility
+          // Always check current chooser visibility first
           const computedStyle = window.getComputedStyle(chooser);
-          const isVisible =
+          const isChooserVisible =
             computedStyle.display !== "none" &&
             computedStyle.visibility !== "hidden" &&
             computedStyle.opacity !== "0";
 
-          if (isVisible) {
-            // Hide if already visible
-            chooser.style.display = "none";
-            chooser.style.visibility = "hidden";
-            chooser.style.opacity = "0";
-          } else {
-            // Show if hidden
-            chooser.style.display = "flex";
-            chooser.style.visibility = "visible";
-            chooser.style.opacity = "1";
+          // Check if any interfaces are open and close them (acting as home button)
+          const voiceInterface = document.getElementById(
+            "voice-chat-interface",
+          );
+          const textInterface = document.getElementById(
+            "voicero-text-chat-container",
+          );
+
+          // More reliable checking for interface visibility by examining both style and computed style
+          const isVoiceVisible =
+            voiceInterface &&
+            (window.getComputedStyle(voiceInterface).display === "block" ||
+              voiceInterface.style.display === "block");
+
+          const isTextVisible =
+            textInterface &&
+            (window.getComputedStyle(textInterface).display === "block" ||
+              textInterface.style.display === "block");
+
+          // Console log the visibility states for debugging
+          console.log("Button handler - Interface visibility:", {
+            isChooserVisible,
+            isVoiceVisible: voiceInterface
+              ? {
+                  computedStyle:
+                    window.getComputedStyle(voiceInterface).display,
+                  inlineStyle: voiceInterface.style.display,
+                }
+              : "no interface",
+            isTextVisible: textInterface
+              ? {
+                  computedStyle: window.getComputedStyle(textInterface).display,
+                  inlineStyle: textInterface.style.display,
+                }
+              : "no interface",
+          });
+
+          // If an interface is open, close it
+          if (isVoiceVisible) {
+            console.log("Button handler: Closing voice interface");
+            // Close voice interface
+            if (window.VoiceroVoice && window.VoiceroVoice.closeVoiceChat) {
+              window.VoiceroVoice.closeVoiceChat();
+            } else {
+              voiceInterface.style.display = "none";
+            }
+
+            // Make sure chooser is hidden and don't show it automatically
+            VoiceroCore.hideChooser();
+
+            // Reset toggle flag after a delay
+            setTimeout(() => {
+              VoiceroCore.chooserToggleInProgress = false;
+            }, 300);
+            return;
           }
+
+          if (isTextVisible) {
+            console.log("Button handler: Closing text interface");
+            // Close text interface
+            if (window.VoiceroText && window.VoiceroText.closeTextChat) {
+              window.VoiceroText.closeTextChat();
+            } else {
+              textInterface.style.display = "none";
+            }
+
+            // Make sure chooser is hidden and don't show it automatically
+            VoiceroCore.hideChooser();
+
+            // Reset toggle flag after a delay
+            setTimeout(() => {
+              VoiceroCore.chooserToggleInProgress = false;
+            }, 300);
+            return;
+          }
+
+          // If we get here, no interfaces are open, so toggle the chooser
+          if (isChooserVisible) {
+            console.log("Button handler: Hiding chooser");
+            VoiceroCore.hideChooser();
+          } else {
+            console.log("Button handler: Showing chooser");
+            chooser.style.cssText = `
+              display: flex !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              pointer-events: auto !important;
+              position: fixed !important;
+              bottom: 80px !important;
+              right: 20px !important;
+              z-index: 10001 !important;
+            `;
+            chooser.classList.add("visible");
+          }
+
+          // Reset toggle flag after a delay
+          setTimeout(() => {
+            VoiceroCore.chooserToggleInProgress = false;
+          }, 300);
         } else {
           // Last resort - create direct interface
           const voiceInterface = document.getElementById(
             "voice-chat-interface",
           );
-          if (voiceInterface) {
-            voiceInterface.innerHTML = `<div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:400px;height:500px;background:white;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);z-index:999999;padding:20px;display:flex;flex-direction:column;border:1px solid #ccc;">
-              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:15px;">
-                <h3 style="margin:0;font-size:18px;font-weight:600;">Voice Assistant</h3>
-                <button id="emergency-voice-close" style="background:none;border:none;font-size:20px;cursor:pointer;">×</button>
-              </div>
-              <div style="flex:1;overflow-y:auto;padding:10px;">
-                <p>The voice module is loading. Please try again in a moment.</p>
-              </div>
-            </div>`;
-            voiceInterface.style.display = "block";
+          const textInterface = document.getElementById(
+            "voicero-text-chat-container",
+          );
 
-            // Add close button handler
-            const closeBtn = document.getElementById("emergency-voice-close");
-            if (closeBtn) {
-              closeBtn.addEventListener("click", () => {
-                voiceInterface.style.display = "none";
-              });
+          if (
+            voiceInterface &&
+            window.getComputedStyle(voiceInterface).display === "block"
+          ) {
+            // Close voice interface
+            if (window.VoiceroVoice && window.VoiceroVoice.closeVoiceChat) {
+              window.VoiceroVoice.closeVoiceChat();
+            } else {
+              voiceInterface.style.display = "none";
             }
+          } else if (
+            textInterface &&
+            window.getComputedStyle(textInterface).display === "block"
+          ) {
+            // Close text interface
+            if (window.VoiceroText && window.VoiceroText.closeTextChat) {
+              window.VoiceroText.closeTextChat();
+            } else {
+              textInterface.style.display = "none";
+            }
+          }
+          // If we get here and no chooser or open interfaces, we should try to recreate the chooser
+          if (window.VoiceroCore && window.VoiceroCore.createChooser) {
+            window.VoiceroCore.createChooser();
+            window.VoiceroCore.showChooser();
           }
         }
       });
+
+      // Apply button animation
+      this.applyButtonAnimation();
     },
 
     // Force remove all buttons from the DOM
@@ -2678,6 +2738,100 @@
           button.style.position = "relative";
         }
       }, 100);
+    },
+
+    // Hide the chooser interface explicitly
+    hideChooser: function () {
+      console.log("VoiceroCore: Hiding chooser");
+
+      // Prevent race conditions with multiple show/hide calls
+      if (this.chooserToggleInProgress) {
+        console.log(
+          "VoiceroCore: Chooser toggle already in progress, skipping",
+        );
+        return;
+      }
+
+      this.chooserToggleInProgress = true;
+
+      try {
+        const chooser = document.getElementById("interaction-chooser");
+        if (chooser) {
+          // Apply multiple styles for redundancy
+          chooser.style.cssText = `
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
+            position: absolute !important;
+            height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+          `;
+
+          // Also remove any classes that might override styles
+          chooser.classList.remove("visible");
+        }
+      } finally {
+        // Always reset the flag, even if there's an error
+        setTimeout(() => {
+          this.chooserToggleInProgress = false;
+        }, 300);
+      }
+    },
+
+    // Inject CSS fixes for interface and chooser visibility
+    injectCssFixes: function () {
+      console.log("VoiceroCore: Injecting CSS fixes");
+
+      const styleEl = document.createElement("style");
+      styleEl.id = "voicero-core-css-fixes";
+
+      // These styles will override any conflicting styles from the main stylesheet
+      styleEl.innerHTML = `
+        /* Critical visibility overrides */
+        #interaction-chooser[style*="display: none"],
+        #interaction-chooser[style*="visibility: hidden"],
+        #interaction-chooser[style*="opacity: 0"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          z-index: -1 !important;
+        }
+        
+        /* Ensure interfaces are properly visible when display:block is set */
+        #voice-chat-interface[style*="display: block"],
+        #voicero-text-chat-container[style*="display: block"] {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          z-index: 999999 !important;
+        }
+        
+        /* Ensure chooser is visible when explicitly shown */
+        #interaction-chooser.visible,
+        #interaction-chooser[style*="display: flex"],
+        #interaction-chooser[style*="opacity: 1"] {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          z-index: 10001 !important;
+          pointer-events: auto !important;
+          position: fixed !important;
+        }
+        
+        /* Override any selectors that hide the chooser when it has display:block/flex styles */
+        #interaction-chooser[style*="display: block"],
+        #interaction-chooser[style*="display: flex"] {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+      `;
+
+      document.head.appendChild(styleEl);
     },
   };
 
