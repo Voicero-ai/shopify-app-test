@@ -891,11 +891,12 @@ const VoiceroVoice = {
       (VoiceroCore.appState.voiceMessages.user ||
         VoiceroCore.appState.voiceMessages.ai);
 
-    // Check if welcome message should be shown based on session data
+    // MODIFIED: Always show welcome if no messages, otherwise use session preference
     let shouldShowWelcome = !hasMessages;
 
-    // If we have a session with voiceWelcome defined, use that value instead
+    // If we have a session with voiceWelcome defined AND there are messages, use that value
     if (
+      hasMessages &&
       window.VoiceroCore &&
       window.VoiceroCore.session &&
       typeof window.VoiceroCore.session.voiceWelcome !== "undefined"
@@ -2792,11 +2793,12 @@ const VoiceroVoice = {
           ".user-message .message-content, .ai-message .message-content",
         );
 
-        // Check if welcome message should be shown based on session data
+        // MODIFIED: Always show welcome if no messages, otherwise use session preference
         let shouldShowWelcome = existingMessages.length === 0;
 
-        // If we have a session with voiceWelcome defined, use that value instead
+        // If we have a session with voiceWelcome defined AND there are messages, use that value instead
         if (
+          existingMessages.length > 0 &&
           window.VoiceroCore &&
           window.VoiceroCore.session &&
           typeof window.VoiceroCore.session.voiceWelcome !== "undefined"
@@ -3118,6 +3120,9 @@ const VoiceroVoice = {
 
   // Load messages from session
   loadMessagesFromSession: function () {
+    // Flag to track if any messages were loaded
+    let messagesLoaded = false;
+
     // Check if we have a session with threads
     if (
       window.VoiceroCore &&
@@ -3169,6 +3174,7 @@ const VoiceroVoice = {
           if (msg.role === "user") {
             // Add user message
             this.addMessage(msg.content, "user");
+            messagesLoaded = true;
           } else if (msg.role === "assistant") {
             try {
               // Parse the content which is a JSON string
@@ -3189,6 +3195,7 @@ const VoiceroVoice = {
 
               // Add AI message
               this.addMessage(aiMessage, "ai");
+              messagesLoaded = true;
             } catch (e) {}
           }
         });
@@ -3203,6 +3210,31 @@ const VoiceroVoice = {
       } else {
         // Still store the thread ID even if no messages
         this.currentThreadId = currentThread.threadId;
+      }
+    }
+
+    // If no messages were loaded, add welcome message
+    if (!messagesLoaded) {
+      const messagesContainer = document.getElementById("voice-messages");
+      if (messagesContainer) {
+        // Add welcome message with clear prompt
+        this.addSystemMessage(`
+          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 20px 15px !important; margin: 15px auto !important;">
+            <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
+            <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+            <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
+          </div>
+        `);
+
+        // Force welcome message heights
+        setTimeout(() => this.forceWelcomeMessageHeight(), 100);
+
+        // Update window state to show welcome
+        if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+          window.VoiceroCore.updateWindowState({
+            voiceWelcome: true,
+          });
+        }
       }
     }
   },

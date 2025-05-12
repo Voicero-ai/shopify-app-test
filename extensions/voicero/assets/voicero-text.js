@@ -155,11 +155,17 @@ const VoiceroText = {
     const hasMessages = this.messages && this.messages.length > 0;
 
     // Check if welcome message should be shown based on session data
+    // MODIFIED: Always show welcome if no messages, otherwise use session preference
     let shouldShowWelcome = !hasMessages;
 
-    // If we have a session with textWelcome defined, use that value instead
-    if (this.session && typeof this.session.textWelcome !== "undefined") {
-      shouldShowWelcome = this.session.textWelcome;
+    // If we have a session with textWelcome defined and there are messages, use that value
+    if (
+      hasMessages &&
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      typeof window.VoiceroCore.session.textWelcome !== "undefined"
+    ) {
+      shouldShowWelcome = window.VoiceroCore.session.textWelcome;
     }
 
     // Get current state of textOpenWindowUp if available
@@ -339,6 +345,9 @@ const VoiceroText = {
 
   // Load existing messages from session and display them
   loadMessagesFromSession: function () {
+    // Flag to track if any messages were loaded
+    let messagesLoaded = false;
+
     // Check if we have a session with threads
     if (
       window.VoiceroCore &&
@@ -390,6 +399,7 @@ const VoiceroText = {
           if (msg.role === "user") {
             // Add user message
             this.addMessage(msg.content, "user", true); // true = skip adding to messages array
+            messagesLoaded = true;
           } else if (msg.role === "assistant") {
             try {
               // Parse the content which is a JSON string
@@ -410,6 +420,7 @@ const VoiceroText = {
 
               // Add AI message
               this.addMessage(aiMessage, "ai", true); // true = skip adding to messages array
+              messagesLoaded = true;
             } catch (e) {}
           }
         });
@@ -439,6 +450,39 @@ const VoiceroText = {
       } else {
         // Still store the thread ID even if no messages
         this.currentThreadId = currentThread.threadId;
+      }
+    }
+
+    // If no messages were loaded, add welcome message
+    if (!messagesLoaded) {
+      const messagesContainer = this.shadowRoot
+        ? this.shadowRoot.getElementById("chat-messages")
+        : document.getElementById("chat-messages");
+
+      if (messagesContainer) {
+        // Add welcome message
+        this.addMessage(
+          `
+          <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
+            <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
+            <div class="welcome-subtitle">Text me like your best friend and I'll solve any problem you may have.</div>
+            <div class="welcome-note"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
+          </div>
+          `,
+          "ai",
+          false,
+          true,
+        );
+
+        // Force colors on the welcome message
+        this.forceWelcomeMessageColors();
+
+        // Update window state to show welcome
+        if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+          window.VoiceroCore.updateWindowState({
+            textWelcome: true,
+          });
+        }
       }
     }
   },
