@@ -265,8 +265,18 @@ const VoiceroText = {
       );
       if (headerContainer) {
         headerContainer.style.zIndex = "9999999";
+        headerContainer.style.borderRadius = "0"; // Ensure square corners
+      }
+
+      // Also ensure messages container has square corners
+      const messagesContainer = this.shadowRoot.getElementById("chat-messages");
+      if (messagesContainer) {
+        messagesContainer.style.borderRadius = "0"; // Ensure square corners
       }
     }
+
+    // Apply correct border radius for initial state (always maximized initially)
+    this.updateChatContainerBorderRadius(false);
 
     // Set up input and button listeners
     this.setupEventListeners();
@@ -1039,7 +1049,7 @@ const VoiceroText = {
           padding-top: 10px !important;
           margin: 0 !important;
           background-color: #f2f2f7 !important;
-          border-radius: 12px 12px 0 0 !important;
+          border-radius: 0 !important;
           transition: max-height 0.25s ease, opacity 0.25s ease !important;
           overflow-y: auto !important;
           overflow-x: hidden !important;
@@ -1437,7 +1447,7 @@ const VoiceroText = {
             padding-top: 10px !important;
             margin: 0 !important;
             background-color: #f2f2f7 !important;
-            border-radius: 12px 12px 0 0 !important;
+            border-radius: 0 !important;
             transition: max-height 0.25s ease, opacity 0.25s ease !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
@@ -1645,7 +1655,7 @@ const VoiceroText = {
           align-items: center !important;
           padding: 10px 15px !important;
           border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
-          border-radius: 12px 12px 0 0 !important;
+          border-radius: 0 !important;
           margin: 0 !important;
           width: 100% !important;
           box-shadow: none !important;
@@ -2850,6 +2860,7 @@ const VoiceroText = {
       messagesContainer.style.overflow = "hidden";
       messagesContainer.style.border = "none";
       messagesContainer.style.opacity = "0"; // Make fully transparent
+      messagesContainer.style.borderRadius = "0"; // Remove any border radius
 
       // Also hide padding container inside
       const paddingContainer = messagesContainer.querySelector(
@@ -2868,9 +2879,11 @@ const VoiceroText = {
       headerContainer.style.display = "none";
     }
 
-    // Adjust input wrapper
+    // Adjust input wrapper using the helper function
+    this.updateChatContainerBorderRadius(true);
+
+    // Additional styles for minimized state
     if (inputWrapper) {
-      inputWrapper.style.borderRadius = "12px";
       inputWrapper.style.marginTop = "40px"; // Add space above the input wrapper for the button
       inputWrapper.style.position = "relative";
     }
@@ -2931,6 +2944,7 @@ const VoiceroText = {
       messagesContainer.style.overflowY = "scroll";
       messagesContainer.style.border = "";
       messagesContainer.style.opacity = "1";
+      messagesContainer.style.borderRadius = "0"; // Square corners for maximized view
 
       // Show padding container
       const paddingContainer = messagesContainer.querySelector(
@@ -2956,15 +2970,18 @@ const VoiceroText = {
       }, 100);
     }
 
-    // Show the header
+    // Show the header with square corners
     if (headerContainer) {
       headerContainer.style.display = "flex";
       headerContainer.style.zIndex = "9999999";
+      headerContainer.style.borderRadius = "0"; // Square corners for maximized view
     }
 
-    // Restore input wrapper styling
+    // Restore input wrapper using the helper function
+    this.updateChatContainerBorderRadius(false);
+
+    // Additional styles for maximized state
     if (inputWrapper) {
-      inputWrapper.style.borderRadius = "0 0 12px 12px";
       inputWrapper.style.marginTop = "0";
     }
 
@@ -3737,6 +3754,42 @@ const VoiceroText = {
     }
 
     return false;
+  },
+
+  // New helper function to ensure consistent border radius styles
+  updateChatContainerBorderRadius: function (isMinimized) {
+    if (!this.shadowRoot) return;
+
+    const inputWrapper = this.shadowRoot.getElementById("chat-input-wrapper");
+    if (!inputWrapper) return;
+
+    // Get the inner container
+    const innerWrapper = inputWrapper.querySelector("div");
+    if (!innerWrapper) return;
+
+    if (isMinimized) {
+      // Full border radius for minimized state
+      inputWrapper.style.borderRadius = "12px";
+      innerWrapper.style.borderRadius = "10px";
+    } else {
+      // Bottom-only border radius for maximized state
+      inputWrapper.style.borderRadius = "0 0 12px 12px";
+      innerWrapper.style.borderRadius = "0 0 10px 10px";
+
+      // Make sure messages container has square top corners in maximized mode
+      const messagesContainer = this.shadowRoot.getElementById("chat-messages");
+      if (messagesContainer) {
+        messagesContainer.style.borderRadius = "0 0 0 0"; // Square corners on top
+      }
+
+      // Ensure header has square corners too
+      const headerContainer = this.shadowRoot.getElementById(
+        "chat-controls-header",
+      );
+      if (headerContainer) {
+        headerContainer.style.borderRadius = "0";
+      }
+    }
   },
 };
 
