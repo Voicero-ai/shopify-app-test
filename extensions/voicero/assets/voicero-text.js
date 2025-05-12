@@ -2628,6 +2628,12 @@ const VoiceroText = {
   closeTextChat: function () {
     console.log("VoiceroText: Closing text chat");
 
+    // Check if API request is in progress
+    if (this.isWaitingForResponse) {
+      console.log("VoiceroText: Cannot close - waiting for API response");
+      return;
+    }
+
     // Set closing flag
     this.isClosingTextChat = true;
 
@@ -2677,6 +2683,13 @@ const VoiceroText = {
     ) {
       return; // either already minimized or called too soon
     }
+
+    // Check if API request is in progress
+    if (this.isWaitingForResponse) {
+      console.log("VoiceroText: Cannot minimize - waiting for API response");
+      return;
+    }
+
     this._lastChatToggle = now;
     this._isChatVisible = false;
 
@@ -2791,6 +2804,9 @@ const VoiceroText = {
     ) {
       return; // either already maximized or called too soon
     }
+
+    // No need to check isWaitingForResponse here since maximizing during an API call is safe
+
     this._lastChatToggle = now;
     this._isChatVisible = true;
 
@@ -3529,6 +3545,14 @@ const VoiceroText = {
   toggleToVoiceChat: function () {
     console.log("VoiceroText: Toggling from text to voice chat");
 
+    // Check if API request is in progress
+    if (this.isWaitingForResponse) {
+      console.log(
+        "VoiceroText: Cannot toggle to voice chat - waiting for API response",
+      );
+      return;
+    }
+
     // First close the text chat interface
     this.closeTextChat();
 
@@ -3589,6 +3613,36 @@ const VoiceroText = {
         "ai",
       );
     }
+  },
+
+  // Check if session operations are in progress
+  isSessionBusy: function () {
+    // If a session operation is explicitly marked as in progress
+    if (this.isSessionOperationInProgress) {
+      // Check if it's been too long (might be stuck)
+      const currentTime = Date.now();
+      const timeSinceLastOperation =
+        currentTime - this.lastSessionOperationTime;
+
+      if (timeSinceLastOperation > this.sessionOperationTimeout) {
+        console.warn(
+          "VoiceroCore: Session operation timeout exceeded, resetting flag",
+        );
+        this.isSessionOperationInProgress = false;
+        return false;
+      }
+      return true;
+    }
+
+    // Also check if VoiceroText is waiting for an API response
+    if (window.VoiceroText && window.VoiceroText.isWaitingForResponse) {
+      console.log(
+        "VoiceroCore: Session busy - VoiceroText is waiting for API response",
+      );
+      return true;
+    }
+
+    return false;
   },
 };
 

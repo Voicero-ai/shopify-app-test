@@ -260,7 +260,7 @@
               onmouseover="this.style.transform='translateY(-2px)'"
               onmouseout="this.style.transform='translateY(0)'"
             >
-              <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 15px; width: 100%; text-align: center; white-space: nowrap;">
+              <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
                 Voice Conversation
               </span>
               <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -291,7 +291,7 @@
               onmouseover="this.style.transform='translateY(-2px)'"
               onmouseout="this.style.transform='translateY(0)'"
             >
-              <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 18px; width: 100%; text-align: center;">
+              <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center;">
                 Message
               </span>
               <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -375,7 +375,8 @@
                 const computedStyle = window.getComputedStyle(chooser);
                 const isVisible =
                   computedStyle.display !== "none" &&
-                  computedStyle.visibility !== "hidden";
+                  computedStyle.visibility !== "hidden" &&
+                  computedStyle.opacity !== "0";
 
                 if (isVisible) {
                   chooser.style.display = "none";
@@ -1126,7 +1127,15 @@
         return true;
       }
 
-      return this.isInitializingSession;
+      // Also check if VoiceroText is waiting for an API response
+      if (window.VoiceroText && window.VoiceroText.isWaitingForResponse) {
+        console.log(
+          "VoiceroCore: Session busy - VoiceroText is waiting for API response",
+        );
+        return true;
+      }
+
+      return false;
     },
 
     // Create a new session
@@ -1517,7 +1526,7 @@
               width: 200px;
             "
           >
-            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 15px; width: 100%; text-align: center; white-space: nowrap;">
+            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
               Voice Conversation
             </span>
             <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -1546,7 +1555,7 @@
               width: 200px;
             "
           >
-            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 18px; width: 100%; text-align: center;">
+            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center;">
               Message
             </span>
             <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -2280,7 +2289,7 @@
                     width: 200px;
                   "
                 >
-                  <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 15px; width: 100%; text-align: center; white-space: nowrap;">
+                  <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
                     Voice Conversation
                   </span>
                   <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -2309,7 +2318,7 @@
                     width: 200px;
                   "
                 >
-                  <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 15px; width: 100%; text-align: center; white-space: nowrap;">
+                  <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
                     Message
                   </span>
                   <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
@@ -2412,7 +2421,8 @@
           const computedStyle = window.getComputedStyle(chooser);
           const isVisible =
             computedStyle.display !== "none" &&
-            computedStyle.visibility !== "hidden";
+            computedStyle.visibility !== "hidden" &&
+            computedStyle.opacity !== "0";
 
           if (isVisible) {
             // Hide if already visible
