@@ -3034,10 +3034,10 @@ const VoiceroVoice = {
 
     // Add welcome message again with the exact same format as in openVoiceChat
     this.addSystemMessage(`
-      <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px 15px !important; margin: 12px auto !important; min-height: 100px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; height: 100px !important;">
-        <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 5px; font-size: 18px;">Aura, your website concierge</div>
-        <div class="welcome-subtitle" style="margin-bottom: 3px; font-size: 14px;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-        <div class="welcome-note" style="margin-top: 5px; font-size: 12px;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 8px; height: 8px;"></span>Button glows during conversation</div>
+      <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
+        <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Aura, your website concierge</div>
+        <div class="welcome-subtitle">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
+        <div class="welcome-note"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor});"></span>Button glows during conversation</div>
       </div>
     `);
 
@@ -3413,24 +3413,30 @@ const VoiceroVoice = {
     }
   },
 
-  // Force welcome message height to be consistent
+  // Force welcome message styling to match text interface
   forceWelcomeMessageHeight: function () {
-    console.log("Forcing welcome message heights");
+    console.log("Applying welcome message styling");
 
     // Find all welcome messages in the DOM
     const welcomeMessages = document.querySelectorAll(".welcome-message");
     welcomeMessages.forEach((msg, index) => {
-      // Set explicit height and other properties
-      msg.style.setProperty("height", "100px", "important");
-      msg.style.setProperty("min-height", "100px", "important");
-      msg.style.setProperty("display", "flex", "important");
-      msg.style.setProperty("flex-direction", "column", "important");
-      msg.style.setProperty("justify-content", "center", "important");
-      msg.style.setProperty("padding", "12px 15px", "important");
-      msg.style.setProperty("margin", "12px auto", "important");
+      // Apply styling that matches the text interface
+      // Remove height constraints and flex layout
+      msg.style.removeProperty("height");
+      msg.style.removeProperty("min-height");
+      msg.style.removeProperty("display");
+      msg.style.removeProperty("flex-direction");
+      msg.style.removeProperty("justify-content");
+      
+      // Set padding and margin to match text interface
+      msg.style.setProperty("width", "90%", "important");
+      msg.style.setProperty("max-width", "400px", "important");
+      msg.style.setProperty("box-shadow", "0 4px 15px rgba(0, 0, 0, 0.08)", "important");
+      msg.style.setProperty("background", "linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%)", "important");
+      msg.style.setProperty("border", "none", "important");
 
       console.log(
-        `Adjusted welcome message ${index + 1}/${welcomeMessages.length}, height: ${msg.offsetHeight}px`,
+        `Styled welcome message ${index + 1}/${welcomeMessages.length}`,
       );
     });
 
@@ -3440,13 +3446,15 @@ const VoiceroVoice = {
         .getElementById("voicero-text-chat-container")
         .shadowRoot.querySelectorAll(".welcome-message");
       shadowWelcomeMessages.forEach((msg, index) => {
-        msg.style.setProperty("height", "100px", "important");
-        msg.style.setProperty("min-height", "100px", "important");
-        msg.style.setProperty("display", "flex", "important");
-        msg.style.setProperty("flex-direction", "column", "important");
-        msg.style.setProperty("justify-content", "center", "important");
+        // Remove height constraints and flex layout
+        msg.style.removeProperty("height");
+        msg.style.removeProperty("min-height");
+        msg.style.removeProperty("display");
+        msg.style.removeProperty("flex-direction");
+        msg.style.removeProperty("justify-content");
+        
         console.log(
-          `Adjusted shadow DOM welcome message ${index + 1}/${shadowWelcomeMessages.length}`,
+          `Styled shadow DOM welcome message ${index + 1}/${shadowWelcomeMessages.length}`,
         );
       });
     }
