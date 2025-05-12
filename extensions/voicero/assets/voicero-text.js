@@ -2512,7 +2512,6 @@ const VoiceroText = {
         voiceOpen: false,
         autoMic: false,
         voiceOpenWindowUp: false,
-        suppressChooser: true,
       });
 
       // Small delay to ensure state updates are processed
