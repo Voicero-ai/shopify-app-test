@@ -5,6 +5,7 @@
 
 const VoiceroSupport = {
   initialized: false,
+  debugMode: false, // Set to true to enable verbose logging
 
   /**
    * Initialize the support reporting system
@@ -52,7 +53,8 @@ const VoiceroSupport = {
    * Set up observer for text chat interface
    */
   setupTextChatObserver: function () {
-    console.log("VoiceroSupport: Setting up text chat observer");
+    if (this.debugMode)
+      console.log("VoiceroSupport: Setting up text chat observer");
 
     // Function to find and observe the chat messages container
     const setupObserver = () => {
@@ -61,9 +63,10 @@ const VoiceroSupport = {
         "voicero-text-chat-container",
       );
       if (!textChatContainer || !textChatContainer.shadowRoot) {
-        console.log(
-          "VoiceroSupport: Text chat container or shadowRoot not found, will retry",
-        );
+        if (this.debugMode)
+          console.log(
+            "VoiceroSupport: Text chat container or shadowRoot not found, will retry",
+          );
         return false;
       }
 
@@ -71,15 +74,17 @@ const VoiceroSupport = {
       const messagesContainer =
         textChatContainer.shadowRoot.getElementById("chat-messages");
       if (!messagesContainer) {
-        console.log(
-          "VoiceroSupport: Messages container not found in shadowRoot, will retry",
-        );
+        if (this.debugMode)
+          console.log(
+            "VoiceroSupport: Messages container not found in shadowRoot, will retry",
+          );
         return false;
       }
 
-      console.log(
-        "VoiceroSupport: Found text chat messages container, setting up observer",
-      );
+      if (this.debugMode)
+        console.log(
+          "VoiceroSupport: Found text chat messages container, setting up observer",
+        );
 
       // Create mutation observer
       const observer = new MutationObserver((mutations) => {
@@ -106,14 +111,15 @@ const VoiceroSupport = {
 
       // Start observing
       observer.observe(messagesContainer, { childList: true, subtree: false });
-      console.log("VoiceroSupport: Text chat observer successfully set up");
+      if (this.debugMode)
+        console.log("VoiceroSupport: Text chat observer successfully set up");
       return true;
     };
 
     // Try to set up the observer immediately
     const initialSetupSuccess = setupObserver();
 
-    // If initial setup fails, retry with exponential backoff
+    // If initial setup fails, retry with exponential backoff - but limit console noise
     if (!initialSetupSuccess) {
       let retryCount = 0;
       const maxRetries = 10;
@@ -123,9 +129,10 @@ const VoiceroSupport = {
           retryCount++;
           const backoffTime = Math.min(1000 * Math.pow(1.5, retryCount), 10000); // Exponential backoff with 10s max
 
-          console.log(
-            `VoiceroSupport: Retrying text chat observer setup in ${backoffTime}ms (attempt ${retryCount})`,
-          );
+          if (this.debugMode)
+            console.log(
+              `VoiceroSupport: Retrying text chat observer setup in ${backoffTime}ms (attempt ${retryCount})`,
+            );
 
           setTimeout(() => {
             if (!setupObserver()) {
@@ -133,9 +140,10 @@ const VoiceroSupport = {
             }
           }, backoffTime);
         } else {
-          console.log(
-            "VoiceroSupport: Max retries reached for text chat observer setup",
-          );
+          if (this.debugMode)
+            console.log(
+              "VoiceroSupport: Max retries reached for text chat observer setup",
+            );
         }
       };
 
@@ -147,7 +155,8 @@ const VoiceroSupport = {
    * Set up observer for voice chat interface
    */
   setupVoiceChatObserver: function () {
-    console.log("VoiceroSupport: Setting up voice chat observer");
+    if (this.debugMode)
+      console.log("VoiceroSupport: Setting up voice chat observer");
 
     // Function to find and observe the voice chat messages container
     const setupObserver = () => {
@@ -156,9 +165,10 @@ const VoiceroSupport = {
         "voice-chat-interface",
       );
       if (!voiceChatContainer) {
-        console.log(
-          "VoiceroSupport: Voice chat container not found, will retry",
-        );
+        if (this.debugMode)
+          console.log(
+            "VoiceroSupport: Voice chat container not found, will retry",
+          );
         return false;
       }
 
@@ -166,15 +176,17 @@ const VoiceroSupport = {
       const messagesContainer =
         voiceChatContainer.querySelector("#voice-messages");
       if (!messagesContainer) {
-        console.log(
-          "VoiceroSupport: Voice messages container not found, will retry",
-        );
+        if (this.debugMode)
+          console.log(
+            "VoiceroSupport: Voice messages container not found, will retry",
+          );
         return false;
       }
 
-      console.log(
-        "VoiceroSupport: Found voice chat messages container, setting up observer",
-      );
+      if (this.debugMode)
+        console.log(
+          "VoiceroSupport: Found voice chat messages container, setting up observer",
+        );
 
       // Create mutation observer
       const observer = new MutationObserver((mutations) => {
@@ -201,7 +213,8 @@ const VoiceroSupport = {
 
       // Start observing
       observer.observe(messagesContainer, { childList: true, subtree: false });
-      console.log("VoiceroSupport: Voice chat observer successfully set up");
+      if (this.debugMode)
+        console.log("VoiceroSupport: Voice chat observer successfully set up");
       return true;
     };
 
@@ -218,9 +231,10 @@ const VoiceroSupport = {
           retryCount++;
           const backoffTime = Math.min(1000 * Math.pow(1.5, retryCount), 10000); // Exponential backoff with 10s max
 
-          console.log(
-            `VoiceroSupport: Retrying voice chat observer setup in ${backoffTime}ms (attempt ${retryCount})`,
-          );
+          if (this.debugMode)
+            console.log(
+              `VoiceroSupport: Retrying voice chat observer setup in ${backoffTime}ms (attempt ${retryCount})`,
+            );
 
           setTimeout(() => {
             if (!setupObserver()) {
@@ -228,9 +242,10 @@ const VoiceroSupport = {
             }
           }, backoffTime);
         } else {
-          console.log(
-            "VoiceroSupport: Max retries reached for voice chat observer setup",
-          );
+          if (this.debugMode)
+            console.log(
+              "VoiceroSupport: Max retries reached for voice chat observer setup",
+            );
         }
       };
 
@@ -242,7 +257,8 @@ const VoiceroSupport = {
    * Process existing messages in both chat interfaces
    */
   processExistingMessages: function () {
-    console.log("VoiceroSupport: Processing existing messages");
+    if (this.debugMode)
+      console.log("VoiceroSupport: Processing existing messages");
 
     try {
       // Process text chat messages
@@ -251,18 +267,20 @@ const VoiceroSupport = {
       );
 
       if (textChatContainer && textChatContainer.shadowRoot) {
-        console.log(
-          "VoiceroSupport: Found text chat container with shadow root",
-        );
+        if (this.debugMode)
+          console.log(
+            "VoiceroSupport: Found text chat container with shadow root",
+          );
 
         // Try to get all AI messages from shadow DOM
         const aiMessages = textChatContainer.shadowRoot.querySelectorAll(
           ".ai-message:not(.placeholder):not(.typing-wrapper)",
         );
 
-        console.log(
-          `VoiceroSupport: Found ${aiMessages.length} existing text AI messages`,
-        );
+        if (this.debugMode)
+          console.log(
+            `VoiceroSupport: Found ${aiMessages.length} existing text AI messages`,
+          );
 
         // Process each message
         aiMessages.forEach((message) => {
@@ -271,9 +289,10 @@ const VoiceroSupport = {
           }
         });
       } else {
-        console.log(
-          "VoiceroSupport: Text chat container or shadow root not available",
-        );
+        if (this.debugMode)
+          console.log(
+            "VoiceroSupport: Text chat container or shadow root not available",
+          );
       }
 
       // Process voice chat messages
@@ -281,16 +300,18 @@ const VoiceroSupport = {
         "voice-chat-interface",
       );
       if (voiceChatContainer) {
-        console.log("VoiceroSupport: Found voice chat container");
+        if (this.debugMode)
+          console.log("VoiceroSupport: Found voice chat container");
 
         // Get all AI messages
         const aiMessages = voiceChatContainer.querySelectorAll(
           ".ai-message:not(.placeholder):not(.typing-indicator)",
         );
 
-        console.log(
-          `VoiceroSupport: Found ${aiMessages.length} existing voice AI messages`,
-        );
+        if (this.debugMode)
+          console.log(
+            `VoiceroSupport: Found ${aiMessages.length} existing voice AI messages`,
+          );
 
         // Process each message
         aiMessages.forEach((message) => {
@@ -299,7 +320,8 @@ const VoiceroSupport = {
           }
         });
       } else {
-        console.log("VoiceroSupport: Voice chat container not available");
+        if (this.debugMode)
+          console.log("VoiceroSupport: Voice chat container not available");
       }
     } catch (error) {
       console.error(
@@ -463,7 +485,8 @@ const VoiceroSupport = {
       window.VoiceroCore.session &&
       window.VoiceroCore.session.threads
     ) {
-      console.log("VoiceroCore session:", window.VoiceroCore.session);
+      if (this.debugMode)
+        console.log("VoiceroCore session:", window.VoiceroCore.session);
 
       // Find the active thread first
       let activeThread = null;
@@ -634,13 +657,15 @@ const VoiceroSupport = {
       return;
     }
 
-    console.log("VoiceroCore session:", window.VoiceroCore.session);
-    console.log("Reporting message with ID:", actualMessageId);
-    console.log("From thread with ID:", threadId);
-    console.log(
-      "Content used for matching:",
-      messageContent?.substring(0, 30) + "...",
-    );
+    if (this.debugMode) {
+      console.log("VoiceroCore session:", window.VoiceroCore.session);
+      console.log("Reporting message with ID:", actualMessageId);
+      console.log("From thread with ID:", threadId);
+      console.log(
+        "Content used for matching:",
+        messageContent?.substring(0, 30) + "...",
+      );
+    }
 
     // Make API request to the WordPress endpoint with the actual UUIDs
     fetch("https://www.voicero.ai/api/support/help", {
@@ -735,6 +760,38 @@ document.addEventListener("DOMContentLoaded", function () {
     VoiceroSupport.init();
   }, 1000);
 });
+
+// Make a function to directly process a single AI message
+VoiceroSupport.processAIMessage = function (messageElement, chatType) {
+  if (!messageElement) return false;
+
+  // Skip if it's not an AI message
+  if (
+    !messageElement.classList ||
+    !messageElement.classList.contains("ai-message")
+  ) {
+    return false;
+  }
+
+  // Skip welcome messages, placeholders, and typing indicators
+  if (
+    messageElement.classList.contains("placeholder") ||
+    messageElement.classList.contains("typing-wrapper") ||
+    messageElement.classList.contains("typing-indicator") ||
+    messageElement.querySelector(".welcome-message") ||
+    messageElement.querySelector(".voice-prompt")
+  ) {
+    return false;
+  }
+
+  // If there's already a report button, don't add another one
+  if (messageElement.querySelector(".voicero-report-button")) {
+    return false;
+  }
+
+  // Attach the report button
+  return this.attachReportButtonToMessage(messageElement, chatType || "text");
+};
 
 // Make available globally
 window.VoiceroSupport = VoiceroSupport;

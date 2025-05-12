@@ -309,6 +309,19 @@ const VoiceroText = {
     this._isChatVisible = true;
     this._lastChatToggle = Date.now();
 
+    // Process existing AI messages to ensure report buttons are present
+    setTimeout(() => {
+      this.processExistingAIMessages();
+
+      // Also directly trigger VoiceroSupport to process messages
+      if (
+        window.VoiceroSupport &&
+        typeof window.VoiceroSupport.processExistingMessages === "function"
+      ) {
+        window.VoiceroSupport.processExistingMessages();
+      }
+    }, 500);
+
     // After the interface is fully loaded and visible, check if it should be minimized
     // based on the previous session state (delayed to prevent race conditions)
     setTimeout(() => {
@@ -418,11 +431,69 @@ const VoiceroText = {
         if (messagesContainer) {
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
+
+        // Process the AI messages to ensure report buttons are attached
+        setTimeout(() => {
+          this.processExistingAIMessages();
+        }, 500);
       } else {
         // Still store the thread ID even if no messages
         this.currentThreadId = currentThread.threadId;
       }
     }
+  },
+
+  // New function to process existing AI messages
+  processExistingAIMessages: function () {
+    if (!this.shadowRoot) return;
+
+    const messagesContainer = this.shadowRoot.getElementById("chat-messages");
+    if (!messagesContainer) return;
+
+    // Find all AI messages
+    const aiMessages = messagesContainer.querySelectorAll(
+      ".ai-message:not(.placeholder):not(.typing-wrapper)",
+    );
+
+    // Skip if no messages
+    if (!aiMessages || aiMessages.length === 0) return;
+
+    // Process each message
+    aiMessages.forEach((message) => {
+      // Check if there's already a report button
+      if (message.querySelector(".voicero-report-button")) return;
+
+      // Try to attach a report button
+      if (window.VoiceroSupport) {
+        if (typeof window.VoiceroSupport.processAIMessage === "function") {
+          window.VoiceroSupport.processAIMessage(message, "text");
+        } else if (
+          typeof window.VoiceroSupport.attachReportButtonToMessage ===
+          "function"
+        ) {
+          window.VoiceroSupport.attachReportButtonToMessage(message, "text");
+        }
+      } else {
+        // Fallback: Add a basic report button
+        const contentEl = message.querySelector(".message-content");
+        if (contentEl && !contentEl.querySelector(".voicero-report-button")) {
+          const reportButton = document.createElement("div");
+          reportButton.className = "voicero-report-button";
+          reportButton.innerHTML = "Report an AI problem";
+          reportButton.style.cssText = `
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            text-align: right;
+            cursor: pointer;
+            text-decoration: underline;
+            display: block;
+            opacity: 0.8;
+          `;
+          contentEl.appendChild(reportButton);
+        }
+      }
+    });
   },
 
   // Helper to extract answer from JSON string
@@ -2891,18 +2962,64 @@ const VoiceroText = {
     }
 
     // If this is an AI message (and not a welcome/initial message), add report button
-    if (
-      role === "ai" &&
-      !isInitial &&
-      !isLoading &&
-      window.VoiceroSupport &&
-      typeof window.VoiceroSupport.attachReportButtonToMessage === "function"
-    ) {
+    if (role === "ai" && !isInitial && !isLoading) {
       try {
-        // Small delay to ensure the message is fully rendered
-        setTimeout(() => {
-          window.VoiceroSupport.attachReportButtonToMessage(messageDiv, "text");
-        }, 50);
+        // Try three different methods to ensure the report button gets added
+
+        // Method 1: Direct call to processAIMessage if available
+        if (
+          window.VoiceroSupport &&
+          typeof window.VoiceroSupport.processAIMessage === "function"
+        ) {
+          // Small delay to ensure the message is fully rendered
+          setTimeout(() => {
+            window.VoiceroSupport.processAIMessage(messageDiv, "text");
+          }, 50);
+        }
+        // Method 2: Call attachReportButtonToMessage directly
+        else if (
+          window.VoiceroSupport &&
+          typeof window.VoiceroSupport.attachReportButtonToMessage ===
+            "function"
+        ) {
+          // Small delay to ensure the message is fully rendered
+          setTimeout(() => {
+            window.VoiceroSupport.attachReportButtonToMessage(
+              messageDiv,
+              "text",
+            );
+          }, 50);
+        }
+        // Method 3: Force-adding the button directly
+        else {
+          setTimeout(() => {
+            // If VoiceroSupport is not available, create a basic report button ourselves
+            if (!messageDiv.querySelector(".voicero-report-button")) {
+              const reportButton = document.createElement("div");
+              reportButton.className = "voicero-report-button";
+              reportButton.innerHTML = "Report an AI problem";
+              reportButton.style.cssText = `
+                font-size: 12px;
+                color: #888;
+                margin-top: 10px;
+                text-align: right;
+                cursor: pointer;
+                text-decoration: underline;
+                display: block;
+                opacity: 0.8;
+              `;
+
+              // Find the content container or use direct message
+              const contentContainer =
+                messageDiv.querySelector(".message-content");
+              if (contentContainer) {
+                contentContainer.appendChild(reportButton);
+              } else {
+                messageDiv.appendChild(reportButton);
+              }
+            }
+          }, 100);
+        }
       } catch (e) {
         console.error("Failed to attach report button:", e);
       }
