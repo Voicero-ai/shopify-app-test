@@ -21,7 +21,7 @@
     };
 
   const VoiceroCore = {
-    apiBaseUrls: ["http://localhost:3000"],
+    apiBaseUrls: ["http://localhost:3000", "https://www.voicero.ai"],
     apiBaseUrl: null, // Store the working API URL
     apiConnected: false, // Track connection status
     session: null, // Store the current session
@@ -605,9 +605,19 @@
     checkApiConnection: function () {
       console.log("VoiceroCore: Starting API connection check");
 
-      // Try each API base URL
-      this.apiBaseUrls.forEach((baseUrl) => {
-        console.log("VoiceroCore: Trying API URL:", baseUrl);
+      // Try API URLs in sequence, with fallback
+      const tryApiConnection = (index) => {
+        // If we've tried all URLs without success, stop
+        if (index >= this.apiBaseUrls.length) {
+          console.error("VoiceroCore: All API connections failed");
+          return;
+        }
+
+        const baseUrl = this.apiBaseUrls[index];
+        console.log(
+          `VoiceroCore: Trying API URL (${index + 1}/${this.apiBaseUrls.length}):`,
+          baseUrl,
+        );
 
         // Get auth headers from config if available
         const headers = {
@@ -770,9 +780,17 @@
             }
           })
           .catch((error) => {
-            console.error("VoiceroCore: API connection failed:", error);
+            console.error(
+              `VoiceroCore: API connection to ${baseUrl} failed:`,
+              error,
+            );
+            // Try the next URL in the list
+            tryApiConnection(index + 1);
           });
-      });
+      };
+
+      // Start trying with the first URL (localhost)
+      tryApiConnection(0);
     },
 
     // Hide the main website button
@@ -907,78 +925,92 @@
         return;
       }
 
-      // Ask our REST proxy for this specific sessionId
-      const proxyUrl = `http://localhost:3000/api/session?sessionId=${sessionId}`;
+      // Try localhost first
+      const tryFetch = (baseUrl) => {
+        const proxyUrl = `${baseUrl}/api/session?sessionId=${sessionId}`;
 
-      fetch(proxyUrl, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      })
-        .then((response) => {
-          if (!response.ok) {
-            // If we can't get the session, try creating a new one
-            if (response.status === 404) {
-              // Set a flag to indicate we're calling from getSession to prevent checks
-              this.createSessionFromGetSession();
-              return null;
-            }
-            throw new Error(`Session request failed: ${response.status}`);
-          }
-          return response.json();
+        return fetch(proxyUrl, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
         })
-        .then((data) => {
-          if (!data) return; // Handle the case where we're creating a new session
+          .then((response) => {
+            if (!response.ok) {
+              // If we can't get the session, try creating a new one
+              if (response.status === 404) {
+                // Set a flag to indicate we're calling from getSession to prevent checks
+                this.createSessionFromGetSession();
+                return null;
+              }
+              throw new Error(`Session request failed: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (!data) return; // Handle the case where we're creating a new session
 
-          this.session = data.session;
+            this.session = data.session;
 
-          // Get the most recent thread
-          if (
-            data.session &&
-            data.session.threads &&
-            data.session.threads.length > 0
-          ) {
-            this.thread = data.session.threads[0];
-          }
+            // Get the most recent thread
+            if (
+              data.session &&
+              data.session.threads &&
+              data.session.threads.length > 0
+            ) {
+              this.thread = data.session.threads[0];
+            }
 
-          // Log detailed session info
-          if (data.session) {
-          }
+            // Log detailed session info
+            if (data.session) {
+            }
 
-          // Store session ID in global variable and localStorage
-          if (data.session && data.session.id) {
-            this.sessionId = data.session.id;
-            localStorage.setItem("voicero_session_id", data.session.id);
+            // Store session ID in global variable and localStorage
+            if (data.session && data.session.id) {
+              this.sessionId = data.session.id;
+              localStorage.setItem("voicero_session_id", data.session.id);
 
-            // Process any pending window state updates now that we have a sessionId
-            this.processPendingWindowStateUpdates();
+              // Process any pending window state updates now that we have a sessionId
+              this.processPendingWindowStateUpdates();
 
-            // Ensure button visibility after session is established
-            this.ensureMainButtonVisible();
-          }
+              // Ensure button visibility after session is established
+              this.ensureMainButtonVisible();
+            }
 
-          // Make session available to other modules
-          if (window.VoiceroText) {
-            window.VoiceroText.session = this.session;
-            window.VoiceroText.thread = this.thread;
-          }
+            // Make session available to other modules
+            if (window.VoiceroText) {
+              window.VoiceroText.session = this.session;
+              window.VoiceroText.thread = this.thread;
+            }
 
-          if (window.VoiceroVoice) {
-            window.VoiceroVoice.session = this.session;
-            window.VoiceroVoice.thread = this.thread;
-          }
+            if (window.VoiceroVoice) {
+              window.VoiceroVoice.session = this.session;
+              window.VoiceroVoice.thread = this.thread;
+            }
 
-          // Restore interface state based on session flags
-          this.restoreInterfaceState();
+            // Restore interface state based on session flags
+            this.restoreInterfaceState();
 
-          // Mark session as initialized and no longer initializing
-          this.sessionInitialized = true;
-          this.isInitializingSession = false;
+            // Mark session as initialized and no longer initializing
+            this.sessionInitialized = true;
+            this.isInitializingSession = false;
+          });
+      };
+
+      // Try with localhost first, then fall back to the production URL
+      tryFetch("http://localhost:3000")
+        .catch((error) => {
+          console.log(
+            "VoiceroCore: Session request failed with localhost, trying production URL:",
+            error,
+          );
+          // Try with the production URL as fallback
+          return tryFetch("https://www.voicero.ai");
         })
         .catch((error) => {
           // Reset initialization flag in error case
+          console.error("VoiceroCore: All session requests failed:", error);
           this.isInitializingSession = false;
 
           // Try creating a new session as fallback
@@ -1135,7 +1167,7 @@
 
       // Always allow this call to proceed even if isInitializingSession is true
       this.isInitializingSession = false;
-      this.createSession();
+      this.createSession(); // This will now use the same fallback mechanism
     },
 
     // Check if session operations are in progress
@@ -1176,14 +1208,32 @@
       this.lastSessionOperationTime = Date.now();
       console.log("VoiceroCore: Session initialization started");
 
-      const proxyUrl = "http://localhost:3000/api/session";
-      const requestBody = JSON.stringify({
-        websiteId: this.websiteId,
-      });
+      // Try to create a session using each API URL in sequence
+      const tryCreateSession = (index) => {
+        // If we've tried all URLs without success, stop
+        if (index >= this.apiBaseUrls.length) {
+          console.error("VoiceroCore: All session creation attempts failed");
+          this.isInitializingSession = false;
+          this.isSessionOperationInProgress = false;
+          this.lastSessionOperationTime = Date.now();
+          this.sessionInitialized = false;
+          return;
+        }
 
-      console.log("VoiceroCore: Creating session with body:", requestBody);
+        const baseUrl = this.apiBaseUrls[index];
+        const proxyUrl = `${baseUrl}/api/session`;
 
-      try {
+        console.log(
+          `VoiceroCore: Trying to create session with URL (${index + 1}/${this.apiBaseUrls.length}):`,
+          proxyUrl,
+        );
+
+        const requestBody = JSON.stringify({
+          websiteId: this.websiteId,
+        });
+
+        console.log("VoiceroCore: Creating session with body:", requestBody);
+
         fetch(proxyUrl, {
           method: "POST",
           headers: {
@@ -1262,12 +1312,18 @@
             console.log("VoiceroCore: Session initialization complete");
           })
           .catch((error) => {
-            console.error("VoiceroCore: Session creation failed:", error);
-            this.isInitializingSession = false;
-            this.isSessionOperationInProgress = false;
-            this.lastSessionOperationTime = Date.now();
-            this.sessionInitialized = false;
+            console.error(
+              `VoiceroCore: Session creation with ${baseUrl} failed:`,
+              error,
+            );
+            // Try the next URL
+            tryCreateSession(index + 1);
           });
+      };
+
+      try {
+        // Start trying with the first URL (localhost)
+        tryCreateSession(0);
       } catch (error) {
         console.error("VoiceroCore: Session creation error:", error);
         this.isInitializingSession = false;
@@ -1282,15 +1338,56 @@
       // Only run if jQuery is available
       if (typeof window.jQuery === "undefined") {
         // Use fetch as a fallback if jQuery isn't available
-        fetch("http://localhost:3000/api/session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ websiteId: this.websiteId }),
-        })
-          .then((response) => response.json())
-          .then((data) => {
+        const tryCreateWithFetch = (baseUrl) => {
+          return fetch(`${baseUrl}/api/session`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ websiteId: this.websiteId }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.session && data.session.id) {
+                this.session = data.session;
+                this.sessionId = data.session.id;
+
+                try {
+                  localStorage.setItem("voicero_session_id", data.session.id);
+                } catch (e) {}
+              }
+
+              this.sessionInitialized = true;
+              this.isInitializingSession = false;
+              this.createButton();
+            });
+        };
+
+        // Try localhost first, then production URL
+        tryCreateWithFetch("http://localhost:3000")
+          .catch((error) => {
+            console.log(
+              "VoiceroCore: Failed to create session with localhost, trying production URL",
+            );
+            return tryCreateWithFetch("https://www.voicero.ai");
+          })
+          .catch(() => {
+            this.isInitializingSession = false;
+            this.sessionInitialized = false;
+            this.createButton();
+          });
+        return;
+      }
+
+      // Use jQuery if available - try localhost first
+      const tryCreateWithJQuery = (baseUrl) => {
+        window.jQuery.ajax({
+          url: `${baseUrl}/api/session`,
+          type: "POST",
+          data: JSON.stringify({ websiteId: this.websiteId }),
+          contentType: "application/json",
+          dataType: "json",
+          success: (data) => {
             if (data.session && data.session.id) {
               this.session = data.session;
               this.sessionId = data.session.id;
@@ -1303,47 +1400,37 @@
             this.sessionInitialized = true;
             this.isInitializingSession = false;
             this.createButton();
-          })
-          .catch(() => {
-            this.isInitializingSession = false;
-            this.sessionInitialized = false;
-            this.createButton();
-          });
-        return;
-      }
+          },
+          error: () => {
+            // If localhost fails, try production URL
+            if (baseUrl === "http://localhost:3000") {
+              console.log(
+                "VoiceroCore: Failed to create session with localhost, trying production URL with jQuery",
+              );
+              tryCreateWithJQuery("https://www.voicero.ai");
+            } else {
+              // Both URLs failed
+              this.isInitializingSession = false;
+              this.sessionInitialized = false;
+              this.createButton();
+            }
+          },
+        });
+      };
 
-      // Use jQuery if available
-      window.jQuery.ajax({
-        url: "http://localhost:3000/api/session",
-        type: "POST",
-        data: JSON.stringify({ websiteId: this.websiteId }),
-        contentType: "application/json",
-        dataType: "json",
-        success: (data) => {
-          if (data.session && data.session.id) {
-            this.session = data.session;
-            this.sessionId = data.session.id;
-
-            try {
-              localStorage.setItem("voicero_session_id", data.session.id);
-            } catch (e) {}
-          }
-
-          this.sessionInitialized = true;
-          this.isInitializingSession = false;
-          this.createButton();
-        },
-        error: (xhr, status, error) => {
-          this.isInitializingSession = false;
-          this.sessionInitialized = false;
-          this.createButton();
-        },
-      });
+      // Start with localhost
+      tryCreateWithJQuery("http://localhost:3000");
     },
 
     // Get the working API base URL
     getApiBaseUrl: function () {
-      return this.apiBaseUrl || this.apiBaseUrls[0];
+      // If we already have a working API URL, use it
+      if (this.apiBaseUrl) {
+        return this.apiBaseUrl;
+      }
+
+      // Otherwise, try localhost first, then fall back to production URL if available
+      return this.apiBaseUrls[0] || "https://www.voicero.ai";
     },
 
     // Show the chooser interface when an active interface is closed
