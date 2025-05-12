@@ -22,6 +22,19 @@ const VoiceroSupport = {
 
     // Immediately process any existing messages
     this.processExistingMessages();
+
+    // Also set up a delayed retry for processing messages and observers
+    // This helps in case the chat interfaces are created after this module loads
+    setTimeout(() => {
+      this.setupMessageObservers();
+      this.processExistingMessages();
+
+      // Add a second delayed retry with longer timeout for slower pages
+      setTimeout(() => {
+        this.setupMessageObservers();
+        this.processExistingMessages();
+      }, 3000); // 3 seconds later
+    }, 1000); // 1 second later
   },
 
   /**
@@ -39,110 +52,260 @@ const VoiceroSupport = {
    * Set up observer for text chat interface
    */
   setupTextChatObserver: function () {
-    // Find the text chat container
-    const textChatContainer = document.getElementById(
-      "voicero-text-chat-container"
-    );
-    if (!textChatContainer || !textChatContainer.shadowRoot) return;
+    console.log("VoiceroSupport: Setting up text chat observer");
 
-    // Get the messages container from shadow DOM
-    const messagesContainer =
-      textChatContainer.shadowRoot.getElementById("chat-messages");
-    if (!messagesContainer) return;
+    // Function to find and observe the chat messages container
+    const setupObserver = () => {
+      // Find the text chat container
+      const textChatContainer = document.getElementById(
+        "voicero-text-chat-container",
+      );
+      if (!textChatContainer || !textChatContainer.shadowRoot) {
+        console.log(
+          "VoiceroSupport: Text chat container or shadowRoot not found, will retry",
+        );
+        return false;
+      }
 
-    // Create mutation observer
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-          // Process each new node
-          mutation.addedNodes.forEach((node) => {
-            if (node.classList && node.classList.contains("ai-message")) {
-              // Don't add report buttons to placeholder messages or typing indicators
-              if (
-                !node.classList.contains("placeholder") &&
-                !node.classList.contains("typing-wrapper")
-              ) {
-                // Use a small delay to ensure the message content is fully rendered
-                setTimeout(() => {
-                  this.attachReportButtonToMessage(node, "text");
-                }, 100);
+      // Get the messages container from shadow DOM
+      const messagesContainer =
+        textChatContainer.shadowRoot.getElementById("chat-messages");
+      if (!messagesContainer) {
+        console.log(
+          "VoiceroSupport: Messages container not found in shadowRoot, will retry",
+        );
+        return false;
+      }
+
+      console.log(
+        "VoiceroSupport: Found text chat messages container, setting up observer",
+      );
+
+      // Create mutation observer
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+            // Process each new node
+            mutation.addedNodes.forEach((node) => {
+              if (node.classList && node.classList.contains("ai-message")) {
+                // Don't add report buttons to placeholder messages or typing indicators
+                if (
+                  !node.classList.contains("placeholder") &&
+                  !node.classList.contains("typing-wrapper")
+                ) {
+                  // Use a small delay to ensure the message content is fully rendered
+                  setTimeout(() => {
+                    this.attachReportButtonToMessage(node, "text");
+                  }, 100);
+                }
               }
-            }
-          });
-        }
+            });
+          }
+        });
       });
-    });
 
-    // Start observing
-    observer.observe(messagesContainer, { childList: true, subtree: false });
+      // Start observing
+      observer.observe(messagesContainer, { childList: true, subtree: false });
+      console.log("VoiceroSupport: Text chat observer successfully set up");
+      return true;
+    };
+
+    // Try to set up the observer immediately
+    const initialSetupSuccess = setupObserver();
+
+    // If initial setup fails, retry with exponential backoff
+    if (!initialSetupSuccess) {
+      let retryCount = 0;
+      const maxRetries = 10;
+
+      const retrySetup = () => {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const backoffTime = Math.min(1000 * Math.pow(1.5, retryCount), 10000); // Exponential backoff with 10s max
+
+          console.log(
+            `VoiceroSupport: Retrying text chat observer setup in ${backoffTime}ms (attempt ${retryCount})`,
+          );
+
+          setTimeout(() => {
+            if (!setupObserver()) {
+              retrySetup();
+            }
+          }, backoffTime);
+        } else {
+          console.log(
+            "VoiceroSupport: Max retries reached for text chat observer setup",
+          );
+        }
+      };
+
+      retrySetup();
+    }
   },
 
   /**
    * Set up observer for voice chat interface
    */
   setupVoiceChatObserver: function () {
-    // Find the voice chat container
-    const voiceChatContainer = document.getElementById("voice-chat-interface");
-    if (!voiceChatContainer) return;
+    console.log("VoiceroSupport: Setting up voice chat observer");
 
-    // Get the messages container
-    const messagesContainer =
-      voiceChatContainer.querySelector("#voice-messages");
-    if (!messagesContainer) return;
+    // Function to find and observe the voice chat messages container
+    const setupObserver = () => {
+      // Find the voice chat container
+      const voiceChatContainer = document.getElementById(
+        "voice-chat-interface",
+      );
+      if (!voiceChatContainer) {
+        console.log(
+          "VoiceroSupport: Voice chat container not found, will retry",
+        );
+        return false;
+      }
 
-    // Create mutation observer
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-          // Process each new node
-          mutation.addedNodes.forEach((node) => {
-            if (node.classList && node.classList.contains("ai-message")) {
-              // Don't add report buttons to placeholder messages or typing indicators
-              if (
-                !node.classList.contains("placeholder") &&
-                !node.classList.contains("typing-indicator")
-              ) {
-                // Use a small delay to ensure the message content is fully rendered
-                setTimeout(() => {
-                  this.attachReportButtonToMessage(node, "voice");
-                }, 100);
+      // Get the messages container
+      const messagesContainer =
+        voiceChatContainer.querySelector("#voice-messages");
+      if (!messagesContainer) {
+        console.log(
+          "VoiceroSupport: Voice messages container not found, will retry",
+        );
+        return false;
+      }
+
+      console.log(
+        "VoiceroSupport: Found voice chat messages container, setting up observer",
+      );
+
+      // Create mutation observer
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+            // Process each new node
+            mutation.addedNodes.forEach((node) => {
+              if (node.classList && node.classList.contains("ai-message")) {
+                // Don't add report buttons to placeholder messages or typing indicators
+                if (
+                  !node.classList.contains("placeholder") &&
+                  !node.classList.contains("typing-indicator")
+                ) {
+                  // Use a small delay to ensure the message content is fully rendered
+                  setTimeout(() => {
+                    this.attachReportButtonToMessage(node, "voice");
+                  }, 100);
+                }
               }
-            }
-          });
-        }
+            });
+          }
+        });
       });
-    });
 
-    // Start observing
-    observer.observe(messagesContainer, { childList: true, subtree: false });
+      // Start observing
+      observer.observe(messagesContainer, { childList: true, subtree: false });
+      console.log("VoiceroSupport: Voice chat observer successfully set up");
+      return true;
+    };
+
+    // Try to set up the observer immediately
+    const initialSetupSuccess = setupObserver();
+
+    // If initial setup fails, retry with exponential backoff
+    if (!initialSetupSuccess) {
+      let retryCount = 0;
+      const maxRetries = 10;
+
+      const retrySetup = () => {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const backoffTime = Math.min(1000 * Math.pow(1.5, retryCount), 10000); // Exponential backoff with 10s max
+
+          console.log(
+            `VoiceroSupport: Retrying voice chat observer setup in ${backoffTime}ms (attempt ${retryCount})`,
+          );
+
+          setTimeout(() => {
+            if (!setupObserver()) {
+              retrySetup();
+            }
+          }, backoffTime);
+        } else {
+          console.log(
+            "VoiceroSupport: Max retries reached for voice chat observer setup",
+          );
+        }
+      };
+
+      retrySetup();
+    }
   },
 
   /**
    * Process existing messages in both chat interfaces
    */
   processExistingMessages: function () {
-    // Process text chat messages
-    const textChatContainer = document.getElementById(
-      "voicero-text-chat-container"
-    );
-    if (textChatContainer && textChatContainer.shadowRoot) {
-      const aiMessages = textChatContainer.shadowRoot.querySelectorAll(
-        ".ai-message:not(.placeholder):not(.typing-wrapper)"
-      );
-      aiMessages.forEach((message) => {
-        this.attachReportButtonToMessage(message, "text");
-      });
-    }
+    console.log("VoiceroSupport: Processing existing messages");
 
-    // Process voice chat messages
-    const voiceChatContainer = document.getElementById("voice-chat-interface");
-    if (voiceChatContainer) {
-      const aiMessages = voiceChatContainer.querySelectorAll(
-        ".ai-message:not(.placeholder):not(.typing-indicator)"
+    try {
+      // Process text chat messages
+      const textChatContainer = document.getElementById(
+        "voicero-text-chat-container",
       );
-      aiMessages.forEach((message) => {
-        this.attachReportButtonToMessage(message, "voice");
-      });
+
+      if (textChatContainer && textChatContainer.shadowRoot) {
+        console.log(
+          "VoiceroSupport: Found text chat container with shadow root",
+        );
+
+        // Try to get all AI messages from shadow DOM
+        const aiMessages = textChatContainer.shadowRoot.querySelectorAll(
+          ".ai-message:not(.placeholder):not(.typing-wrapper)",
+        );
+
+        console.log(
+          `VoiceroSupport: Found ${aiMessages.length} existing text AI messages`,
+        );
+
+        // Process each message
+        aiMessages.forEach((message) => {
+          if (!message.querySelector(".voicero-report-button")) {
+            this.attachReportButtonToMessage(message, "text");
+          }
+        });
+      } else {
+        console.log(
+          "VoiceroSupport: Text chat container or shadow root not available",
+        );
+      }
+
+      // Process voice chat messages
+      const voiceChatContainer = document.getElementById(
+        "voice-chat-interface",
+      );
+      if (voiceChatContainer) {
+        console.log("VoiceroSupport: Found voice chat container");
+
+        // Get all AI messages
+        const aiMessages = voiceChatContainer.querySelectorAll(
+          ".ai-message:not(.placeholder):not(.typing-indicator)",
+        );
+
+        console.log(
+          `VoiceroSupport: Found ${aiMessages.length} existing voice AI messages`,
+        );
+
+        // Process each message
+        aiMessages.forEach((message) => {
+          if (!message.querySelector(".voicero-report-button")) {
+            this.attachReportButtonToMessage(message, "voice");
+          }
+        });
+      } else {
+        console.log("VoiceroSupport: Voice chat container not available");
+      }
+    } catch (error) {
+      console.error(
+        "VoiceroSupport: Error processing existing messages:",
+        error,
+      );
     }
   },
 
@@ -152,83 +315,123 @@ const VoiceroSupport = {
    * @param {string} chatType - Either 'text' or 'voice'
    */
   attachReportButtonToMessage: function (messageElement, chatType) {
-    // Skip if it already has a report button
-    if (messageElement.querySelector(".voicero-report-button")) return;
+    try {
+      // Skip if it already has a report button
+      if (messageElement.querySelector(".voicero-report-button")) {
+        return;
+      }
 
-    // Skip welcome messages and system messages
-    if (
-      messageElement.querySelector(".welcome-message") ||
-      messageElement.querySelector(".voice-prompt") ||
-      messageElement.classList.contains("placeholder") ||
-      messageElement.classList.contains("typing-indicator") ||
-      messageElement.classList.contains("typing-wrapper")
-    ) {
-      return;
-    }
+      // Skip welcome messages and system messages
+      if (
+        messageElement.querySelector(".welcome-message") ||
+        messageElement.querySelector(".voice-prompt") ||
+        messageElement.classList.contains("placeholder") ||
+        messageElement.classList.contains("typing-indicator") ||
+        messageElement.classList.contains("typing-wrapper")
+      ) {
+        return;
+      }
 
-    // Create a unique ID for this message if it doesn't have one
-    if (!messageElement.dataset.messageId) {
-      messageElement.dataset.messageId = this.generateUniqueId();
-    }
+      // Create a unique ID for this message if it doesn't have one
+      if (!messageElement.dataset.messageId) {
+        messageElement.dataset.messageId = this.generateUniqueId();
+      }
 
-    // Store the message content for identification
-    const messageContent =
-      chatType === "text"
-        ? messageElement.querySelector(".message-content")?.textContent ||
-          messageElement.textContent
-        : messageElement.querySelector(".voice-message-content")?.textContent ||
-          messageElement.textContent;
+      // Store the message content for identification
+      let messageContent = "";
 
-    // Save this as a data attribute to find the correct message later
-    if (messageContent) {
-      // Trim the content and store only the first 100 chars to avoid huge data attributes
-      const trimmedContent = messageContent.trim().substring(0, 100);
-      messageElement.dataset.messageContent = trimmedContent;
-    }
+      if (chatType === "text") {
+        const contentEl = messageElement.querySelector(".message-content");
+        if (contentEl) {
+          // For text format, get text content with normalized whitespace
+          messageContent = contentEl.textContent || contentEl.innerText || "";
+        } else {
+          // Fallback to direct text content
+          messageContent =
+            messageElement.textContent || messageElement.innerText || "";
+        }
+      } else {
+        // voice
+        const contentEl = messageElement.querySelector(
+          ".voice-message-content",
+        );
+        if (contentEl) {
+          messageContent = contentEl.textContent || contentEl.innerText || "";
+        } else {
+          messageContent =
+            messageElement.textContent || messageElement.innerText || "";
+        }
+      }
 
-    // Create the report button
-    const reportButton = document.createElement("div");
-    reportButton.className = "voicero-report-button";
-    reportButton.innerHTML = "Report an AI problem";
-    reportButton.style.cssText = `
-      font-size: 12px;
-      color: #888;
-      margin-top: 10px;
-      text-align: right;
-      cursor: pointer;
-      text-decoration: underline;
-      display: block;
-      opacity: 0.8;
-      transition: opacity 0.2s ease;
-    `;
+      // Save this as a data attribute to find the correct message later
+      if (messageContent) {
+        // Trim the content and store only the first 100 chars to avoid huge data attributes
+        const trimmedContent = messageContent.trim().substring(0, 100);
+        messageElement.dataset.messageContent = trimmedContent;
+      }
 
-    // Add hover effect
-    reportButton.addEventListener("mouseover", () => {
-      reportButton.style.opacity = "1";
-    });
+      // Create the report button
+      const reportButton = document.createElement("div");
+      reportButton.className = "voicero-report-button";
+      reportButton.innerHTML = "Report an AI problem";
+      reportButton.style.cssText = `
+        font-size: 12px;
+        color: #888;
+        margin-top: 10px;
+        text-align: right;
+        cursor: pointer;
+        text-decoration: underline;
+        display: block;
+        opacity: 0.8;
+        transition: opacity 0.2s ease;
+      `;
 
-    reportButton.addEventListener("mouseout", () => {
-      reportButton.style.opacity = "0.8";
-    });
+      // Add hover effect
+      reportButton.addEventListener("mouseover", () => {
+        reportButton.style.opacity = "1";
+      });
 
-    // Add click event to report the message
-    reportButton.addEventListener("click", () => {
-      this.reportMessage(
-        messageElement.dataset.messageId,
-        chatType,
-        messageElement.dataset.messageContent
-      );
-    });
+      reportButton.addEventListener("mouseout", () => {
+        reportButton.style.opacity = "0.8";
+      });
 
-    // Get the content container for message
-    const contentContainer = 
-      chatType === "text"
-        ? messageElement.querySelector(".message-content")
-        : messageElement.querySelector(".voice-message-content");
+      // Add click event to report the message
+      reportButton.addEventListener("click", (e) => {
+        // Prevent any parent click events from firing
+        e.stopPropagation();
+        e.preventDefault();
 
-    if (contentContainer) {
-      // Append the report button
-      contentContainer.appendChild(reportButton);
+        this.reportMessage(
+          messageElement.dataset.messageId,
+          chatType,
+          messageElement.dataset.messageContent,
+        );
+      });
+
+      // Get the content container for message
+      let contentContainer = null;
+
+      if (chatType === "text") {
+        contentContainer = messageElement.querySelector(".message-content");
+      } else {
+        // voice
+        contentContainer = messageElement.querySelector(
+          ".voice-message-content",
+        );
+      }
+
+      // If we found the content container, append the report button
+      if (contentContainer) {
+        contentContainer.appendChild(reportButton);
+        return true;
+      } else {
+        // If we can't find the content container, append directly to the message
+        messageElement.appendChild(reportButton);
+        return true;
+      }
+    } catch (error) {
+      console.error("Error attaching report button:", error);
+      return false;
     }
   },
 
@@ -268,7 +471,7 @@ const VoiceroSupport = {
       // First try to find by looking for a thread with the current ThreadId
       if (window.VoiceroCore.currentThreadId) {
         activeThread = window.VoiceroCore.session.threads.find(
-          (thread) => thread.threadId === window.VoiceroCore.currentThreadId
+          (thread) => thread.threadId === window.VoiceroCore.currentThreadId,
         );
       }
 
@@ -279,7 +482,7 @@ const VoiceroSupport = {
         window.VoiceroCore.thread.threadId
       ) {
         activeThread = window.VoiceroCore.session.threads.find(
-          (thread) => thread.threadId === window.VoiceroCore.thread.threadId
+          (thread) => thread.threadId === window.VoiceroCore.thread.threadId,
         );
       }
 
@@ -304,7 +507,7 @@ const VoiceroSupport = {
           if (messageContent) {
             // Try to find the message by matching content
             const assistantMessages = activeThread.messages.filter(
-              (msg) => msg.role === "assistant"
+              (msg) => msg.role === "assistant",
             );
 
             for (const msg of assistantMessages) {
@@ -319,7 +522,7 @@ const VoiceroSupport = {
           if (!actualMessageId) {
             // Get the last assistant message as fallback
             const assistantMessages = activeThread.messages.filter(
-              (msg) => msg.role === "assistant"
+              (msg) => msg.role === "assistant",
             );
 
             if (assistantMessages.length > 0) {
@@ -341,7 +544,7 @@ const VoiceroSupport = {
           window.VoiceroCore.session.threads
         ) {
           const textThread = window.VoiceroCore.session.threads.find(
-            (thread) => thread.threadId === window.VoiceroText.currentThreadId
+            (thread) => thread.threadId === window.VoiceroText.currentThreadId,
           );
           if (textThread) {
             threadId = textThread.id;
@@ -352,7 +555,7 @@ const VoiceroSupport = {
               messageContent
             ) {
               const assistantMessages = textThread.messages.filter(
-                (msg) => msg.role === "assistant"
+                (msg) => msg.role === "assistant",
               );
 
               for (const msg of assistantMessages) {
@@ -383,7 +586,7 @@ const VoiceroSupport = {
           window.VoiceroCore.session.threads
         ) {
           const voiceThread = window.VoiceroCore.session.threads.find(
-            (thread) => thread.threadId === window.VoiceroVoice.currentThreadId
+            (thread) => thread.threadId === window.VoiceroVoice.currentThreadId,
           );
           if (voiceThread) {
             threadId = voiceThread.id;
@@ -394,7 +597,7 @@ const VoiceroSupport = {
               messageContent
             ) {
               const assistantMessages = voiceThread.messages.filter(
-                (msg) => msg.role === "assistant"
+                (msg) => msg.role === "assistant",
               );
 
               for (const msg of assistantMessages) {
@@ -418,7 +621,7 @@ const VoiceroSupport = {
     // Check if we have the necessary information
     if (!threadId || !actualMessageId) {
       console.error(
-        "Cannot report message: Could not find proper thread or message ID"
+        "Cannot report message: Could not find proper thread or message ID",
       );
       console.error("Original message ID:", messageId);
       console.error("Detected message content:", messageContent);
@@ -426,7 +629,7 @@ const VoiceroSupport = {
       console.error("Found message ID:", actualMessageId);
       this.showReportStatus(
         "Sorry, couldn't report the AI problem. Please try again.",
-        "error"
+        "error",
       );
       return;
     }
@@ -436,7 +639,7 @@ const VoiceroSupport = {
     console.log("From thread with ID:", threadId);
     console.log(
       "Content used for matching:",
-      messageContent?.substring(0, 30) + "..."
+      messageContent?.substring(0, 30) + "...",
     );
 
     // Make API request to the WordPress endpoint with the actual UUIDs
@@ -459,14 +662,14 @@ const VoiceroSupport = {
       .then((data) => {
         this.showReportStatus(
           "Thank you! Your AI problem report has been submitted.",
-          "success"
+          "success",
         );
       })
       .catch((error) => {
         console.error("Error reporting message:", error);
         this.showReportStatus(
           "Sorry, couldn't report the AI problem. Please try again.",
-          "error"
+          "error",
         );
       });
   },
