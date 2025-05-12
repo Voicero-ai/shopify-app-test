@@ -30,6 +30,9 @@
     isInitializingSession: false, // Track if a session initialization is in progress
     sessionInitialized: false, // Track if session is fully initialized
     isWebsiteActive: false, // Track website active status
+    isSessionOperationInProgress: false, // Track if any session operation is in progress
+    lastSessionOperationTime: 0, // Track when the last session operation completed
+    sessionOperationTimeout: 2000, // Timeout in ms to consider session operation as stuck
 
     // Queue for pending window state updates
     pendingWindowStateUpdates: [],
@@ -305,6 +308,12 @@
             mainButton.addEventListener("click", function (e) {
               e.preventDefault();
               e.stopPropagation();
+              
+              // Check if session operations are in progress
+              if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                console.log("VoiceroCore: Button click ignored - session operation in progress");
+                return;
+              }
 
               // Check if any interfaces are open and close them (acting as home button)
               const voiceInterface = document.getElementById(
@@ -371,6 +380,12 @@
             voiceButton.addEventListener("click", (e) => {
               e.preventDefault();
               e.stopPropagation();
+              
+              // Check if session operations are in progress
+              if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                console.log("VoiceroCore: Voice button click ignored - session operation in progress");
+                return;
+              }
 
               // Hide the chooser
               if (chooser) {
@@ -412,6 +427,12 @@
             textButton.addEventListener("click", (e) => {
               e.preventDefault();
               e.stopPropagation();
+              
+              // Check if session operations are in progress
+              if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                console.log("VoiceroCore: Text button click ignored - session operation in progress");
+                return;
+              }
 
               // Hide the chooser
               if (chooser) {
@@ -1054,6 +1075,25 @@
       this.createSession();
     },
 
+    // Check if session operations are in progress
+    isSessionBusy: function() {
+      // If a session operation is explicitly marked as in progress
+      if (this.isSessionOperationInProgress) {
+        // Check if it's been too long (might be stuck)
+        const currentTime = Date.now();
+        const timeSinceLastOperation = currentTime - this.lastSessionOperationTime;
+        
+        if (timeSinceLastOperation > this.sessionOperationTimeout) {
+          console.warn("VoiceroCore: Session operation timeout exceeded, resetting flag");
+          this.isSessionOperationInProgress = false;
+          return false;
+        }
+        return true;
+      }
+      
+      return this.isInitializingSession;
+    },
+    
     // Create a new session
     createSession: function () {
       console.log("VoiceroCore: Starting session creation");
@@ -1064,8 +1104,10 @@
         return;
       }
 
-      // Set the initializing flag
+      // Set the initializing flags
       this.isInitializingSession = true;
+      this.isSessionOperationInProgress = true;
+      this.lastSessionOperationTime = Date.now();
       console.log("VoiceroCore: Session initialization started");
 
       const proxyUrl = "https://www.voicero.ai/api/session";
@@ -1149,16 +1191,22 @@
             // Mark session as initialized
             this.sessionInitialized = true;
             this.isInitializingSession = false;
+            this.isSessionOperationInProgress = false;
+            this.lastSessionOperationTime = Date.now();
             console.log("VoiceroCore: Session initialization complete");
           })
           .catch((error) => {
             console.error("VoiceroCore: Session creation failed:", error);
             this.isInitializingSession = false;
+            this.isSessionOperationInProgress = false;
+            this.lastSessionOperationTime = Date.now();
             this.sessionInitialized = false;
           });
       } catch (error) {
         console.error("VoiceroCore: Session creation error:", error);
         this.isInitializingSession = false;
+        this.isSessionOperationInProgress = false;
+        this.lastSessionOperationTime = Date.now();
         this.sessionInitialized = false;
       }
     },
@@ -1499,6 +1547,13 @@
 
         newVoiceButton.addEventListener("click", () => {
           console.log("!!!VOICERO DEBUG!!! Voice button clicked");
+          
+          // Check if session operations are in progress
+          if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+            console.log("VoiceroCore: Voice button click ignored - session operation in progress");
+            return;
+          }
+          
           if (chooser) {
             chooser.style.display = "none";
             chooser.style.visibility = "hidden";
@@ -1541,6 +1596,13 @@
 
         newTextButton.addEventListener("click", () => {
           console.log("!!!VOICERO DEBUG!!! Text button clicked");
+          
+          // Check if session operations are in progress
+          if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+            console.log("VoiceroCore: Text button click ignored - session operation in progress");
+            return;
+          }
+          
           if (chooser) {
             chooser.style.display = "none";
             chooser.style.visibility = "hidden";
@@ -1667,6 +1729,9 @@
     // Update window state via API
     updateWindowState: function (windowState) {
       console.log("VoiceroCore: Updating window state", windowState);
+
+      this.isSessionOperationInProgress = true;
+      this.lastSessionOperationTime = Date.now();
 
       // Set coreOpen to false if either text or voice interface is open
       if (windowState.textOpen === true || windowState.voiceOpen === true) {
@@ -1831,9 +1896,15 @@
                 window.VoiceroVoice.session = data.session;
               }
             }
+            
+            this.isSessionOperationInProgress = false;
+            this.lastSessionOperationTime = Date.now();
           })
           .catch((error) => {
             console.error("VoiceroCore: Window state update failed:", error);
+            
+            this.isSessionOperationInProgress = false;
+            this.lastSessionOperationTime = Date.now();
           });
       }, 0);
     },
@@ -2038,6 +2109,12 @@
       newButton.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Check if session operations are in progress
+        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+          console.log("VoiceroCore: Button click ignored - session operation in progress");
+          return;
+        }
 
         // Create chooser if it doesn't exist
         let chooser = document.getElementById("interaction-chooser");
@@ -2137,6 +2214,12 @@
             const voiceButton = document.getElementById("voice-chooser-button");
             if (voiceButton) {
               voiceButton.addEventListener("click", () => {
+                // Check if session operations are in progress
+                if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                  console.log("VoiceroCore: Voice button click ignored - session operation in progress");
+                  return;
+                }
+                
                 if (chooser) {
                   chooser.style.display = "none";
                 }
@@ -2171,6 +2254,12 @@
             const textButton = document.getElementById("text-chooser-button");
             if (textButton) {
               textButton.addEventListener("click", () => {
+                // Check if session operations are in progress
+                if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+                  console.log("VoiceroCore: Text button click ignored - session operation in progress");
+                  return;
+                }
+                
                 if (chooser) {
                   chooser.style.display = "none";
                 }
