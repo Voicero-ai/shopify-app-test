@@ -671,11 +671,11 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
 
   // Generate a temporary ID for messages
   generateId: function () {
-    return (
-      "temp-" +
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
+    return window.VoiceroPageData && window.VoiceroPageData.generateId
+      ? window.VoiceroPageData.generateId()
+      : "temp-" +
+          Math.random().toString(36).substring(2, 15) +
+          Math.random().toString(36).substring(2, 15);
   },
 
   // Fetch website data from /api/connect endpoint
@@ -3103,6 +3103,13 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
 
   // Get color variants from a hex color
   getColorVariants: function (color) {
+    // Use the shared utility function instead of duplicating the code
+    if (window.VoiceroColor && window.VoiceroColor.getColorVariants) {
+      this.colorVariants = window.VoiceroColor.getColorVariants(color);
+      return this.colorVariants;
+    }
+
+    // Fallback implementation if utility isn't loaded
     if (!color) color = this.websiteColor || "#882be6";
 
     // Initialize with the main color
@@ -3166,314 +3173,74 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
     }
 
     this.colorVariants = variants;
-
     return variants;
   },
 
   // Helper methods for color variations
   colorLighter: function (color) {
-    if (!color) return "#d5c5f3";
-    if (!color.startsWith("#")) return color;
-
-    try {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      const lightR = Math.min(255, Math.floor(r * 1.6));
-      const lightG = Math.min(255, Math.floor(g * 1.6));
-      const lightB = Math.min(255, Math.floor(b * 1.6));
-
-      return `#${lightR.toString(16).padStart(2, "0")}${lightG
-        .toString(16)
-        .padStart(2, "0")}${lightB.toString(16).padStart(2, "0")}`;
-    } catch (e) {
-      return "#d5c5f3";
-    }
+    return window.VoiceroColor && window.VoiceroColor.colorLighter
+      ? window.VoiceroColor.colorLighter(color)
+      : !color
+        ? "#d5c5f3"
+        : !color.startsWith("#")
+          ? color
+          : "#d5c5f3";
   },
 
   colorLight: function (color) {
-    if (!color) return "#9370db";
-    if (!color.startsWith("#")) return color;
-
-    try {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      const lightR = Math.min(255, Math.floor(r * 1.3));
-      const lightG = Math.min(255, Math.floor(g * 1.3));
-      const lightB = Math.min(255, Math.floor(b * 1.3));
-
-      return `#${lightR.toString(16).padStart(2, "0")}${lightG
-        .toString(16)
-        .padStart(2, "0")}${lightB.toString(16).padStart(2, "0")}`;
-    } catch (e) {
-      return "#9370db";
-    }
+    return window.VoiceroColor && window.VoiceroColor.colorLight
+      ? window.VoiceroColor.colorLight(color)
+      : !color
+        ? "#9370db"
+        : !color.startsWith("#")
+          ? color
+          : "#9370db";
   },
 
   colorDark: function (color) {
-    if (!color) return "#7a5abf";
-    if (!color.startsWith("#")) return color;
-
-    try {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      const darkR = Math.floor(r * 0.7);
-      const darkG = Math.floor(g * 0.7);
-      const darkB = Math.floor(b * 0.7);
-
-      return `#${darkR.toString(16).padStart(2, "0")}${darkG
-        .toString(16)
-        .padStart(2, "0")}${darkB.toString(16).padStart(2, "0")}`;
-    } catch (e) {
-      return "#7a5abf";
-    }
+    return window.VoiceroColor && window.VoiceroColor.colorDark
+      ? window.VoiceroColor.colorDark(color)
+      : !color
+        ? "#7a5abf"
+        : !color.startsWith("#")
+          ? color
+          : "#7a5abf";
   },
 
   colorDarker: function (color) {
-    if (!color) return "#5e3b96";
-    if (!color.startsWith("#")) return color;
-
-    try {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      const darkR = Math.floor(r * 0.5);
-      const darkG = Math.floor(g * 0.5);
-      const darkB = Math.floor(b * 0.5);
-
-      return `#${darkR.toString(16).padStart(2, "0")}${darkG
-        .toString(16)
-        .padStart(2, "0")}${darkB.toString(16).padStart(2, "0")}`;
-    } catch (e) {
-      return "#5e3b96";
-    }
+    return window.VoiceroColor && window.VoiceroColor.colorDarker
+      ? window.VoiceroColor.colorDarker(color)
+      : !color
+        ? "#5e3b96"
+        : !color.startsWith("#")
+          ? color
+          : "#5e3b96";
   },
 
   adjustColor: function (color, adjustment) {
-    if (!color) return "#ff4444";
-    if (!color.startsWith("#")) return color;
-
-    try {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      // Positive adjustment makes it lighter, negative makes it darker
-      let factor = adjustment < 0 ? 1 + adjustment : 1 + adjustment;
-
-      // Adjust RGB values
-      let newR =
-        adjustment < 0
-          ? Math.floor(r * factor)
-          : Math.min(255, Math.floor(r * factor));
-      let newG =
-        adjustment < 0
-          ? Math.floor(g * factor)
-          : Math.min(255, Math.floor(g * factor));
-      let newB =
-        adjustment < 0
-          ? Math.floor(b * factor)
-          : Math.min(255, Math.floor(b * factor));
-
-      // Convert back to hex
-      return `#${newR.toString(16).padStart(2, "0")}${newG
-        .toString(16)
-        .padStart(2, "0")}${newB.toString(16).padStart(2, "0")}`;
-    } catch (e) {
-      return color;
-    }
+    return window.VoiceroColor && window.VoiceroColor.adjustColor
+      ? window.VoiceroColor.adjustColor(color, adjustment)
+      : !color
+        ? "#ff4444"
+        : !color.startsWith("#")
+          ? color
+          : "#ff4444";
   },
 
   // Collect page data for better context
   collectPageData: function () {
-    const pageData = {
-      url: window.location.href,
-      full_text: document.body.innerText.trim(),
-      buttons: [],
-      forms: [],
-      sections: [],
-      images: [],
-    };
-
-    // Only include elements that are within the body and not the header
-    const isInHeader = (element) => {
-      let parent = element.parentElement;
-      while (parent) {
-        if (parent.tagName && parent.tagName.toLowerCase() === "header") {
-          return true;
-        }
-        parent = parent.parentElement;
-      }
-      return false;
-    };
-
-    // Check if element is in footer
-    const isInFooter = (element) => {
-      let parent = element.parentElement;
-      while (parent) {
-        if (
-          parent.tagName &&
-          (parent.tagName.toLowerCase() === "footer" ||
-            parent.id === "colophon" ||
-            parent.id === "ast-scroll-top")
-        ) {
-          return true;
-        }
-        parent = parent.parentElement;
-      }
-      return false;
-    };
-
-    // Filter function to exclude unwanted elements
-    const shouldExcludeElement = (element) => {
-      if (!element) return false;
-
-      // Skip elements without IDs that are in header, footer, or admin bars
-      if (!element.id) {
-        if (isInHeader(element) || isInFooter(element)) {
-          return true;
-        }
-        return false;
-      }
-
-      // Check if element.id is a string before calling toLowerCase()
-      const id =
-        typeof element.id === "string"
-          ? element.id.toLowerCase()
-          : String(element.id).toLowerCase();
-
-      // Specific button IDs to exclude
-      if (id === "chat-website-button" || id === "voice-mic-button") {
-        return true;
-      }
-
-      // Exclude common WordPress admin elements
-      if (id === "wpadminbar" || id === "adminbarsearch" || id === "page") {
-        return true;
-      }
-
-      // Exclude masthead
-      if (id === "masthead" || id.includes("masthead")) {
-        return true;
-      }
-
-      // Exclude elements with ids starting with wp- or voicero
-      if (id.startsWith("wp-") || id.startsWith("voicero")) {
-        return true;
-      }
-
-      // Exclude voice toggle container
-      if (id === "voice-toggle-container") {
-        return true;
-      }
-
-      // Exclude elements related to voice-chat or text-chat
-      if (id.includes("voice-") || id.includes("text-chat")) {
-        return true;
-      }
-
-      return false;
-    };
-
-    // Collect all buttons that meet our criteria
-    const buttonElements = document.querySelectorAll("button");
-    buttonElements.forEach((button) => {
-      if (
-        !isInHeader(button) &&
-        !isInFooter(button) &&
-        !shouldExcludeElement(button)
-      ) {
-        pageData.buttons.push({
-          id: button.id || "",
-          text: button.innerText.trim(),
-        });
-      }
-    });
-
-    // Collect all forms and their inputs/selects that meet our criteria
-    const formElements = document.querySelectorAll("form");
-    formElements.forEach((form) => {
-      if (
-        !isInHeader(form) &&
-        !isInFooter(form) &&
-        !shouldExcludeElement(form)
-      ) {
-        const formData = {
-          id: form.id || "",
-          inputs: [],
-          selects: [],
+    // Use the shared utility function instead of duplicating the code
+    return window.VoiceroPageData
+      ? window.VoiceroPageData.collectPageData()
+      : // Fallback implementation in case the utility isn't loaded
+        {
+          url: window.location.href,
+          full_text: document.body.innerText.trim(),
+          buttons: [],
+          forms: [],
+          sections: [],
+          images: [],
         };
-
-        // Get inputs
-        const inputs = form.querySelectorAll("input");
-        inputs.forEach((input) => {
-          formData.inputs.push({
-            name: input.name || "",
-            type: input.type || "",
-            value: input.value || "",
-          });
-        });
-
-        // Get selects
-        const selects = form.querySelectorAll("select");
-        selects.forEach((select) => {
-          const selectData = {
-            name: select.name || "",
-            options: [],
-          };
-
-          // Get options
-          const options = select.querySelectorAll("option");
-          options.forEach((option) => {
-            selectData.options.push({
-              value: option.value || "",
-              text: option.innerText.trim(),
-            });
-          });
-
-          formData.selects.push(selectData);
-        });
-
-        pageData.forms.push(formData);
-      }
-    });
-
-    // Collect important sections that meet our criteria
-    const sectionElements = document.querySelectorAll(
-      "div[id], section, article, main, aside",
-    );
-    sectionElements.forEach((section) => {
-      if (
-        !isInHeader(section) &&
-        !isInFooter(section) &&
-        !shouldExcludeElement(section)
-      ) {
-        pageData.sections.push({
-          id: section.id || "",
-          tag: section.tagName.toLowerCase(),
-          text_snippet: section.innerText.substring(0, 150).trim(), // First 150 chars
-        });
-      }
-    });
-
-    // Collect images that meet our criteria
-    const imageElements = document.querySelectorAll("img");
-    imageElements.forEach((img) => {
-      if (!isInHeader(img) && !isInFooter(img) && !shouldExcludeElement(img)) {
-        pageData.images.push({
-          src: img.src || "",
-          alt: img.alt || "",
-        });
-      }
-    });
-
-    return pageData;
   },
 
   // Toggle from text chat to voice chat
