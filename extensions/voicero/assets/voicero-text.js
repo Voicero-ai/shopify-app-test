@@ -46,6 +46,9 @@ const VoiceroText = {
 
     console.log("VoiceroText: Initializing");
 
+    // Initialize the hasShownWelcome flag
+    this.hasShownWelcome = false;
+
     // Set session and thread from VoiceroCore if available
     if (window.VoiceroCore) {
       this.session = window.VoiceroCore.session;
@@ -175,6 +178,8 @@ const VoiceroText = {
       // Mark that we've shown the welcome message
       if (shouldShowWelcome) {
         window.VoiceroCore.appState.hasShownTextWelcome = true;
+        // Also set our internal flag for consistent tracking
+        this.hasShownWelcome = false; // We want the welcome message to be shown once during this session
       }
     }
 
@@ -328,6 +333,18 @@ const VoiceroText = {
     // Flag to track if any messages were loaded
     let messagesLoaded = false;
 
+    // Flag to check if we should show welcome message
+    let shouldShowWelcome = false;
+
+    // Check if textWelcome flag is set in session
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.textWelcome
+    ) {
+      shouldShowWelcome = true;
+    }
+
     // Check if we have a session with threads
     if (
       window.VoiceroCore &&
@@ -430,13 +447,83 @@ const VoiceroText = {
       } else {
         // Still store the thread ID even if no messages
         this.currentThreadId = currentThread.threadId;
+
+        // Thread exists but has no messages, mark as empty for welcome message
+        shouldShowWelcome = true;
+      }
+    } else {
+      // No threads available, mark as empty for welcome message
+      shouldShowWelcome = true;
+    }
+
+    // If no messages were loaded and we should show welcome message
+    if (!messagesLoaded && shouldShowWelcome) {
+      this.showWelcomeMessage();
+    }
+  },
+
+  // Helper function to display the welcome message
+  showWelcomeMessage: function () {
+    // If this welcome message has already been shown, don't show it again
+    if (this.hasShownWelcome) {
+      console.log("Welcome message already shown, skipping...");
+      return;
+    }
+
+    // Set the flag to indicate we've shown the welcome
+    this.hasShownWelcome = true;
+
+    // Prevent showing welcome message if an AI message already exists
+    const messagesContainer = this.shadowRoot
+      ? this.shadowRoot.getElementById("chat-messages")
+      : document.getElementById("chat-messages");
+
+    if (messagesContainer && messagesContainer.querySelector(".ai-message")) {
+      return;
+    }
+
+    // Get website name if available
+    let websiteName = "our website";
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.website &&
+      window.VoiceroCore.session.website.name
+    ) {
+      websiteName = window.VoiceroCore.session.website.name;
+    } else {
+      // Try to get from document title as fallback
+      if (document.title) {
+        // Extract site name (before " - " or " | " if present)
+        const title = document.title;
+        const separatorIndex = Math.min(
+          title.indexOf(" - ") > -1 ? title.indexOf(" - ") : Infinity,
+          title.indexOf(" | ") > -1 ? title.indexOf(" | ") : Infinity,
+        );
+
+        if (separatorIndex !== Infinity) {
+          websiteName = title.substring(0, separatorIndex);
+        } else {
+          websiteName = title;
+        }
       }
     }
 
-    if (!messagesLoaded) {
-      const messagesContainer = this.shadowRoot
-        ? this.shadowRoot.getElementById("chat-messages")
-        : document.getElementById("chat-messages");
+    // Create welcome message with website name
+    const welcomeMessage = `👋 Welcome to ${websiteName}! 
+
+I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questions about products, services, or anything else related to ${websiteName}.
+
+Feel free to ask me anything, and I'll do my best to assist you!`;
+
+    // Add the welcome message to the interface
+    this.addMessage(welcomeMessage, "ai");
+
+    // Update state to prevent showing welcome again
+    if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+      window.VoiceroCore.updateWindowState({
+        textWelcome: false,
+      });
     }
   },
 
@@ -1876,6 +1963,12 @@ const VoiceroText = {
 
     // Reset messages array
     this.messages = [];
+
+    // Reset the welcome flag so we can show welcome message after clearing
+    this.hasShownWelcome = false;
+
+    // Show welcome message after clearing chat
+    this.showWelcomeMessage();
   },
 
   // Send chat message to API

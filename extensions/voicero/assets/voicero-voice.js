@@ -33,6 +33,7 @@ const VoiceroVoice = {
   isOpeningVoiceChat: false,
   isClosingVoiceChat: false, // New flag to track close operation
   lastOpenTime: 0, // New: Track when the interface was last opened
+  hasShownWelcome: false, // Flag to track if welcome message has been shown
 
   // Initialize the voice module
   init: function () {
@@ -863,6 +864,8 @@ const VoiceroVoice = {
       // Mark that we've shown the welcome message
       if (shouldShowWelcome) {
         window.VoiceroCore.appState.hasShownVoiceWelcome = true;
+        // Also set our internal flag for consistent tracking
+        this.hasShownWelcome = false; // We want to show the welcome message once during this session
       }
     }
 
@@ -2928,43 +2931,12 @@ const VoiceroVoice = {
 
     // Reset the messages array as well
     this.messages = [];
-  },
 
-  // Stop any ongoing recording
-  stopRecording: function (processAudioData = true) {
-    // Set flag to indicate recording is stopped
-    this.isRecording = false;
-    this.manuallyStoppedRecording = !processAudioData;
+    // Reset the welcome flag so we can show welcome message after clearing
+    this.hasShownWelcome = false;
 
-    // Stop any audio streams that might be active
-    if (this.currentAudioStream) {
-      this.currentAudioStream.getTracks().forEach((track) => track.stop());
-      this.currentAudioStream = null;
-    }
-
-    // Stop the media recorder if it exists
-    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
-      this.mediaRecorder.stop();
-    }
-
-    // Clear any timers
-    if (this.silenceDetectionTimer) {
-      clearInterval(this.silenceDetectionTimer);
-      this.silenceDetectionTimer = null;
-    }
-
-    if (this.recordingTimeout) {
-      clearTimeout(this.recordingTimeout);
-      this.recordingTimeout = null;
-    }
-
-    // Reset audio related variables
-    this.audioContext = null;
-    this.analyser = null;
-    this.audioChunks = [];
-    this.silenceTime = 0;
-    this.isSpeaking = false;
-    this.hasStartedSpeaking = false;
+    // Show welcome message after clearing chat
+    this.showWelcomeMessage();
   },
 
   // Load messages from session
@@ -3055,8 +3027,117 @@ const VoiceroVoice = {
       } else {
         // Still store the thread ID even if no messages
         this.currentThreadId = currentThread.threadId;
+
+        // If no messages were loaded and this is a fresh thread, show welcome message
+        if (!messagesLoaded) {
+          this.showWelcomeMessage();
+          return; // Exit after showing welcome to prevent duplicate messages
+        }
+      }
+    } else if (!messagesLoaded) {
+      // If no threads at all, show welcome message
+      this.showWelcomeMessage();
+    }
+  },
+
+  // Helper function to display the welcome message
+  showWelcomeMessage: function () {
+    // If we've already shown a welcome message in this session, don't show it again
+    if (this.hasShownWelcome) {
+      console.log("Welcome message already shown, skipping...");
+      return;
+    }
+
+    // Set the flag to indicate we've shown the welcome
+    this.hasShownWelcome = true;
+
+    // Prevent showing welcome message if an AI message already exists
+    const messagesContainer = document.getElementById("voice-messages");
+    if (messagesContainer && messagesContainer.querySelector(".ai-message")) {
+      return;
+    }
+
+    // Get website name if available
+    let websiteName = "our website";
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.website &&
+      window.VoiceroCore.session.website.name
+    ) {
+      websiteName = window.VoiceroCore.session.website.name;
+    } else if (document.title) {
+      // Extract site name (before " - " or " | " if present)
+      const title = document.title;
+      const separatorIndex = Math.min(
+        title.indexOf(" - ") > -1 ? title.indexOf(" - ") : Infinity,
+        title.indexOf(" | ") > -1 ? title.indexOf(" | ") : Infinity,
+      );
+
+      if (separatorIndex !== Infinity) {
+        websiteName = title.substring(0, separatorIndex);
+      } else {
+        websiteName = title;
       }
     }
+
+    // Welcome message for voice interface
+    // Create welcome message with website name
+    const welcomeMessage = `👋 Welcome to ${websiteName}! 
+
+I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questions about products, services, or anything else related to ${websiteName}.
+
+Feel free to ask me anything, and I'll do my best to assist you!`;
+
+
+    console.log("Showing welcome message");
+
+    // Add the message
+    this.addMessage(welcomeMessage, "ai");
+
+    // Scroll to bottom
+    if (messagesContainer) {
+      setTimeout(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }, 100);
+    }
+  },
+
+  // Stop any ongoing recording
+  stopRecording: function (processAudioData = true) {
+    // Set flag to indicate recording is stopped
+    this.isRecording = false;
+    this.manuallyStoppedRecording = !processAudioData;
+
+    // Stop any audio streams that might be active
+    if (this.currentAudioStream) {
+      this.currentAudioStream.getTracks().forEach((track) => track.stop());
+      this.currentAudioStream = null;
+    }
+
+    // Stop the media recorder if it exists
+    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+      this.mediaRecorder.stop();
+    }
+
+    // Clear any timers
+    if (this.silenceDetectionTimer) {
+      clearInterval(this.silenceDetectionTimer);
+      this.silenceDetectionTimer = null;
+    }
+
+    if (this.recordingTimeout) {
+      clearTimeout(this.recordingTimeout);
+      this.recordingTimeout = null;
+    }
+
+    // Reset audio related variables
+    this.audioContext = null;
+    this.analyser = null;
+    this.audioChunks = [];
+    this.silenceTime = 0;
+    this.isSpeaking = false;
+    this.hasStartedSpeaking = false;
   },
 
   // Helper methods for color variations
