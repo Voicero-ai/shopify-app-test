@@ -33,17 +33,40 @@ const VoiceroText = {
 
   // Initialize the text module
   init: function () {
+    // Check if already initialized
+    if (this.initialized) return;
+
+    // Mark as initialized
+    this.initialized = true;
+
+    console.log("VoiceroText: Initializing");
+
+    // Set session and thread from VoiceroCore if available
+    if (window.VoiceroCore) {
+      this.session = window.VoiceroCore.session;
+      this.thread = window.VoiceroCore.thread;
+      this.sessionId = window.VoiceroCore.sessionId;
+      this.websiteId = window.VoiceroCore.websiteId;
+      this.websiteColor = window.VoiceroCore.websiteColor;
+
+      // Ensure the text interface is always maximized by default
+      if (this.session && this.session.textOpen) {
+        console.log(
+          "VoiceroText: Ensuring textOpenWindowUp is true by default",
+        );
+        this.session.textOpenWindowUp = true;
+
+        // Update window state if we have access to the method
+        if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+          window.VoiceroCore.updateWindowState({
+            textOpenWindowUp: true,
+          });
+        }
+      }
+    }
+
     // Apply global welcome styles immediately
     this.forceGlobalWelcomeStyles();
-
-    // Check if already initialized to prevent double initialization
-    if (this.initialized) {
-      return;
-    }
-    // Initialize messages array
-    this.messages = [];
-    // Mark as initialized early to prevent initialization loops
-    this.initialized = true;
 
     // Get API URL and color from Core if available
     if (window.VoiceroCore) {
@@ -151,6 +174,16 @@ const VoiceroText = {
 
   // Open text chat interface
   openTextChat: function () {
+    console.log(
+      "VoiceroText: Opening text chat interface - ensuring it's maximized",
+    );
+
+    // IMPORTANT: Always ensure textOpenWindowUp is true when opening the interface
+    // It should only be set to false when the user explicitly clicks the minimize button
+    if (window.VoiceroCore && window.VoiceroCore.session) {
+      window.VoiceroCore.session.textOpenWindowUp = true;
+    }
+
     // Check if thread has messages
     const hasMessages = this.messages && this.messages.length > 0;
 
@@ -168,14 +201,6 @@ const VoiceroText = {
       shouldShowWelcome = window.VoiceroCore.session.textWelcome;
     }
 
-    // Get current state of textOpenWindowUp if available
-    let shouldBeMaximized = true;
-
-    // Check if there's already a session with textOpenWindowUp defined
-    if (this.session && typeof this.session.textOpenWindowUp !== "undefined") {
-      shouldBeMaximized = this.session.textOpenWindowUp;
-    }
-
     // Update window state if it hasn't been done already
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
       window.VoiceroCore.updateWindowState({
@@ -186,6 +211,12 @@ const VoiceroText = {
         voiceOpen: false,
         voiceOpenWindowUp: false,
       });
+    }
+
+    // Also update the session object directly to ensure consistency
+    if (window.VoiceroCore && window.VoiceroCore.session) {
+      window.VoiceroCore.session.textOpen = true;
+      window.VoiceroCore.session.textOpenWindowUp = true;
     }
 
     // Close voice interface if it's open
@@ -348,15 +379,14 @@ const VoiceroText = {
     // After the interface is fully loaded and visible, check if it should be minimized
     // based on the previous session state (delayed to prevent race conditions)
     setTimeout(() => {
-      // Now check if we should be minimized according to session preferences
-      // We only check this AFTER ensuring the interface is visible
-      if (
-        window.VoiceroCore &&
-        window.VoiceroCore.session &&
-        window.VoiceroCore.session.textOpenWindowUp === false
-      ) {
-        this.minimizeChat();
-      }
+      // We no longer auto-minimize the interface when opening
+      // The interface should only be minimized when the user explicitly clicks the minimize button
+      console.log(
+        "VoiceroText: Interface opened and maximized - auto-minimize disabled",
+      );
+
+      // Force maximize to ensure consistency
+      this._isChatVisible = true;
     }, 1500);
   },
 

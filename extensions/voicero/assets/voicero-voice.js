@@ -36,9 +36,37 @@ const VoiceroVoice = {
 
   // Initialize the voice module
   init: function () {
+    // Check if already initialized
     if (this.initialized) return;
 
-    console.log("VoiceroVoice: Initializing voice module");
+    // Set initialized flag
+    this.initialized = true;
+
+    console.log("VoiceroVoice: Initializing");
+
+    // Set session from VoiceroCore if available
+    if (window.VoiceroCore) {
+      this.session = window.VoiceroCore.session;
+      this.thread = window.VoiceroCore.thread;
+      this.sessionId = window.VoiceroCore.sessionId;
+      this.websiteId = window.VoiceroCore.websiteId;
+      this.websiteColor = window.VoiceroCore.websiteColor || "#882be6";
+
+      // Ensure the voice interface is always maximized by default
+      if (this.session && this.session.voiceOpen) {
+        console.log(
+          "VoiceroVoice: Ensuring voiceOpenWindowUp is true by default",
+        );
+        this.session.voiceOpenWindowUp = true;
+
+        // Update window state if we have access to the method
+        if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+          window.VoiceroCore.updateWindowState({
+            voiceOpenWindowUp: true,
+          });
+        }
+      }
+    }
 
     // Set up message container references
     this.setupContainers();
@@ -98,9 +126,6 @@ const VoiceroVoice = {
       // If DOM is already loaded, create interface immediately
       this.createVoiceChatInterface();
     }
-
-    // Mark as initialized
-    this.initialized = true;
   },
 
   // Create voice chat interface (HTML structure)
@@ -870,7 +895,17 @@ const VoiceroVoice = {
 
   // Open voice chat interface
   openVoiceChat: function () {
-    // Sync theme color before opening
+    console.log(
+      "VoiceroVoice: Opening voice chat interface - ensuring it's maximized",
+    );
+
+    // IMPORTANT: Always ensure voiceOpenWindowUp is true when opening the interface
+    // It should only be set to false when the user explicitly clicks the minimize button
+    if (window.VoiceroCore && window.VoiceroCore.session) {
+      window.VoiceroCore.session.voiceOpenWindowUp = true;
+    }
+
+    // Continue with normal initialization
     this.syncThemeColor();
 
     console.log("VoiceroVoice: Opening voice chat interface");
@@ -916,6 +951,12 @@ const VoiceroVoice = {
         textOpen: false,
         textOpenWindowUp: false,
       });
+    }
+
+    // Also update the session object directly to ensure consistency
+    if (window.VoiceroCore && window.VoiceroCore.session) {
+      window.VoiceroCore.session.voiceOpen = true;
+      window.VoiceroCore.session.voiceOpenWindowUp = true;
     }
 
     // Apply consistent border radius for maximized state
@@ -1006,23 +1047,14 @@ const VoiceroVoice = {
     // After the interface is fully loaded and visible, check if it should be minimized
     // based on the previous session state (delayed to prevent race conditions)
     setTimeout(() => {
-      // Now check if we should be minimized according to session preferences
-      // We only check this AFTER ensuring the interface is visible
-      if (
-        window.VoiceroCore &&
-        window.VoiceroCore.session &&
-        window.VoiceroCore.session.voiceOpenWindowUp === false &&
-        !this.isClosingVoiceChat
-      ) {
-        console.log(
-          "VoiceroVoice: Session preference is minimized - minimizing after UI is ready",
-        );
-        this.isOpeningVoiceChat = false; // Clear flag to allow minimizing
-        this.minimizeVoiceChat();
-      } else {
-        console.log("VoiceroVoice: Resetting opening flag");
-        this.isOpeningVoiceChat = false;
-      }
+      // We no longer auto-minimize the interface when opening
+      // The interface should only be minimized when the user explicitly clicks the minimize button
+      console.log(
+        "VoiceroVoice: Interface opened and maximized - auto-minimize disabled",
+      );
+
+      // Just clear the opening flag
+      this.isOpeningVoiceChat = false;
     }, 1500);
   },
 

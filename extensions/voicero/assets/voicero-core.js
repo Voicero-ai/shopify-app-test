@@ -371,21 +371,41 @@
 
               // If no interfaces were open, then toggle the chooser
               if (!interfacesOpen) {
-                // Get the current display style - needs to check computed style
-                const computedStyle = window.getComputedStyle(chooser);
-                const isVisible =
-                  computedStyle.display !== "none" &&
-                  computedStyle.visibility !== "hidden" &&
-                  computedStyle.opacity !== "0";
+                // Simply toggle the chooserOpen state
+                const shouldShow = !window.VoiceroCore.session?.chooserOpen;
+                console.log("VoiceroCore: Toggling chooser to:", shouldShow);
 
-                if (isVisible) {
-                  chooser.style.display = "none";
-                  chooser.style.visibility = "hidden";
-                  chooser.style.opacity = "0";
+                // Update the session and UI
+                if (shouldShow) {
+                  // Session first then UI
+                  if (window.VoiceroCore.session) {
+                    window.VoiceroCore.session.chooserOpen = true;
+                  }
+
+                  // Show the UI
+                  if (window.VoiceroChooser) {
+                    window.VoiceroChooser.showChooser();
+                  }
+
+                  // Update API
+                  window.VoiceroCore.updateWindowState({
+                    chooserOpen: true,
+                  });
                 } else {
-                  chooser.style.display = "flex";
-                  chooser.style.visibility = "visible";
-                  chooser.style.opacity = "1";
+                  // Session first then UI
+                  if (window.VoiceroCore.session) {
+                    window.VoiceroCore.session.chooserOpen = false;
+                  }
+
+                  // Hide the UI
+                  if (window.VoiceroChooser) {
+                    window.VoiceroChooser.hideChooser();
+                  }
+
+                  // Update API
+                  window.VoiceroCore.updateWindowState({
+                    chooserOpen: false,
+                  });
                 }
               }
             });
@@ -414,21 +434,32 @@
 
               // Hide the chooser
               if (chooser) {
-                chooser.style.display = "none";
-                chooser.style.visibility = "hidden";
-                chooser.style.opacity = "0";
+                window.VoiceroCore.hideChooser();
               }
 
-              // Update window state first (set voice open flags)
-              // REMOVED: Let openVoiceChat handle its own state update
-              // this.updateWindowState({
-              //   voiceOpen: true,
-              //   voiceOpenWindowUp: true,
-              //   textOpen: false,
-              //   textOpenWindowUp: false,
-              // });
+              // Update session state directly
+              if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+                window.VoiceroCore.updateWindowState({
+                  voiceOpen: true,
+                  voiceOpenWindowUp: true,
+                  textOpen: false,
+                  textOpenWindowUp: false,
+                  coreOpen: false,
+                });
+              }
 
-              // Open the voice interface
+              // Create voice interface if needed
+              let voiceInterface = document.getElementById(
+                "voice-chat-interface",
+              );
+              if (!voiceInterface) {
+                container.insertAdjacentHTML(
+                  "beforeend",
+                  `<div id="voice-chat-interface" style="display: none;"></div>`,
+                );
+              }
+
+              // Try to open voice interface
               if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
                 window.VoiceroVoice.openVoiceChat();
                 // Force maximize after opening
@@ -463,21 +494,32 @@
 
               // Hide the chooser
               if (chooser) {
-                chooser.style.display = "none";
-                chooser.style.visibility = "hidden";
-                chooser.style.opacity = "0";
+                window.VoiceroCore.hideChooser();
               }
 
-              // Update window state first (set text open flags)
-              // REMOVED: Let openTextChat handle its own state update
-              // this.updateWindowState({
-              //   textOpen: true,
-              //   textOpenWindowUp: true,
-              //   voiceOpen: false,
-              //   voiceOpenWindowUp: false,
-              // });
+              // Update session state directly
+              if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
+                window.VoiceroCore.updateWindowState({
+                  textOpen: true,
+                  textOpenWindowUp: true,
+                  voiceOpen: false,
+                  voiceOpenWindowUp: false,
+                  coreOpen: false,
+                });
+              }
 
-              // Open the text interface
+              // Create text interface if needed
+              let textInterface = document.getElementById(
+                "voicero-text-chat-container",
+              );
+              if (!textInterface) {
+                container.insertAdjacentHTML(
+                  "beforeend",
+                  `<div id="voicero-text-chat-container" style="display: none;"></div>`,
+                );
+              }
+
+              // Try to open text interface
               if (window.VoiceroText && window.VoiceroText.openTextChat) {
                 window.VoiceroText.openTextChat();
                 // Force maximize after opening
@@ -676,18 +718,15 @@
                           window.VoiceroVoice &&
                           window.VoiceroVoice.openVoiceChat
                         ) {
-                          window.VoiceroVoice.openVoiceChat();
-                          // If voiceOpenWindowUp is false, minimize after opening
-                          if (data.session.voiceOpenWindowUp === false) {
-                            setTimeout(() => {
-                              if (
-                                window.VoiceroVoice &&
-                                window.VoiceroVoice.minimizeVoiceChat
-                              ) {
-                                window.VoiceroVoice.minimizeVoiceChat();
-                              }
-                            }, 100);
+                          // First ensure the voiceOpenWindowUp is set to true in the session
+                          if (data.session) {
+                            data.session.voiceOpenWindowUp = true;
                           }
+
+                          // Then open the interface (always maximized)
+                          window.VoiceroVoice.openVoiceChat();
+
+                          // We no longer minimize based on session value when explicitly opening
                         }
                       } else if (data.session.textOpen === true) {
                         console.log(
@@ -697,18 +736,15 @@
                           window.VoiceroText &&
                           window.VoiceroText.openTextChat
                         ) {
-                          window.VoiceroText.openTextChat();
-                          // If textOpenWindowUp is false, minimize after opening
-                          if (data.session.textOpenWindowUp === false) {
-                            setTimeout(() => {
-                              if (
-                                window.VoiceroText &&
-                                window.VoiceroText.minimizeChat
-                              ) {
-                                window.VoiceroText.minimizeChat();
-                              }
-                            }, 100); // Small delay
+                          // First ensure the textOpenWindowUp is set to true in the session
+                          if (data.session) {
+                            data.session.textOpenWindowUp = true;
                           }
+
+                          // Then open the interface (always maximized)
+                          window.VoiceroText.openTextChat();
+
+                          // We no longer minimize based on session value when explicitly opening
                         }
                       }
                     }
@@ -790,13 +826,7 @@
       // Hide the chooser as well if it exists
       const chooser = document.getElementById("interaction-chooser");
       if (chooser) {
-        chooser.style.cssText = `
-          display: none !important;
-          visibility: hidden !important;
-          opacity: 0 !important;
-          pointer-events: none !important;
-          z-index: -1 !important;
-        `;
+        this.hideChooser();
       }
 
       // Set a flag in the object to remember button is hidden
@@ -986,8 +1016,14 @@
         setTimeout(() => this.hideMainButton(), 1000);
         setTimeout(() => this.hideMainButton(), 2000);
       } else {
-        // No interfaces open, ensure button is visible
-        this.ensureMainButtonVisible();
+        // Check if we should show chooser based on session state
+        if (this.session.chooserOpen === true) {
+          console.log("VoiceroCore: Showing chooser from session state");
+          setTimeout(() => this.displayChooser(), 300);
+        } else {
+          // No interfaces open and chooser not open, ensure button is visible
+          this.ensureMainButtonVisible();
+        }
 
         // Clear initialization flag after we've determined no interfaces need to be opened
         this.isInitializing = false;
@@ -1025,18 +1061,15 @@
       if (this.session.textOpen === true) {
         // Make sure VoiceroText is initialized
         if (window.VoiceroText) {
-          // Open the text chat (will always open maximized now)
+          // First ensure the textOpenWindowUp is set to true in the session
+          if (this.session) {
+            this.session.textOpenWindowUp = true;
+          }
+
+          // Open the text chat (always maximized)
           window.VoiceroText.openTextChat();
 
-          // AFTER opening, check if it should be minimized based on session
-          if (this.session.textOpenWindowUp === false) {
-            // Use setTimeout to allow the interface to render first
-            setTimeout(() => {
-              if (window.VoiceroText && window.VoiceroText.minimizeChat) {
-                window.VoiceroText.minimizeChat();
-              }
-            }, 100); // Small delay
-          }
+          // We no longer minimize based on session value when explicitly opening
 
           // Multiple timeouts to ensure button stays hidden
           this.buttonVisibilityTimeouts = [
@@ -1051,20 +1084,15 @@
       else if (this.session.voiceOpen === true) {
         // Make sure VoiceroVoice is initialized
         if (window.VoiceroVoice) {
-          // Open voice chat
+          // First ensure the voiceOpenWindowUp is set to true in the session
+          if (this.session) {
+            this.session.voiceOpenWindowUp = true;
+          }
+
+          // Open voice chat (always maximized)
           window.VoiceroVoice.openVoiceChat();
 
-          // Check if it should be minimized
-          if (this.session.voiceOpenWindowUp === false) {
-            setTimeout(() => {
-              if (
-                window.VoiceroVoice &&
-                window.VoiceroVoice.minimizeVoiceChat
-              ) {
-                window.VoiceroVoice.minimizeVoiceChat();
-              }
-            }, 500); // Short delay to ensure interface is fully open first
-          }
+          // We no longer minimize based on session value when explicitly opening
 
           // Check if auto mic should be activated
           if (this.session.autoMic === true) {
@@ -1326,377 +1354,53 @@
 
     // Show the chooser interface when an active interface is closed
     showChooser: function () {
-      console.log("!!!VOICERO DEBUG!!! showChooser called");
-      console.log("!!!VOICERO DEBUG!!! Session:", JSON.stringify(this.session));
-
-      // Check if suppressChooser is true and immediately return
-      if (this.session && this.session.suppressChooser) {
+      // Check if we already have the right state to avoid redundant updates
+      if (this.session && this.session.chooserOpen === true) {
         console.log(
-          "!!!VOICERO DEBUG!!! suppressChooser is true, not showing chooser",
-        );
-        return;
-      }
-
-      // Clear any existing choosers to prevent duplicates
-      const allChoosers = document.querySelectorAll("#interaction-chooser");
-      console.log(
-        "!!!VOICERO DEBUG!!! Found " + allChoosers.length + " chooser elements",
-      );
-
-      if (allChoosers.length > 1) {
-        console.log(
-          "!!!VOICERO DEBUG!!! Removing " +
-            (allChoosers.length - 1) +
-            " duplicate choosers",
-        );
-        // Remove all but the last one
-        for (let i = 0; i < allChoosers.length - 1; i++) {
-          if (allChoosers[i] && allChoosers[i].parentNode) {
-            allChoosers[i].parentNode.removeChild(allChoosers[i]);
-          }
-        }
-      }
-
-      // Create a new chooser to ensure it's fresh
-      this.createChooser();
-
-      const chooser = document.getElementById("interaction-chooser");
-      if (chooser) {
-        console.log("!!!VOICERO DEBUG!!! Setting chooser to visible");
-
-        // FORCE VISIBILITY WITH DIRECT ATTRIBUTE SETTING
-        chooser.setAttribute(
-          "style",
-          "position: fixed !important;" +
-            "bottom: 80px !important;" +
-            "right: 20px !important;" +
-            "z-index: 10001 !important;" +
-            "background-color: #c8c8c8 !important;" +
-            "border-radius: 12px !important;" +
-            "box-shadow: 6px 6px 0 " +
-            (this.websiteColor || "#882be6") +
-            " !important;" +
-            "padding: 15px !important;" +
-            "width: 280px !important;" +
-            "border: 1px solid rgb(0, 0, 0) !important;" +
-            "display: flex !important;" +
-            "visibility: visible !important;" +
-            "opacity: 1 !important;" +
-            "flex-direction: column !important;" +
-            "align-items: center !important;" +
-            "margin: 0 !important;" +
-            "transform: none !important;",
-        );
-
-        // Make sure the buttons are properly styled
-        const voiceButton = document.getElementById("voice-chooser-button");
-        const textButton = document.getElementById("text-chooser-button");
-
-        if (voiceButton) {
-          console.log("!!!VOICERO DEBUG!!! Fixing voice button style");
-
-          voiceButton.setAttribute(
-            "style",
-            "position: relative !important;" +
-              "display: flex !important;" +
-              "align-items: center !important;" +
-              "padding: 10px 10px !important;" +
-              "margin-bottom: 10px !important;" +
-              "margin-left: -30px !important;" +
-              "cursor: pointer !important;" +
-              "border-radius: 8px !important;" +
-              "background-color: white !important;" +
-              "border: 1px solid rgb(0, 0, 0) !important;" +
-              "box-shadow: 4px 4px 0 rgb(0, 0, 0) !important;" +
-              "transition: all 0.2s ease !important;" +
-              "width: 200px !important;",
-          );
-        }
-
-        if (textButton) {
-          console.log("!!!VOICERO DEBUG!!! Fixing text button style");
-
-          textButton.setAttribute(
-            "style",
-            "position: relative !important;" +
-              "display: flex !important;" +
-              "align-items: center !important;" +
-              "padding: 10px 10px !important;" +
-              "margin-left: -30px !important;" +
-              "cursor: pointer !important;" +
-              "border-radius: 8px !important;" +
-              "background-color: white !important;" +
-              "border: 1px solid rgb(0, 0, 0) !important;" +
-              "box-shadow: 4px 4px 0 rgb(0, 0, 0) !important;" +
-              "transition: all 0.2s ease !important;" +
-              "width: 200px !important;",
-          );
-        }
-
-        // Check the final computed style
-        const computedStyle = window.getComputedStyle(chooser);
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser display:",
-          computedStyle.display,
-        );
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser visibility:",
-          computedStyle.visibility,
-        );
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser opacity:",
-          computedStyle.opacity,
-        );
-        console.log(
-          "!!!VOICERO DEBUG!!! FINAL chooser flexDirection:",
-          computedStyle.flexDirection,
+          "VoiceroCore: Chooser already marked as open in session, just showing UI",
         );
       } else {
-        console.log(
-          "!!!VOICERO DEBUG!!! CRITICAL ERROR: Chooser not found in DOM after creation",
-        );
+        // Make sure chooserOpen is set to true in the session
+        if (this.session) {
+          console.log("VoiceroCore: Updating session with chooserOpen=true");
+          this.session.chooserOpen = true;
+          // Update the window state
+          this.updateWindowState({
+            chooserOpen: true,
+            coreOpen: true,
+            textOpen: false,
+            voiceOpen: false,
+          });
+        }
       }
+
+      // Delegate to the new VoiceroChooser module
+      if (window.VoiceroChooser && window.VoiceroChooser.showChooser) {
+        window.VoiceroChooser.showChooser();
+      } else {
+        console.error("VoiceroCore: VoiceroChooser module not available");
+
+        // Fallback if module not available - try to show it directly
+        const chooser = document.getElementById("interaction-chooser");
+        if (chooser) {
+          chooser.style.display = "flex";
+          chooser.style.visibility = "visible";
+          chooser.style.opacity = "1";
+        }
+      }
+
+      // Ensure the main button is visible
+      this.ensureMainButtonVisible();
     },
 
     // Create the interaction chooser with consistent HTML and styles
     createChooser: function () {
-      console.log("!!!VOICERO DEBUG!!! createChooser called");
-
-      // Remove any existing chooser
-      const oldChooser = document.getElementById("interaction-chooser");
-      if (oldChooser && oldChooser.parentNode) {
-        console.log("!!!VOICERO DEBUG!!! Removing old chooser");
-        oldChooser.parentNode.removeChild(oldChooser);
-      }
-
-      const themeColor = this.websiteColor || "#882be6";
-      console.log("!!!VOICERO DEBUG!!! Using theme color:", themeColor);
-
-      const buttonContainer = document.getElementById("voice-toggle-container");
-      if (!buttonContainer) {
-        console.log(
-          "!!!VOICERO DEBUG!!! CRITICAL ERROR: Button container not found",
-        );
-        return;
-      }
-
-      console.log("!!!VOICERO DEBUG!!! Creating fresh chooser HTML");
-
-      // Insert the HTML
-      buttonContainer.insertAdjacentHTML(
-        "beforeend",
-        `<div
-          id="interaction-chooser"
-          style="
-            position: fixed !important;
-            bottom: 80px !important;
-            right: 20px !important;
-            z-index: 10001 !important;
-            background-color: #c8c8c8 !important;
-            border-radius: 12px !important;
-            box-shadow: 6px 6px 0 ${themeColor} !important;
-            padding: 15px !important;
-            width: 280px !important;
-            border: 1px solid rgb(0, 0, 0) !important;
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            margin: 0 !important;
-            transform: none !important;
-          "
-        >
-          <div
-            id="voice-chooser-button"
-            class="interaction-option voice"
-            style="
-              position: relative;
-              display: flex;
-              align-items: center;
-              padding: 10px 10px;
-              margin-bottom: 10px;
-              margin-left: -30px;
-              cursor: pointer;
-              border-radius: 8px;
-              background-color: white;
-              border: 1px solid rgb(0, 0, 0);
-              box-shadow: 4px 4px 0 rgb(0, 0, 0);
-              transition: all 0.2s ease;
-              width: 200px;
-            "
-          >
-            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
-              Voice Conversation
-            </span>
-            <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <path d="M12 19v4"/>
-              <path d="M8 23h8"/>
-            </svg>
-          </div>
-
-          <div
-            id="text-chooser-button"
-            class="interaction-option text"
-            style="
-              position: relative;
-              display: flex;
-              align-items: center;
-              padding: 10px 10px;
-              margin-left: -30px;
-              cursor: pointer;
-              border-radius: 8px;
-              background-color: white;
-              border: 1px solid rgb(0, 0, 0);
-              box-shadow: 4px 4px 0 rgb(0, 0, 0);
-              transition: all 0.2s ease;
-              width: 200px;
-            "
-          >
-            <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center;">
-              Message
-            </span>
-            <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-          
-          <div style="
-            text-align: center;
-            margin-top: 18px;
-            line-height: 1;
-          ">
-            <div style="
-              font-size: 10px;
-              color: black;
-              opacity: 0.8;
-              margin-bottom: 2px;
-            ">Powered by Voicero</div>
-            <div style="
-              font-size: 8px;
-              color: black;
-              opacity: 0.6;
-            ">Voicero AI can make mistakes</div>
-          </div>
-        </div>`,
-      );
-
-      // Check that chooser was created
-      const newChooser = document.getElementById("interaction-chooser");
-      if (newChooser) {
-        console.log("!!!VOICERO DEBUG!!! New chooser created successfully");
+      // Delegate to the new VoiceroChooser module
+      if (window.VoiceroChooser && window.VoiceroChooser.createChooser) {
+        window.VoiceroChooser.createChooser();
       } else {
-        console.log(
-          "!!!VOICERO DEBUG!!! CRITICAL ERROR: Failed to create chooser",
-        );
-        return;
+        console.error("VoiceroCore: VoiceroChooser module not available");
       }
-
-      // Add click handlers to the new options
-      const chooser = document.getElementById("interaction-chooser");
-      const container = document.getElementById("voicero-app-container");
-      const voiceButton = document.getElementById("voice-chooser-button");
-      if (voiceButton) {
-        console.log("!!!VOICERO DEBUG!!! Adding voice button click handler");
-
-        // Remove any existing listeners first
-        const newVoiceButton = voiceButton.cloneNode(true);
-        if (voiceButton.parentNode) {
-          voiceButton.parentNode.replaceChild(newVoiceButton, voiceButton);
-        }
-
-        newVoiceButton.addEventListener("click", () => {
-          console.log("!!!VOICERO DEBUG!!! Voice button clicked");
-
-          // Check if session operations are in progress
-          if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-            console.log(
-              "VoiceroCore: Voice button click ignored - session operation in progress",
-            );
-            return;
-          }
-
-          if (chooser) {
-            chooser.style.display = "none";
-            chooser.style.visibility = "hidden";
-            chooser.style.opacity = "0";
-          }
-          let voiceInterface = document.getElementById("voice-chat-interface");
-          if (!voiceInterface) {
-            container.insertAdjacentHTML(
-              "beforeend",
-              `<div id="voice-chat-interface" style="display: none;"></div>`,
-            );
-          }
-          if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
-            window.VoiceroVoice.openVoiceChat();
-            setTimeout(() => {
-              if (
-                window.VoiceroVoice &&
-                window.VoiceroVoice.maximizeVoiceChat
-              ) {
-                window.VoiceroVoice.maximizeVoiceChat();
-              }
-            }, 100);
-          }
-        });
-      } else {
-        console.log(
-          "!!!VOICERO DEBUG!!! Voice button not found after creation",
-        );
-      }
-
-      const textButton = document.getElementById("text-chooser-button");
-      if (textButton) {
-        console.log("!!!VOICERO DEBUG!!! Adding text button click handler");
-
-        // Remove any existing listeners first
-        const newTextButton = textButton.cloneNode(true);
-        if (textButton.parentNode) {
-          textButton.parentNode.replaceChild(newTextButton, textButton);
-        }
-
-        newTextButton.addEventListener("click", () => {
-          console.log("!!!VOICERO DEBUG!!! Text button clicked");
-
-          // Check if session operations are in progress
-          if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
-            console.log(
-              "VoiceroCore: Text button click ignored - session operation in progress",
-            );
-            return;
-          }
-
-          if (chooser) {
-            chooser.style.display = "none";
-            chooser.style.visibility = "hidden";
-            chooser.style.opacity = "0";
-          }
-          let textInterface = document.getElementById(
-            "voicero-text-chat-container",
-          );
-          if (!textInterface) {
-            container.insertAdjacentHTML(
-              "beforeend",
-              `<div id="voicero-text-chat-container" style="display: none;"></div>`,
-            );
-          }
-          if (window.VoiceroText && window.VoiceroText.openTextChat) {
-            window.VoiceroText.openTextChat();
-            setTimeout(() => {
-              if (window.VoiceroText && window.VoiceroText.maximizeChat) {
-                window.VoiceroText.maximizeChat();
-              }
-            }, 100);
-          }
-        });
-      } else {
-        console.log("!!!VOICERO DEBUG!!! Text button not found after creation");
-      }
-
-      console.log("!!!VOICERO DEBUG!!! Chooser creation complete");
     },
 
     // Ensure the main button is always visible
@@ -1800,16 +1504,28 @@
     updateWindowState: function (windowState) {
       console.log("VoiceroCore: Updating window state", windowState);
 
+      // Check for redundant chooserOpen updates but NEVER skip them
+      if (windowState.chooserOpen !== undefined && this.session) {
+        if (windowState.chooserOpen === this.session.chooserOpen) {
+          console.log(
+            "VoiceroCore: Note: chooserOpen value matches current state, but proceeding anyway for toggle: ",
+            windowState.chooserOpen,
+          );
+        }
+      }
+
       this.isSessionOperationInProgress = true;
       this.lastSessionOperationTime = Date.now();
 
       // Set coreOpen to false if either text or voice interface is open
       if (windowState.textOpen === true || windowState.voiceOpen === true) {
         windowState.coreOpen = false;
+        // Also set chooserOpen to false to be explicit
+        windowState.chooserOpen = false;
         // Hide the main button when voice or text interface is open
         this.hideMainButton();
-      } else if (!windowState.suppressChooser) {
-        // Only set coreOpen to true if both interfaces are closed and chooser isn't suppressed
+      } else if (windowState.chooserOpen === true) {
+        // If chooserOpen is explicitly set to true, respect that
         windowState.coreOpen = true;
         // Always recreate the chooser to ensure correct styling
         this.createChooser();
@@ -1817,14 +1533,17 @@
         setTimeout(() => {
           // Double-check that suppressChooser hasn't been set in the meantime
           if (!this.session || !this.session.suppressChooser) {
-            console.log("[DEBUG] Showing chooser after delay");
+            console.log("[DEBUG] Showing chooser because chooserOpen is true");
             this.showChooser();
-          } else {
-            console.log(
-              "[DEBUG] Not showing chooser because suppressChooser is true",
-            );
           }
         }, 100);
+      } else if (!windowState.suppressChooser) {
+        // Only set coreOpen to true if both interfaces are closed and chooser isn't suppressed
+        windowState.coreOpen = true;
+        // Set chooserOpen to false by default unless something else changes it
+        if (windowState.chooserOpen === undefined) {
+          windowState.chooserOpen = false;
+        }
       }
 
       // Store original suppressChooser value
@@ -2343,7 +2062,21 @@
                 }
 
                 if (chooser) {
-                  chooser.style.display = "none";
+                  window.VoiceroCore.hideChooser();
+                }
+
+                // Update session state directly
+                if (
+                  window.VoiceroCore &&
+                  window.VoiceroCore.updateWindowState
+                ) {
+                  window.VoiceroCore.updateWindowState({
+                    voiceOpen: true,
+                    voiceOpenWindowUp: true,
+                    textOpen: false,
+                    textOpenWindowUp: false,
+                    coreOpen: false,
+                  });
                 }
 
                 // Create voice interface if needed
@@ -2385,7 +2118,21 @@
                 }
 
                 if (chooser) {
-                  chooser.style.display = "none";
+                  window.VoiceroCore.hideChooser();
+                }
+
+                // Update session state directly
+                if (
+                  window.VoiceroCore &&
+                  window.VoiceroCore.updateWindowState
+                ) {
+                  window.VoiceroCore.updateWindowState({
+                    textOpen: true,
+                    textOpenWindowUp: true,
+                    voiceOpen: false,
+                    voiceOpenWindowUp: false,
+                    coreOpen: false,
+                  });
                 }
 
                 // Create text interface if needed
@@ -2426,14 +2173,10 @@
 
           if (isVisible) {
             // Hide if already visible
-            chooser.style.display = "none";
-            chooser.style.visibility = "hidden";
-            chooser.style.opacity = "0";
+            window.VoiceroCore.hideChooser();
           } else {
             // Show if hidden
-            chooser.style.display = "flex";
-            chooser.style.visibility = "visible";
-            chooser.style.opacity = "1";
+            window.VoiceroCore.displayChooser();
           }
         } else {
           // Last resort - create direct interface
@@ -2504,60 +2247,13 @@
 
     // Helper to determine if the chooser should be displayed
     shouldShowChooser: function () {
-      console.log("[DEBUG] shouldShowChooser called");
-      console.log("[DEBUG] Session exists:", !!this.session);
-      console.log("[DEBUG] Session state:", this.session);
-
-      // Don't show if session doesn't exist
-      if (!this.session) {
-        console.log("[DEBUG] No session, not showing chooser");
+      // Delegate to the new VoiceroChooser module
+      if (window.VoiceroChooser && window.VoiceroChooser.shouldShowChooser) {
+        return window.VoiceroChooser.shouldShowChooser();
+      } else {
+        console.error("VoiceroCore: VoiceroChooser module not available");
         return false;
       }
-
-      // Don't show if any interfaces are open
-      if (this.session.voiceOpen === true || this.session.textOpen === true) {
-        console.log("[DEBUG] Interface is open, not showing chooser");
-        return false;
-      }
-
-      // Don't show unless coreOpen is explicitly true and chooser isn't suppressed
-      if (
-        this.session.coreOpen !== true ||
-        this.session.suppressChooser === true
-      ) {
-        console.log(
-          "[DEBUG] coreOpen is not true or chooser is suppressed, not showing chooser",
-        );
-        return false;
-      }
-
-      // Check if interfaces are open in the DOM regardless of session state
-      const textInterface = document.getElementById(
-        "voicero-text-chat-container",
-      );
-      if (
-        textInterface &&
-        window.getComputedStyle(textInterface).display === "block"
-      ) {
-        console.log(
-          "[DEBUG] Text interface is visible in DOM, not showing chooser",
-        );
-        return false;
-      }
-
-      const voiceInterface = document.getElementById("voice-chat-interface");
-      if (
-        voiceInterface &&
-        window.getComputedStyle(voiceInterface).display === "block"
-      ) {
-        console.log(
-          "[DEBUG] Voice interface is visible in DOM, not showing chooser",
-        );
-        return false;
-      }
-
-      console.log("[DEBUG] All checks passed, should show chooser");
-      return true;
     },
 
     // Helper function to convert hex color to RGB
@@ -2678,6 +2374,91 @@
           button.style.position = "relative";
         }
       }, 100);
+    },
+
+    // Helper to hide the chooser interface
+    hideChooser: function () {
+      // Always update the session state for consistency
+      console.log("VoiceroCore: Setting chooserOpen to false in session");
+      if (this.session) {
+        this.session.chooserOpen = false;
+
+        // Update window state to persist the chooserOpen flag
+        this.updateWindowState({
+          chooserOpen: false,
+        });
+      }
+
+      // Delegate to the new VoiceroChooser module
+      if (window.VoiceroChooser && window.VoiceroChooser.hideChooser) {
+        window.VoiceroChooser.hideChooser();
+      } else {
+        // Fallback if VoiceroChooser is not available
+        const chooser = document.getElementById("interaction-chooser");
+        if (chooser) {
+          chooser.style.display = "none";
+          chooser.style.visibility = "hidden";
+          chooser.style.opacity = "0";
+        }
+      }
+    },
+
+    // Helper to display the chooser interface
+    displayChooser: function () {
+      // Make session update conditional but ALWAYS show the UI
+      if (this.session && this.session.chooserOpen === true) {
+        console.log(
+          "VoiceroCore: Chooser already open in session, just ensuring UI is visible",
+        );
+      } else {
+        // Update the session state
+        if (this.session) {
+          console.log("VoiceroCore: Setting chooserOpen to true");
+          this.session.chooserOpen = true;
+
+          // Update window state to persist the chooserOpen flag and ensure other interfaces are closed
+          this.updateWindowState({
+            chooserOpen: true,
+            coreOpen: true,
+            voiceOpen: false,
+            voiceOpenWindowUp: false,
+            textOpen: false,
+            textOpenWindowUp: false,
+          });
+        }
+      }
+
+      // ALWAYS hide any open interfaces
+      const textInterface = document.getElementById(
+        "voicero-text-chat-container",
+      );
+      if (textInterface) {
+        textInterface.style.display = "none";
+      }
+
+      const voiceInterface = document.getElementById("voice-chat-interface");
+      if (voiceInterface) {
+        voiceInterface.style.display = "none";
+      }
+
+      // ALWAYS show the UI, regardless of state
+      console.log("VoiceroCore: Showing chooser UI unconditionally");
+
+      // First check if VoiceroChooser module is available
+      if (window.VoiceroChooser && window.VoiceroChooser.showChooser) {
+        window.VoiceroChooser.showChooser();
+      } else {
+        // Fallback if VoiceroChooser is not available
+        const chooser = document.getElementById("interaction-chooser");
+        if (chooser) {
+          chooser.style.display = "flex";
+          chooser.style.visibility = "visible";
+          chooser.style.opacity = "1";
+        }
+      }
+
+      // Also make sure main button is visible
+      this.ensureMainButtonVisible();
     },
   };
 
