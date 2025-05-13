@@ -1524,7 +1524,12 @@ const VoiceroVoice = {
                 // Mark that first conversation has occurred
                 if (VoiceroCore && VoiceroCore.appState) {
                   VoiceroCore.appState.hasHadFirstConversation = true;
-                  VoiceroCore.saveState();
+                  if (
+                    VoiceroCore.saveState &&
+                    typeof VoiceroCore.saveState === "function"
+                  ) {
+                    VoiceroCore.saveState();
+                  }
                 }
 
                 // Show typing indicator instead of text placeholder
@@ -1740,7 +1745,12 @@ const VoiceroVoice = {
                       VoiceroCore.appState.voiceMessages = {};
                     }
                     VoiceroCore.appState.voiceMessages.ai = cleanedTextResponse;
-                    VoiceroCore.saveState();
+                    if (
+                      VoiceroCore.saveState &&
+                      typeof VoiceroCore.saveState === "function"
+                    ) {
+                      VoiceroCore.saveState();
+                    }
                   }
 
                   const contentType = ttsResponse.headers.get("Content-Type");
@@ -1816,7 +1826,12 @@ const VoiceroVoice = {
                       VoiceroCore.appState.voiceMessages = {};
                     }
                     VoiceroCore.appState.voiceMessages.ai = cleanedTextResponse;
-                    VoiceroCore.saveState();
+                    if (
+                      VoiceroCore.saveState &&
+                      typeof VoiceroCore.saveState === "function"
+                    ) {
+                      VoiceroCore.saveState();
+                    }
                   }
 
                   // Handle redirect even if audio failed, but with a longer delay to allow reading the message
@@ -3089,7 +3104,6 @@ I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questio
 
 Feel free to ask me anything, and I'll do my best to assist you!`;
 
-
     console.log("Showing welcome message");
 
     // Add the message
@@ -3608,7 +3622,12 @@ document.addEventListener("DOMContentLoaded", () => {
       VoiceroCore.appState.hasShownVoiceWelcome === undefined
     ) {
       VoiceroCore.appState.hasShownVoiceWelcome = false;
-      VoiceroCore.saveState();
+      if (
+        VoiceroCore.saveState &&
+        typeof VoiceroCore.saveState === "function"
+      ) {
+        VoiceroCore.saveState();
+      }
     }
 
     // Check for voice reactivation after navigation
@@ -3628,7 +3647,12 @@ document.addEventListener("DOMContentLoaded", () => {
           VoiceroCore.appState.isOpen = true;
           VoiceroCore.appState.activeInterface = "voice";
           VoiceroCore.appState.isVoiceMinimized = false;
-          VoiceroCore.saveState();
+          if (
+            VoiceroCore.saveState &&
+            typeof VoiceroCore.saveState === "function"
+          ) {
+            VoiceroCore.saveState();
+          }
         }
         // Open voice chat interface
         VoiceroVoice.openVoiceChat();
@@ -3664,7 +3688,12 @@ document.addEventListener("DOMContentLoaded", () => {
           VoiceroCore.appState.hasShownVoiceWelcome === undefined
         ) {
           VoiceroCore.appState.hasShownVoiceWelcome = false;
-          VoiceroCore.saveState();
+          if (
+            VoiceroCore.saveState &&
+            typeof VoiceroCore.saveState === "function"
+          ) {
+            VoiceroCore.saveState();
+          }
         }
 
         // Check for voice reactivation after VoiceroCore loads
@@ -3680,7 +3709,12 @@ document.addEventListener("DOMContentLoaded", () => {
               VoiceroCore.appState.isOpen = true;
               VoiceroCore.appState.activeInterface = "voice";
               VoiceroCore.appState.isVoiceMinimized = false;
-              VoiceroCore.saveState();
+              if (
+                VoiceroCore.saveState &&
+                typeof VoiceroCore.saveState === "function"
+              ) {
+                VoiceroCore.saveState();
+              }
             }
             VoiceroVoice.openVoiceChat();
 
