@@ -8,7 +8,12 @@ const VoiceroText = {
   // debounce visibility toggles
   _isChatVisible: false, // tracks whether messages+header+input are up
   _lastChatToggle: 0, // timestamp of last minimize/maximize
-  CHAT_TOGGLE_DEBOUNCE_MS: 200, // minimum time between toggles
+  CHAT_TOGGLE_DEBOUNCE_MS: 500, // minimum time between toggles - increased from 200ms
+
+  // Add session operation tracking
+  isSessionOperationInProgress: false,
+  lastSessionOperationTime: 0,
+  sessionOperationTimeout: 3000, // maximum time a session operation can take before being considered stuck
 
   isWaitingForResponse: false,
   typingTimeout: null,
@@ -1711,7 +1716,7 @@ const VoiceroText = {
       minimizeBtn.removeAttribute("onclick");
       minimizeBtn.addEventListener("click", () => {
         // Check if session operations are in progress
-        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        if (this.isSessionBusy()) {
           console.log(
             "VoiceroText: Minimize button click ignored - session operation in progress",
           );
@@ -1725,7 +1730,7 @@ const VoiceroText = {
       maximizeBtn.removeAttribute("onclick");
       maximizeBtn.addEventListener("click", () => {
         // Check if session operations are in progress
-        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        if (this.isSessionBusy()) {
           console.log(
             "VoiceroText: Maximize button click ignored - session operation in progress",
           );
@@ -1764,7 +1769,7 @@ const VoiceroText = {
       closeBtn.removeAttribute("onclick");
       closeBtn.addEventListener("click", () => {
         // Check if session operations are in progress
-        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        if (this.isSessionBusy()) {
           console.log(
             "VoiceroText: Close button click ignored - session operation in progress",
           );
@@ -1783,7 +1788,7 @@ const VoiceroText = {
       toggleBtn.removeAttribute("onclick");
       toggleBtn.addEventListener("click", () => {
         // Check if session operations are in progress
-        if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
+        if (this.isSessionBusy()) {
           console.log(
             "VoiceroText: Toggle button click ignored - session operation in progress",
           );
@@ -2433,8 +2438,23 @@ const VoiceroText = {
       return;
     }
 
+    // Check if session operations are in progress
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.isSessionBusy &&
+      window.VoiceroCore.isSessionBusy()
+    ) {
+      console.log("VoiceroText: Cannot close - session operation in progress");
+      return;
+    }
+
     // Set closing flag
     this.isClosingTextChat = true;
+    this.isSessionOperationInProgress = true;
+    this.lastSessionOperationTime = Date.now();
+
+    // Store reference to this for callbacks
+    const self = this;
 
     // First create reliable references to the elements we need
     const textInterface = document.getElementById("text-chat-interface");
@@ -2443,7 +2463,7 @@ const VoiceroText = {
     // Update window state first - this is critical
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
       // First update to close text chat
-      window.VoiceroCore.updateWindowState({
+      const updateResult = window.VoiceroCore.updateWindowState({
         textOpen: false,
         textOpenWindowUp: false,
         coreOpen: true,
@@ -2452,13 +2472,38 @@ const VoiceroText = {
         voiceOpenWindowUp: false,
       });
 
-      // Small delay to ensure state updates are processed
-      setTimeout(() => {
-        // Then ensure core is visible
-        if (window.VoiceroCore) {
-          window.VoiceroCore.ensureMainButtonVisible();
-        }
-      }, 100);
+      // Check if updateResult is a Promise
+      if (updateResult && typeof updateResult.finally === "function") {
+        updateResult.finally(() => {
+          // Reset busy flags after operation completes
+          self.isSessionOperationInProgress = false;
+          self.isClosingTextChat = false;
+
+          // Small delay to ensure state updates are processed
+          setTimeout(() => {
+            // Then ensure core is visible
+            if (window.VoiceroCore) {
+              window.VoiceroCore.ensureMainButtonVisible();
+            }
+          }, 100);
+        });
+      } else {
+        // If not a Promise, just reset the flags
+        self.isSessionOperationInProgress = false;
+        self.isClosingTextChat = false;
+
+        // Small delay to ensure state updates are processed
+        setTimeout(() => {
+          // Then ensure core is visible
+          if (window.VoiceroCore) {
+            window.VoiceroCore.ensureMainButtonVisible();
+          }
+        }, 100);
+      }
+    } else {
+      // Reset busy flags if VoiceroCore isn't available
+      this.isSessionOperationInProgress = false;
+      this.isClosingTextChat = false;
     }
 
     // Hide both the interface and shadow host
@@ -2468,9 +2513,6 @@ const VoiceroText = {
     if (shadowHost) {
       shadowHost.style.display = "none";
     }
-
-    // Reset closing flag
-    this.isClosingTextChat = false;
   },
 
   // Minimize the chat interface
@@ -2483,25 +2525,51 @@ const VoiceroText = {
       return; // either already minimized or called too soon
     }
 
-    // Check if API request is in progress
-    if (this.isWaitingForResponse) {
-      console.log("VoiceroText: Cannot minimize - waiting for API response");
+    // Check if session operations are in progress
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.isSessionBusy &&
+      window.VoiceroCore.isSessionBusy()
+    ) {
+      console.log(
+        "VoiceroText: Cannot minimize - session operation in progress",
+      );
       return;
     }
+
+    // Set busy flag
+    this.isSessionOperationInProgress = true;
+    this.lastSessionOperationTime = Date.now();
 
     this._lastChatToggle = now;
     this._isChatVisible = false;
 
+    // Store reference to this for callbacks
+    const self = this;
+
     // Update window state first (text open but window down)
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
-      window.VoiceroCore.updateWindowState({
+      const updateResult = window.VoiceroCore.updateWindowState({
         textOpen: true,
         textOpenWindowUp: false, // Set to false when minimized
         coreOpen: false,
         voiceOpen: false,
         voiceOpenWindowUp: false,
       });
+
+      // Check if updateResult is a Promise
+      if (updateResult && typeof updateResult.finally === "function") {
+        updateResult.finally(() => {
+          // Reset busy flag after operation completes
+          self.isSessionOperationInProgress = false;
+        });
+      } else {
+        // If not a Promise, just reset the flag
+        self.isSessionOperationInProgress = false;
+      }
     } else {
+      // Reset busy flag if VoiceroCore isn't available
+      this.isSessionOperationInProgress = false;
     }
 
     // Get the necessary elements from shadow root
@@ -2607,21 +2675,51 @@ const VoiceroText = {
       return; // either already maximized or called too soon
     }
 
-    // No need to check isWaitingForResponse here since maximizing during an API call is safe
+    // Check if session operations are in progress
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.isSessionBusy &&
+      window.VoiceroCore.isSessionBusy()
+    ) {
+      console.log(
+        "VoiceroText: Cannot maximize - session operation in progress",
+      );
+      return;
+    }
+
+    // Set busy flag
+    this.isSessionOperationInProgress = true;
+    this.lastSessionOperationTime = Date.now();
 
     this._lastChatToggle = now;
     this._isChatVisible = true;
 
+    // Store reference to this for callbacks
+    const self = this;
+
     // Update window state first (text open with window up)
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
-      window.VoiceroCore.updateWindowState({
+      const updateResult = window.VoiceroCore.updateWindowState({
         textOpen: true,
         textOpenWindowUp: true, // Set to true when maximized
         coreOpen: false,
         voiceOpen: false,
         voiceOpenWindowUp: false,
       });
+
+      // Check if updateResult is a Promise
+      if (updateResult && typeof updateResult.finally === "function") {
+        updateResult.finally(() => {
+          // Reset busy flag after operation completes
+          self.isSessionOperationInProgress = false;
+        });
+      } else {
+        // If not a Promise, just reset the flag
+        self.isSessionOperationInProgress = false;
+      }
     } else {
+      // Reset busy flag if VoiceroCore isn't available
+      this.isSessionOperationInProgress = false;
     }
 
     // Get the necessary elements from shadow root
@@ -3297,21 +3395,70 @@ const VoiceroText = {
       return;
     }
 
+    // Check if session operations are in progress
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.isSessionBusy &&
+      window.VoiceroCore.isSessionBusy()
+    ) {
+      console.log(
+        "VoiceroText: Cannot toggle to voice chat - session operation in progress",
+      );
+      return;
+    }
+
+    // Set busy flag
+    this.isSessionOperationInProgress = true;
+    this.lastSessionOperationTime = Date.now();
+
     // First close the text chat interface
-    this.closeTextChat();
+    const textInterface = document.getElementById("text-chat-interface");
+    const shadowHost = document.getElementById("voicero-text-chat-container");
+
+    // Hide both the interface and shadow host
+    if (textInterface) {
+      textInterface.style.display = "none";
+    }
+    if (shadowHost) {
+      shadowHost.style.display = "none";
+    }
+
+    // Store reference to this for callbacks
+    const self = this;
 
     // Update window state to ensure voice chat will be maximized
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
-      window.VoiceroCore.updateWindowState({
+      const updateResult = window.VoiceroCore.updateWindowState({
         voiceOpen: true,
         voiceOpenWindowUp: true, // Explicitly set to true to ensure maximized
         textOpen: false,
         textOpenWindowUp: false,
         coreOpen: false,
       });
-    }
 
-    // Then open the voice chat interface
+      // Check if updateResult is a Promise
+      if (updateResult && typeof updateResult.finally === "function") {
+        updateResult.finally(() => {
+          // Reset busy flag after operation completes
+          self.isSessionOperationInProgress = false;
+
+          // Then open the voice chat interface
+          self.openVoiceChatAfterToggle();
+        });
+      } else {
+        // If not a Promise, just reset the flag and continue
+        self.isSessionOperationInProgress = false;
+        self.openVoiceChatAfterToggle();
+      }
+    } else {
+      // Reset busy flag if VoiceroCore isn't available
+      this.isSessionOperationInProgress = false;
+      this.openVoiceChatAfterToggle();
+    }
+  },
+
+  // Helper function to open voice chat after toggle
+  openVoiceChatAfterToggle: function () {
     if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
       setTimeout(() => {
         window.VoiceroVoice.openVoiceChat();
@@ -3370,7 +3517,7 @@ const VoiceroText = {
 
       if (timeSinceLastOperation > this.sessionOperationTimeout) {
         console.warn(
-          "VoiceroCore: Session operation timeout exceeded, resetting flag",
+          "VoiceroText: Session operation timeout exceeded, resetting flag",
         );
         this.isSessionOperationInProgress = false;
         return false;
@@ -3378,11 +3525,9 @@ const VoiceroText = {
       return true;
     }
 
-    // Also check if VoiceroText is waiting for an API response
-    if (window.VoiceroText && window.VoiceroText.isWaitingForResponse) {
-      console.log(
-        "VoiceroCore: Session busy - VoiceroText is waiting for API response",
-      );
+    // Also check if waiting for API response
+    if (this.isWaitingForResponse) {
+      console.log("VoiceroText: Session busy - waiting for API response");
       return true;
     }
 
