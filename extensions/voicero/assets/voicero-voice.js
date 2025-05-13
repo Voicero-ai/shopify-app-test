@@ -128,15 +128,12 @@ const VoiceroVoice = {
 
   // Create voice chat interface (HTML structure)
   createVoiceChatInterface: function () {
-    // Check if voice chat interface AND the messages container already exist
+    // Check if interface already exists
     const existingInterface = document.getElementById("voice-chat-interface");
     const existingMessagesContainer = document.getElementById("voice-messages");
-
     if (existingInterface && existingMessagesContainer) {
       return;
     }
-
-    // If the interface exists but is incomplete, remove it so we can recreate it properly
     if (existingInterface && !existingMessagesContainer) {
       existingInterface.remove();
     }
@@ -172,6 +169,40 @@ const VoiceroVoice = {
         box-sizing: border-box !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
+      }
+
+      .typing-indicator {
+        display: flex !important;
+        gap: 4px;
+        padding: 8px 12px;
+        background: #e5e5ea;
+        border-radius: 18px;
+        width: fit-content;
+        opacity: 1 !important;
+        margin-bottom: 12px; /* Increased from 0px */
+        margin-left: 5px;
+      }
+
+      .typing-dot {
+        width: 7px;
+        height: 7px;
+        background: #999999;
+        border-radius: 50%;
+        animation: typingBounce 1s infinite;
+        opacity: 1;
+      }
+
+      .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+      .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+      @keyframes typingAnimation {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-6px); }
+      }
+      
+      @keyframes typingBounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-6px); }
       }
 
       @keyframes pulseListening {
@@ -2435,57 +2466,52 @@ const VoiceroVoice = {
     if (!messagesContainer) {
       return;
     }
+    // Remove any existing typing indicators
     this.removeTypingIndicator();
+
+    // Create a basic structure that will definitely display with our CSS
+    const wrapper = document.createElement("div");
+    wrapper.className = "ai-message typing-wrapper";
+    wrapper.style.display = "flex";
+    wrapper.style.justifyContent = "flex-start";
+    wrapper.style.position = "relative";
+    wrapper.style.paddingLeft = "8px";
+    wrapper.style.marginBottom = "16px";
 
     const indicator = document.createElement("div");
     indicator.className = "typing-indicator";
     indicator.id = "voice-typing-indicator";
-    indicator.style.cssText = `
-      display: flex;
-      gap: 4px;
-      padding: 8px 12px;
-      background: #e5e5ea;
-      border-radius: 18px;
-      margin-bottom: 12px;
-      width: fit-content;
-      align-items: center;
-      animation: fadeIn 0.3s ease forwards;
-      margin-left: 5px;
-    `;
 
+    // Create the three dots
     for (let i = 0; i < 3; i++) {
       const dot = document.createElement("div");
-      dot.style.cssText = `
-        width: 7px;
-        height: 7px;
-        background: #999999;
-        border-radius: 50%;
-        animation: typingAnimation 1s infinite;
-        animation-delay: ${i * 0.2}s;
-      `;
+      dot.className = "typing-dot";
       indicator.appendChild(dot);
     }
 
-    const animStyle = document.createElement("style");
-    animStyle.innerHTML = `
-      @keyframes typingAnimation {
-        0%, 60%, 100% { transform: translateY(0); }
-        30% { transform: translateY(-6px); }
-      }
-    `;
-    document.head.appendChild(animStyle);
-
-    messagesContainer.appendChild(indicator);
+    wrapper.appendChild(indicator);
+    messagesContainer.appendChild(wrapper);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
     return indicator;
   },
 
   // Remove typing indicator
   removeTypingIndicator: function () {
+    // Remove both the indicator itself and any typing wrapper
     const indicator = document.getElementById("voice-typing-indicator");
     if (indicator) {
-      indicator.parentNode.removeChild(indicator);
+      // If indicator is inside a wrapper, remove the wrapper instead
+      const wrapper = indicator.closest(".typing-wrapper");
+      if (wrapper) {
+        wrapper.parentNode.removeChild(wrapper);
+      } else {
+        indicator.parentNode.removeChild(indicator);
+      }
     }
+
+    // Also remove any typing-wrapper elements that might exist
+    const typingElements = document.querySelectorAll(".typing-wrapper");
+    typingElements.forEach((el) => el.remove());
   },
 
   // Add message to the voice chat

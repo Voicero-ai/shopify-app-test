@@ -675,6 +675,56 @@ div.message-bubble.user-bubble {
   }
 }
 
+/* Typing indicator styles with higher specificity */
+.typing-indicator,
+#voice-typing-indicator,
+.typing-wrapper .typing-indicator {
+  display: flex !important;
+  gap: 4px !important;
+  padding: 8px 12px !important;
+  background: #e5e5ea !important;
+  border-radius: 18px !important;
+  width: fit-content !important;
+  opacity: 1 !important;
+  margin-bottom: 12px !important;
+  margin-left: 5px !important;
+  align-items: center !important;
+}
+
+.typing-dot,
+.typing-indicator .typing-dot,
+#voice-typing-indicator .typing-dot {
+  width: 7px !important;
+  height: 7px !important;
+  background: #999999 !important;
+  border-radius: 50% !important;
+  opacity: 1 !important;
+  animation: typingBounce 1s infinite !important;
+}
+
+.typing-dot:nth-child(2),
+.typing-indicator .typing-dot:nth-child(2),
+#voice-typing-indicator .typing-dot:nth-child(2) {
+  animation-delay: 0.2s !important;
+}
+
+.typing-dot:nth-child(3),
+.typing-indicator .typing-dot:nth-child(3),
+#voice-typing-indicator .typing-dot:nth-child(3) {
+  animation-delay: 0.4s !important;
+}
+
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-6px);
+  }
+}
+
 /* Update the existing message bubble styles */
 .message-bubble.ai-bubble {
   transition: background-color 0.3s ease;
@@ -803,8 +853,6 @@ div.message-bubble.user-bubble {
   color: white !important;
 }
 
-
-
 /* Make sure user message bubbles in voice interface match text interface */
 #voice-messages .user-message .message-content {
   background-color: var(--voicero-theme-color) !important;
@@ -907,4 +955,3 @@ div.message-bubble.user-bubble {
 #voice-messages .read-status {
   margin-top: 1px !important;
 }
-
