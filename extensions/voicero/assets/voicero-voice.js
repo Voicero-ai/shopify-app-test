@@ -926,7 +926,7 @@ const VoiceroVoice = {
         min-width: 280px !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
-        border-radius: 0 0 12px 12px !important; /* Square top, rounded bottom corners */
+        border-radius: 12px !important;
       `;
     }
 
@@ -2798,7 +2798,7 @@ const VoiceroVoice = {
         min-width: 280px !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
-        border-radius: 12px 12px 0 0 !important;
+        border-radius: 12px !important;
       `;
     }
 
@@ -3410,15 +3410,15 @@ const VoiceroVoice = {
       innerWrapper.style.borderRadius = "0 0 10px 10px";
 
       if (voiceInterface) {
-        voiceInterface.style.borderRadius = "0 0 12px 12px";
+        voiceInterface.style.borderRadius = "12px 12px 12px 12px";
       }
 
       if (messagesContainer) {
-        messagesContainer.style.borderRadius = "0";
+        messagesContainer.style.borderRadius = "12px 12px 0 0";
       }
 
       if (headerContainer) {
-        headerContainer.style.borderRadius = "0";
+        headerContainer.style.borderRadius = "12px 12px 0 0";
       }
     }
   },
