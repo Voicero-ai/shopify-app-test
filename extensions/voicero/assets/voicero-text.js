@@ -3504,7 +3504,10 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
     this.isSessionOperationInProgress = true;
     this.lastSessionOperationTime = Date.now();
 
-    // First close the text chat interface
+    // Flag for tracking closure
+    this.isClosingTextChat = true;
+
+    // First hide the text chat interfaces
     const textInterface = document.getElementById("text-chat-interface");
     const shadowHost = document.getElementById("voicero-text-chat-container");
 
@@ -3519,7 +3522,8 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
     // Store reference to this for callbacks
     const self = this;
 
-    // Update window state to ensure voice chat will be maximized
+    // Update window state with a single call instead of sequentially
+    // This prevents race conditions where coreOpen ends up as true
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
       const updateResult = window.VoiceroCore.updateWindowState({
         voiceOpen: true,
@@ -3527,13 +3531,15 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
         textOpen: false,
         textOpenWindowUp: false,
         coreOpen: false,
+        autoMic: false,
       });
 
       // Check if updateResult is a Promise
       if (updateResult && typeof updateResult.finally === "function") {
         updateResult.finally(() => {
-          // Reset busy flag after operation completes
+          // Reset busy flags after operation completes
           self.isSessionOperationInProgress = false;
+          self.isClosingTextChat = false;
 
           // Then open the voice chat interface
           self.openVoiceChatAfterToggle();
@@ -3541,11 +3547,13 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
       } else {
         // If not a Promise, just reset the flag and continue
         self.isSessionOperationInProgress = false;
+        self.isClosingTextChat = false;
         self.openVoiceChatAfterToggle();
       }
     } else {
       // Reset busy flag if VoiceroCore isn't available
       this.isSessionOperationInProgress = false;
+      this.isClosingTextChat = false;
       this.openVoiceChatAfterToggle();
     }
   },

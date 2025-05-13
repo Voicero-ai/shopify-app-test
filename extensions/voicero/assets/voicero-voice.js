@@ -3380,10 +3380,19 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
   toggleToTextChat: function () {
     console.log("VoiceroVoice: Toggling from voice to text chat");
 
-    // First close the voice chat interface
-    this.closeVoiceChat();
+    // Set closing flag
+    this.isClosingVoiceChat = true;
 
-    // Update window state to ensure text chat will be maximized
+    // First create reliable references to the elements we need
+    const voiceInterface = document.getElementById("voice-chat-interface");
+
+    // Hide voice interface
+    if (voiceInterface) {
+      voiceInterface.style.display = "none";
+    }
+
+    // Update window state with a single call instead of sequential calls
+    // This prevents the race condition where coreOpen gets set to true
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
       window.VoiceroCore.updateWindowState({
         textOpen: true,
@@ -3391,8 +3400,12 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
         voiceOpen: false,
         voiceOpenWindowUp: false,
         coreOpen: false,
+        autoMic: false, // Include autoMic setting too
       });
     }
+
+    // Reset closing flag
+    this.isClosingVoiceChat = false;
 
     // Then open the text chat interface
     if (window.VoiceroText && window.VoiceroText.openTextChat) {
