@@ -33,6 +33,7 @@
     isSessionOperationInProgress: false, // Track if any session operation is in progress
     lastSessionOperationTime: 0, // Track when the last session operation completed
     sessionOperationTimeout: 2000, // Timeout in ms to consider session operation as stuck
+    appState: {}, // Store application state, including UI flags
 
     // Queue for pending window state updates
     pendingWindowStateUpdates: [],
@@ -45,6 +46,11 @@
 
       // Set up global reference
       window.VoiceroCore = this;
+
+      // Initialize appState with default values
+      this.appState = this.appState || {};
+      this.appState.hasShownVoiceWelcome = false;
+      this.appState.hasShownTextWelcome = false;
 
       // Set initializing flag to prevent button flickering during startup
       this.isInitializing = true;

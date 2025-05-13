@@ -113,9 +113,6 @@ const VoiceroVoice = {
       this.websiteColor,
     );
 
-    // Set up welcome message observer
-    this.setupWelcomeMessageObserver();
-
     // Wait for DOM to be ready
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
@@ -271,69 +268,7 @@ const VoiceroVoice = {
         transition: all 0.3s ease;
         line-height: 1.4;
       }
-      
-      .welcome-message {
-        text-align: center;
-        background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%);
-        border-radius: 18px;
-        padding: 4px 8px;
-        margin: 4px auto;
-        width: 95%;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba(136, 43, 230, 0.1);
-      }
-      
-      .welcome-title {
-        font-size: 18px;
-        font-weight: 700;
-        margin-bottom: 0;
-        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-        background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor}));
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: 0.5px;
-      }
-      
-      .welcome-subtitle {
-        font-size: 16px;
-        line-height: 1.4;
-        color: #666;
-        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-        margin: 0;
-      }
-      
-      .welcome-highlight {
-        color: var(--voicero-theme-color, ${this.websiteColor});
-        font-weight: 600;
-      }
-      
-      .welcome-note {
-        font-size: 14px;
-        opacity: 0.75;
-        font-style: italic;
-        margin-top: 3px;
-        color: #888;
-      }
-      
-      .welcome-pulse {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        background-color: var(--voicero-theme-color, ${this.websiteColor});
-        border-radius: 50%;
-        margin-right: 5px;
-        animation: welcomePulse 1.5s infinite;
-      }
-      
-      @keyframes welcomePulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.3); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
-      }
-      
+            
       .user-message {
         display: flex;
         justify-content: flex-end;
@@ -917,25 +852,18 @@ const VoiceroVoice = {
     this.isOpeningVoiceChat = true;
     this.isClosingVoiceChat = false; // Reset closing flag
 
-    // Check if we have existing messages
-    const hasMessages =
-      VoiceroCore &&
-      VoiceroCore.appState &&
-      VoiceroCore.appState.voiceMessages &&
-      (VoiceroCore.appState.voiceMessages.user ||
-        VoiceroCore.appState.voiceMessages.ai);
+    // Determine if we should show welcome message
+    let shouldShowWelcome = false;
+    if (window.VoiceroCore && window.VoiceroCore.appState) {
+      // Show welcome if we haven't shown it before
+      shouldShowWelcome =
+        window.VoiceroCore.appState.hasShownVoiceWelcome === undefined ||
+        window.VoiceroCore.appState.hasShownVoiceWelcome === false;
 
-    // MODIFIED: Always show welcome if no messages, otherwise use session preference
-    let shouldShowWelcome = !hasMessages;
-
-    // If we have a session with voiceWelcome defined AND there are messages, use that value
-    if (
-      hasMessages &&
-      window.VoiceroCore &&
-      window.VoiceroCore.session &&
-      typeof window.VoiceroCore.session.voiceWelcome !== "undefined"
-    ) {
-      shouldShowWelcome = window.VoiceroCore.session.voiceWelcome;
+      // Mark that we've shown the welcome message
+      if (shouldShowWelcome) {
+        window.VoiceroCore.appState.hasShownVoiceWelcome = true;
+      }
     }
 
     // Update window state - Always open maximized, minimize only after fully loaded if needed
@@ -946,7 +874,7 @@ const VoiceroVoice = {
       window.VoiceroCore.updateWindowState({
         voiceOpen: true,
         voiceOpenWindowUp: true, // Always start maximized
-        voiceWelcome: shouldShowWelcome,
+        voiceWelcome: shouldShowWelcome, // Allow welcome message
         coreOpen: false,
         textOpen: false,
         textOpenWindowUp: false,
@@ -1002,47 +930,7 @@ const VoiceroVoice = {
       `;
     }
 
-    // Load message history from session before deciding whether to show welcome message
     this.loadMessagesFromSession();
-
-    // Check if we have messages after loading from session
-    const messagesContainer = document.getElementById("voice-messages");
-    const existingMessages = messagesContainer
-      ? messagesContainer.querySelectorAll(
-          ".user-message .message-content, .ai-message .message-content",
-        )
-      : [];
-
-    // Show welcome message if needed and no messages were loaded from session
-    if (
-      messagesContainer &&
-      shouldShowWelcome &&
-      existingMessages.length === 0
-    ) {
-      // Check if a welcome message already exists
-      const existingWelcomeMessage =
-        messagesContainer.querySelector(".welcome-message");
-
-      // Only show welcome message if one doesn't already exist
-      if (!existingWelcomeMessage) {
-        // Add welcome message with clear prompt
-        this.addSystemMessage(`
-        <div class="welcome-message" style="width: 90% !important; max-width: 380px !important; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 4px 8px !important; margin: 2px auto !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, rgb(99, 102, 241), rgb(99, 102, 241)) text; -webkit-text-fill-color: transparent; margin-bottom: 0; font-size: 14px;">Aura, your website concierge</div>
-          <div class="welcome-subtitle" style="margin: 1px 0; font-size: 12px;">Click mic & <span class="welcome-highlight">start talking</span></div>
-          <div class="welcome-note" style="margin-top: 1px; font-size: 10px;"><span class="welcome-pulse" style="background-color: rgb(99, 102, 241); width: 6px; height: 6px;"></span>Button glows during conversation</div>
-        </div>
-        `);
-
-        // Force welcome message heights
-        setTimeout(() => this.forceWelcomeMessageHeight(), 100);
-      }
-    } else {
-      console.log("VoiceroVoice: No welcome message needed", {
-        shouldShowWelcome,
-        existingMessagesLength: existingMessages.length,
-      });
-    }
 
     // After the interface is fully loaded and visible, check if it should be minimized
     // based on the previous session state (delayed to prevent race conditions)
@@ -1204,7 +1092,6 @@ const VoiceroVoice = {
     // Remove any voice prompts, placeholders, typing indicators, or empty message bubbles
     const messagesContainer = document.getElementById("voice-messages");
     if (messagesContainer) {
-      // Remove system/placeholder elements except welcome message
       messagesContainer
         .querySelectorAll(".voice-prompt, .placeholder, .typing-indicator")
         .forEach((el) => el.remove());
@@ -1313,9 +1200,7 @@ const VoiceroVoice = {
 
       // Also remove any leftover placeholders or typing indicators
       document
-        .querySelectorAll(
-          ".placeholder, .typing-indicator, .welcome-message, .voice-prompt",
-        )
+        .querySelectorAll(".placeholder, .typing-indicator, .voice-prompt")
         .forEach((el) => el.remove());
 
       // Force maximize the chat window when stopping recording
@@ -1366,25 +1251,12 @@ const VoiceroVoice = {
       this.isRecording = true;
       this.manuallyStoppedRecording = false;
 
-      // Update window state to indicate welcome has been shown
       if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
         window.VoiceroCore.updateWindowState({
           voiceWelcome: false, // Once user starts recording, don't show welcome again
           autoMic: false, // Set autoMic to false to remember user's preference
         });
       }
-
-      // Add a temporary "initializing..." message instead of immediately showing "I'm listening..."
-      this.addSystemMessage(`
-        <div id="listening-indicator-message" class="welcome-message" style="width: 90% !important; max-width: 400px !important; padding: 30px 15px !important; margin: 15px auto !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">
-            Initializing microphone...
-          </div>
-        </div>
-      `);
-
-      // Force welcome message heights
-      setTimeout(() => this.forceWelcomeMessageHeight(), 100);
 
       // Reset silence detection variables
       this.silenceTime = 0;
@@ -1448,11 +1320,7 @@ const VoiceroVoice = {
             "listening-indicator-message",
           );
           if (listeningIndicator) {
-            const titleElement =
-              listeningIndicator.querySelector(".welcome-title");
-            if (titleElement) {
-              titleElement.textContent = "I'm listening...";
-            }
+            listeningIndicator.textContent = "I'm listening...";
           }
 
           // Set up audio analysis for silence detection if supported
@@ -2816,6 +2684,7 @@ const VoiceroVoice = {
       window.VoiceroCore.updateWindowState({
         voiceOpen: true,
         voiceOpenWindowUp: true,
+        voiceWelcome: false, // Never show welcome
         coreOpen: false,
         textOpen: false,
         textOpenWindowUp: false,
@@ -2846,70 +2715,6 @@ const VoiceroVoice = {
           display: block !important;
           visibility: visible !important;
         `;
-
-        // Check if we should show a welcome message
-        const existingMessages = messagesContainer.querySelectorAll(
-          ".user-message .message-content, .ai-message .message-content",
-        );
-
-        // MODIFIED: Always show welcome if no messages, otherwise use session preference
-        let shouldShowWelcome = existingMessages.length === 0;
-
-        // If we have a session with voiceWelcome defined AND there are messages, use that value instead
-        if (
-          existingMessages.length > 0 &&
-          window.VoiceroCore &&
-          window.VoiceroCore.session &&
-          typeof window.VoiceroCore.session.voiceWelcome !== "undefined"
-        ) {
-          shouldShowWelcome = window.VoiceroCore.session.voiceWelcome;
-        }
-
-        if (shouldShowWelcome && existingMessages.length === 0) {
-          // Check if a welcome message already exists
-          const existingWelcomeMessage =
-            messagesContainer.querySelector(".welcome-message");
-
-          // Only add a welcome message if one doesn't already exist
-          if (!existingWelcomeMessage) {
-            // Add welcome message
-            this.addSystemMessage(`
-              <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px !important; margin: 6px auto !important; border-radius: 18px !important;">
-                <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 8px; font-size: 18px; line-height: 1.4;">Aura, your website concierge</div>
-                <div class="welcome-subtitle" style="margin-bottom: 8px; font-size: 16px; line-height: 1.4;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-                <div class="welcome-note" style="margin-top: 8px; font-size: 14px; line-height: 1.4;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 10px; height: 10px;"></span>Button glows during conversation</div>
-              </div>
-            `);
-
-            // Add console log to verify welcome message height
-            console.log("Voice welcome message created. Checking height:");
-            setTimeout(() => {
-              const welcomeMsg = document.querySelector(
-                "#voice-messages .welcome-message",
-              );
-              if (welcomeMsg) {
-                console.log("Welcome message height:", welcomeMsg.offsetHeight);
-                console.log(
-                  "Welcome message computed style:",
-                  getComputedStyle(welcomeMsg).height,
-                );
-
-                // Force height if needed
-                if (welcomeMsg.offsetHeight < 100) {
-                  welcomeMsg.style.setProperty("height", "100px", "important");
-                  welcomeMsg.style.setProperty(
-                    "min-height",
-                    "100px",
-                    "important",
-                  );
-                  console.log("Forced welcome message height to 100px");
-                }
-              } else {
-                console.log("Welcome message not found in DOM");
-              }
-            }, 100);
-          }
-        }
       }
 
       // Restore header with robust inline styling
@@ -3008,17 +2813,6 @@ const VoiceroVoice = {
     }, 1000);
   },
 
-  // Speak welcome message using TTS
-  speakWelcomeMessage: async function (welcomeText) {
-    // We're not going to attempt to play audio automatically since browsers will block it
-    // The user will need to interact with the page first (like clicking the mic button)
-    // Display the welcome message as text only
-    if (welcomeText) {
-      this.addMessage(welcomeText, "ai");
-    }
-    return;
-  },
-
   // Add a system message to the voice interface
   addSystemMessage: function (text) {
     const messagesContainer = document.getElementById("voice-messages");
@@ -3037,7 +2831,8 @@ const VoiceroVoice = {
     const contentDiv = document.createElement("div");
     contentDiv.className = "message-content";
     contentDiv.innerHTML = text;
-    contentDiv.style.cssText = `      background: #e5e5ea;
+    contentDiv.style.cssText = `      
+      background: #e5e5ea;
       color: #333;
       border-radius: 16px;
       padding: 6px 10px;
@@ -3133,18 +2928,6 @@ const VoiceroVoice = {
 
     // Reset the messages array as well
     this.messages = [];
-
-    // Add welcome message again with the exact same format as in openVoiceChat
-    this.addSystemMessage(`
-      <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px !important; margin: 6px auto !important; border-radius: 18px !important;">
-        <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; font-size: 18px; line-height: 1.4;">Aura, your website concierge</div>
-        <div class="welcome-subtitle" style="margin-bottom: 8px; font-size: 16px; line-height: 1.4;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-        <div class="welcome-note" style="margin-top: 8px; font-size: 14px; line-height: 1.4;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 10px; height: 10px;"></span>Button glows during conversation</div>
-      </div>
-    `);
-
-    // Force welcome message heights
-    setTimeout(() => this.forceWelcomeMessageHeight(), 100);
   },
 
   // Stop any ongoing recording
@@ -3223,15 +3006,12 @@ const VoiceroVoice = {
         // Clear existing messages if any
         const messagesContainer = document.getElementById("voice-messages");
         if (messagesContainer) {
-          // Keep the container but remove messages (except welcome message)
+          // Keep the container but remove all messages
           const messages = messagesContainer.querySelectorAll(
             ".user-message, .ai-message",
           );
           messages.forEach((msg) => {
-            // Preserve welcome message if it exists
-            if (!msg.querySelector(".welcome-message")) {
-              msg.remove();
-            }
+            msg.remove();
           });
         }
 
@@ -3255,7 +3035,6 @@ const VoiceroVoice = {
                 }
               } catch (e) {
                 // If parsing fails, use the raw content
-
                 aiMessage = content;
               }
 
@@ -3276,38 +3055,6 @@ const VoiceroVoice = {
       } else {
         // Still store the thread ID even if no messages
         this.currentThreadId = currentThread.threadId;
-      }
-    }
-
-    // If no messages were loaded, add welcome message
-    if (!messagesLoaded) {
-      const messagesContainer = document.getElementById("voice-messages");
-      if (messagesContainer) {
-        // Check if a welcome message already exists
-        const existingWelcomeMessage =
-          messagesContainer.querySelector(".welcome-message");
-
-        // Only add a welcome message if one doesn't already exist
-        if (!existingWelcomeMessage) {
-          // Add welcome message with clear prompt
-          this.addSystemMessage(`
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 12px !important; margin: 6px auto !important; border-radius: 18px !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, var(--voicero-theme-color, ${this.websiteColor}), var(--voicero-theme-color, ${this.websiteColor})) text; -webkit-text-fill-color: transparent; margin-bottom: 8px; font-size: 18px; line-height: 1.4;">Aura, your website concierge</div>
-              <div class="welcome-subtitle" style="margin-bottom: 8px; font-size: 16px; line-height: 1.4;">Click mic & <span class="welcome-highlight" style="color: var(--voicero-theme-color, ${this.websiteColor});">start talking</span></div>
-              <div class="welcome-note" style="margin-top: 8px; font-size: 14px; line-height: 1.4;"><span class="welcome-pulse" style="background-color: var(--voicero-theme-color, ${this.websiteColor}); width: 10px; height: 10px;"></span>Button glows during conversation</div>
-            </div>
-          `);
-
-          // Force welcome message heights
-          setTimeout(() => this.forceWelcomeMessageHeight(), 100);
-
-          // Update window state to show welcome
-          if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
-            window.VoiceroCore.updateWindowState({
-              voiceWelcome: true,
-            });
-          }
-        }
       }
     }
   },
@@ -3567,181 +3314,6 @@ const VoiceroVoice = {
     }
   },
 
-  // Force welcome message styling to match text interface
-  forceWelcomeMessageHeight: function () {
-    console.log("---------- WELCOME MESSAGE STYLING DEBUG ----------");
-    console.log("Applying welcome message styling");
-
-    // Find all welcome messages in the DOM
-    const welcomeMessages = document.querySelectorAll(".welcome-message");
-    console.log(`Found ${welcomeMessages.length} welcome messages in the DOM`);
-
-    welcomeMessages.forEach((msg, index) => {
-      const computedStyle = window.getComputedStyle(msg);
-      console.log(`Welcome Message ${index + 1} BEFORE styling:`, {
-        height: computedStyle.height,
-        minHeight: computedStyle.minHeight,
-        display: computedStyle.display,
-        flexDirection: computedStyle.flexDirection,
-        justifyContent: computedStyle.justifyContent,
-        padding: computedStyle.padding,
-        margin: computedStyle.margin,
-        width: computedStyle.width,
-        maxWidth: computedStyle.maxWidth,
-        boxShadow: computedStyle.boxShadow,
-        background: computedStyle.background,
-        border: computedStyle.border,
-        inlineStyle: msg.getAttribute("style"),
-      });
-    });
-
-    welcomeMessages.forEach((msg, index) => {
-      // Apply styling that matches the text interface
-      // Remove height constraints and flex layout
-      msg.style.removeProperty("height");
-      msg.style.removeProperty("min-height");
-      msg.style.removeProperty("display");
-      msg.style.removeProperty("flex-direction");
-      msg.style.removeProperty("justify-content");
-
-      // Set padding and margin to match text interface
-      msg.style.setProperty("width", "90%", "important");
-      msg.style.setProperty("max-width", "400px", "important");
-      msg.style.setProperty(
-        "box-shadow",
-        "0 4px 15px rgba(0, 0, 0, 0.08)",
-        "important",
-      );
-      msg.style.setProperty(
-        "background",
-        "linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%)",
-        "important",
-      );
-      msg.style.setProperty("border", "none", "important");
-
-      msg.style.setProperty("padding", "30px 15px", "important");
-      msg.style.setProperty("margin", "15px auto", "important");
-
-      // Log the computed style after our changes
-      const computedStyle = window.getComputedStyle(msg);
-      console.log(`Welcome Message ${index + 1} AFTER styling:`, {
-        height: computedStyle.height,
-        minHeight: computedStyle.minHeight,
-        display: computedStyle.display,
-        flexDirection: computedStyle.flexDirection,
-        justifyContent: computedStyle.justifyContent,
-        padding: computedStyle.padding,
-        margin: computedStyle.margin,
-        width: computedStyle.width,
-        maxWidth: computedStyle.maxWidth,
-        boxShadow: computedStyle.boxShadow,
-        background: computedStyle.background,
-        border: computedStyle.border,
-        inlineStyle: msg.getAttribute("style"),
-      });
-    });
-
-    // Also fix shadow DOM elements if they exist
-    if (document.getElementById("voicero-text-chat-container")?.shadowRoot) {
-      const shadowWelcomeMessages = document
-        .getElementById("voicero-text-chat-container")
-        .shadowRoot.querySelectorAll(".welcome-message");
-      console.log(
-        `Found ${shadowWelcomeMessages.length} welcome messages in shadow DOM`,
-      );
-
-      shadowWelcomeMessages.forEach((msg, index) => {
-        const computedStyle = window.getComputedStyle(msg);
-        console.log(`Shadow DOM Welcome Message ${index + 1} BEFORE styling:`, {
-          height: computedStyle.height,
-          minHeight: computedStyle.minHeight,
-          display: computedStyle.display,
-          flexDirection: computedStyle.flexDirection,
-          justifyContent: computedStyle.justifyContent,
-          padding: computedStyle.padding,
-          margin: computedStyle.margin,
-          inlineStyle: msg.getAttribute("style"),
-        });
-
-        // Remove height constraints and flex layout
-        msg.style.removeProperty("height");
-        msg.style.removeProperty("min-height");
-        msg.style.removeProperty("display");
-        msg.style.removeProperty("flex-direction");
-        msg.style.removeProperty("justify-content");
-
-        msg.style.setProperty("padding", "30px 15px", "important");
-        msg.style.setProperty("margin", "15px auto", "important");
-
-        // Log after styling
-        const afterStyle = window.getComputedStyle(msg);
-        console.log(`Shadow DOM Welcome Message ${index + 1} AFTER styling:`, {
-          height: afterStyle.height,
-          minHeight: afterStyle.minHeight,
-          display: afterStyle.display,
-          flexDirection: afterStyle.flexDirection,
-          justifyContent: afterStyle.justifyContent,
-          padding: afterStyle.padding,
-          margin: afterStyle.margin,
-          inlineStyle: msg.getAttribute("style"),
-        });
-      });
-    }
-
-    console.log("------------------------------------------");
-    return true;
-  },
-
-  // Set up observer to force welcome message heights
-  setupWelcomeMessageObserver: function () {
-    console.log("Setting up welcome message observer");
-
-    // Create a MutationObserver to watch for changes to the DOM
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-          // Check if any of the added nodes are welcome messages or contain welcome messages
-          let hasWelcomeMessage = false;
-
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === 1) {
-              // Element node
-              if (
-                node.classList &&
-                node.classList.contains("welcome-message")
-              ) {
-                hasWelcomeMessage = true;
-              } else if (
-                node.querySelector &&
-                node.querySelector(".welcome-message")
-              ) {
-                hasWelcomeMessage = true;
-              }
-            }
-          });
-
-          if (hasWelcomeMessage) {
-            console.log(
-              "Welcome message detected in DOM changes, forcing height",
-            );
-            this.forceWelcomeMessageHeight();
-          }
-        }
-      }
-    });
-
-    // Start observing the document body
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    // Store the observer for potential cleanup later
-    this.welcomeMessageObserver = observer;
-
-    return true;
-  },
-
   // Sync theme color with VoiceroCore
   syncThemeColor: function () {
     let newColor = null;
@@ -3913,40 +3485,6 @@ VoiceroVoice.debugInterface = function () {
     console.log("VoiceroCore Session: Not available");
   }
 
-  console.log("---------- WELCOME MESSAGE DEBUG ----------");
-  const welcomeMessages = document.querySelectorAll(".welcome-message");
-  console.log(`Found ${welcomeMessages.length} welcome messages in the DOM`);
-
-  welcomeMessages.forEach((msg, index) => {
-    const computedStyle = window.getComputedStyle(msg);
-    console.log(`Welcome Message ${index + 1}:`, {
-      height: computedStyle.height,
-      minHeight: computedStyle.minHeight,
-      display: computedStyle.display,
-      flexDirection: computedStyle.flexDirection,
-      justifyContent: computedStyle.justifyContent,
-      padding: computedStyle.padding,
-      margin: computedStyle.margin,
-      width: computedStyle.width,
-      maxWidth: computedStyle.maxWidth,
-      boxShadow: computedStyle.boxShadow,
-      background: computedStyle.background,
-      border: computedStyle.border,
-      innerHTML: msg.innerHTML,
-      outerHTML: msg.outerHTML,
-    });
-  });
-
-  // Check if there are any inline styles
-  welcomeMessages.forEach((msg, index) => {
-    console.log(
-      `Welcome Message ${index + 1} inline styles:`,
-      msg.getAttribute("style"),
-    );
-  });
-
-  console.log("------------------------------------------");
-
   return "Debug info logged to console";
 };
 
@@ -3983,7 +3521,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (typeof VoiceroCore !== "undefined") {
     VoiceroVoice.init();
 
-    // Initialize the hasShownVoiceWelcome flag if it doesn't exist
     if (
       VoiceroCore &&
       VoiceroCore.appState &&
@@ -4087,41 +3624,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
   }
 });
-
-// Initialize welcome message heights on document load
-if (
-  document.readyState === "complete" ||
-  document.readyState === "interactive"
-) {
-  // Document already loaded, force welcome message heights immediately
-  setTimeout(() => {
-    if (
-      window.VoiceroVoice &&
-      typeof window.VoiceroVoice.forceWelcomeMessageHeight === "function"
-    ) {
-      window.VoiceroVoice.forceWelcomeMessageHeight();
-    }
-  }, 500);
-} else {
-  // Wait for document to load
-  document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(() => {
-      if (
-        window.VoiceroVoice &&
-        typeof window.VoiceroVoice.forceWelcomeMessageHeight === "function"
-      ) {
-        window.VoiceroVoice.forceWelcomeMessageHeight();
-      }
-    }, 500);
-  });
-}
-
-// Also run it again after a delay to catch any welcome messages added after initialization
-setTimeout(() => {
-  if (
-    window.VoiceroVoice &&
-    typeof window.VoiceroVoice.forceWelcomeMessageHeight === "function"
-  ) {
-    window.VoiceroVoice.forceWelcomeMessageHeight();
-  }
-}, 2000);

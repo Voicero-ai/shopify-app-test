@@ -65,9 +65,6 @@ const VoiceroText = {
       }
     }
 
-    // Apply global welcome styles immediately
-    this.forceGlobalWelcomeStyles();
-
     // Get API URL and color from Core if available
     if (window.VoiceroCore) {
       if (window.VoiceroCore.getApiBaseUrl) {
@@ -145,31 +142,6 @@ const VoiceroText = {
     suggestions.forEach((suggestion) => {
       suggestion.style.backgroundColor = mainColor;
     });
-
-    // Update welcome message highlight
-    const highlights = this.shadowRoot.querySelectorAll(".welcome-highlight");
-    highlights.forEach((highlight) => {
-      highlight.style.cssText = `color: ${mainColor} !important`;
-    });
-
-    // IMPORTANT: Force colors for welcome-title elements
-    const welcomeTitles = this.shadowRoot.querySelectorAll(".welcome-title");
-    welcomeTitles.forEach((title) => {
-      // Apply gradient using direct style property
-      title.style.background = `linear-gradient(90deg, ${mainColor}, ${mainColor}) !important`;
-      title.style.webkitBackgroundClip = "text !important";
-      title.style.backgroundClip = "text !important";
-      title.style.webkitTextFillColor = "transparent !important";
-    });
-
-    // IMPORTANT: Force colors for welcome-pulse elements
-    const welcomePulses = this.shadowRoot.querySelectorAll(".welcome-pulse");
-    welcomePulses.forEach((pulse) => {
-      pulse.style.backgroundColor = mainColor;
-    });
-
-    // Also force global welcome styles for maximum compatibility
-    this.forceGlobalWelcomeStyles();
   },
 
   // Open text chat interface
@@ -187,18 +159,18 @@ const VoiceroText = {
     // Check if thread has messages
     const hasMessages = this.messages && this.messages.length > 0;
 
-    // Check if welcome message should be shown based on session data
-    // MODIFIED: Always show welcome if no messages, otherwise use session preference
-    let shouldShowWelcome = !hasMessages;
+    // Determine if we should show welcome message
+    let shouldShowWelcome = false;
+    if (window.VoiceroCore && window.VoiceroCore.appState) {
+      // Show welcome if we haven't shown it before
+      shouldShowWelcome =
+        window.VoiceroCore.appState.hasShownTextWelcome === undefined ||
+        window.VoiceroCore.appState.hasShownTextWelcome === false;
 
-    // If we have a session with textWelcome defined and there are messages, use that value
-    if (
-      hasMessages &&
-      window.VoiceroCore &&
-      window.VoiceroCore.session &&
-      typeof window.VoiceroCore.session.textWelcome !== "undefined"
-    ) {
-      shouldShowWelcome = window.VoiceroCore.session.textWelcome;
+      // Mark that we've shown the welcome message
+      if (shouldShowWelcome) {
+        window.VoiceroCore.appState.hasShownTextWelcome = true;
+      }
     }
 
     // Update window state if it hasn't been done already
@@ -270,9 +242,6 @@ const VoiceroText = {
     // Apply dynamic colors to all elements
     this.applyDynamicColors();
 
-    // Also force welcome message colors directly
-    this.forceWelcomeMessageColors();
-
     // Show the shadow host (which contains the chat interface)
     const shadowHost = document.getElementById("voicero-text-chat-container");
     if (shadowHost) {
@@ -317,47 +286,6 @@ const VoiceroText = {
 
     // Load existing messages from session
     this.loadMessagesFromSession();
-
-    // If shouldShowWelcome is true, add the welcome message
-    if (shouldShowWelcome) {
-      const messagesContainer = this.shadowRoot
-        ? this.shadowRoot.getElementById("chat-messages")
-        : document.getElementById("chat-messages");
-
-      if (messagesContainer) {
-        // Check if a welcome message already exists
-        const existingWelcomeMessage =
-          messagesContainer.querySelector(".welcome-message");
-
-        // Only show welcome message if one doesn't already exist
-        if (!existingWelcomeMessage) {
-          // Clear existing messages if any
-          const children = Array.from(messagesContainer.children);
-          for (const child of children) {
-            if (child.id !== "initial-suggestions") {
-              messagesContainer.removeChild(child);
-            }
-          }
-
-          // Add welcome message
-          this.addMessage(
-            `
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
-              <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Text me like your best friend and I'll solve any problem you may have.</div>
-              <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
-            </div>
-            `,
-            "ai",
-            false,
-            true,
-          );
-
-          // Force colors on the welcome message
-          this.forceWelcomeMessageColors();
-        }
-      }
-    }
 
     // Initialize visibility state
     this._isChatVisible = true;
@@ -500,44 +428,10 @@ const VoiceroText = {
       }
     }
 
-    // If no messages were loaded, add welcome message
     if (!messagesLoaded) {
       const messagesContainer = this.shadowRoot
         ? this.shadowRoot.getElementById("chat-messages")
         : document.getElementById("chat-messages");
-
-      if (messagesContainer) {
-        // Check if a welcome message already exists
-        const existingWelcomeMessage =
-          messagesContainer.querySelector(".welcome-message");
-
-        // Only add a welcome message if one doesn't already exist
-        if (!existingWelcomeMessage) {
-          // Add welcome message
-          this.addMessage(
-            `
-            <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
-              <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
-              <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Text me like your best friend and I'll solve any problem you may have.</div>
-              <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
-            </div>
-            `,
-            "ai",
-            false,
-            true,
-          );
-
-          // Force colors on the welcome message
-          this.forceWelcomeMessageColors();
-
-          // Update window state to show welcome
-          if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
-            window.VoiceroCore.updateWindowState({
-              textWelcome: true,
-            });
-          }
-        }
-      }
     }
   },
 
@@ -1000,76 +894,7 @@ const VoiceroText = {
           50% { transform: scale(1.2); opacity: 0.3; }
           100% { transform: scale(1); opacity: 0.7; }
         }
-        
-        @keyframes welcomePulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.3); opacity: 0.7; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-
-         .welcome-message {
-          text-align: center;
-          background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%);
-          border-radius: 18px;
-          padding: 12px 15px;
-          margin: 12px auto;
-          width: 85%;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-          position: relative;
-          overflow: hidden;
-          border: 1px solid rgba(${parseInt(
-            mainColor.slice(1, 3),
-            16,
-          )}, ${parseInt(mainColor.slice(3, 5), 16)}, ${parseInt(
-            mainColor.slice(5, 7),
-            16,
-          )}, 0.1);
-        }
-        
-        .welcome-title {
-          font-size: 18px;
-          font-weight: 700;
-          margin-bottom: 5px;
-          font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-          background: linear-gradient(90deg, ${
-            this.websiteColor || "#882be6"
-          }, ${this.websiteColor || "#882be6"});
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          letter-spacing: 0.5px;
-        }
-        
-        .welcome-subtitle {
-          font-size: 14px;
-          line-height: 1.4;
-          color: #666;
-          font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-          margin-bottom: 3px;
-        }
-        
-        .welcome-highlight {
-          color: ${this.websiteColor || "#882be6"} !important;
-          font-weight: 600;
-        }
-        
-        .welcome-note {
-          font-size: 12px;
-          opacity: 0.75;
-          font-style: italic;
-          margin-top: 5px;
-          color: #888;
-        }
-        
-        .welcome-pulse {
-          display: inline-block;
-          width: 8px;
-          height: 8px;
-          background-color: ${this.websiteColor || "#882be6"};
-          border-radius: 50%;
-          margin-right: 4px;
-          animation: welcomePulse 1.5s infinite;
-        }
+      
 
         /* Hide scrollbar for different browsers */
         #chat-messages {
@@ -1399,75 +1224,11 @@ const VoiceroText = {
             100% { transform: scale(1); opacity: 0.7; }
           }
           
-          @keyframes welcomePulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-          }
           
-          .welcome-message {
-            text-align: center;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%);
-            border-radius: 18px;
-            padding: 12px 15px;
-            margin: 12px auto;
-            width: 85%;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            position: relative;
-            overflow: hidden;
-            border: 1px solid rgba(${parseInt(
-              mainColor.slice(1, 3),
-              16,
-            )}, ${parseInt(mainColor.slice(3, 5), 16)}, ${parseInt(
-              mainColor.slice(5, 7),
-              16,
-            )}, 0.1);
-          }
           
-          .welcome-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 5px;
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(90deg, ${
-              this.websiteColor || "#882be6"
-            }, ${this.websiteColor || "#882be6"});
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: 0.5px;
-          }
+         
           
-          .welcome-subtitle {
-            font-size: 14px;
-            line-height: 1.4;
-            color: #666;
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            margin-bottom: 3px;
-          }
           
-          .welcome-highlight {
-            color: ${this.websiteColor || "#882be6"} !important;
-            font-weight: 600;
-          }
-          
-          .welcome-note {
-            font-size: 12px;
-            opacity: 0.75;
-            font-style: italic;
-            margin-top: 5px;
-            color: #888;
-          }
-          
-          .welcome-pulse {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: ${this.websiteColor || "#882be6"};
-            border-radius: 50%;
-            margin-right: 4px;
-            animation: welcomePulse 1.5s infinite;
-          }
 
           /* Hide scrollbar for different browsers */
           #chat-messages {
@@ -2031,69 +1792,6 @@ const VoiceroText = {
         this.toggleToVoiceChat();
       });
     }
-
-    // Force all welcome message elements to use theme color
-    this.forceWelcomeMessageColors();
-  },
-
-  // Force all welcome message elements to use website color
-  forceWelcomeMessageColors: function () {
-    if (!this.shadowRoot) return;
-
-    const mainColor = this.websiteColor || "#882be6";
-
-    // Force welcome message styles
-    const welcomeMessages =
-      this.shadowRoot.querySelectorAll(".welcome-message");
-    welcomeMessages.forEach((msg) => {
-      // Explicitly remove border
-      msg.style.border = "none";
-      // Preserve padding and add margins
-      msg.style.padding = "30px 15px";
-      msg.style.margin = "15px auto";
-      // Ensure height and spacing
-      msg.style.minHeight = "100px";
-    });
-
-    // Force welcome title colors
-    const welcomeTitles = this.shadowRoot.querySelectorAll(".welcome-title");
-    welcomeTitles.forEach((title) => {
-      title.style.background = `linear-gradient(90deg, ${mainColor}, ${mainColor})`;
-      title.style.webkitBackgroundClip = "text";
-      title.style.backgroundClip = "text";
-      title.style.webkitTextFillColor = "transparent";
-      // Add more spacing
-      title.style.marginBottom = "15px";
-      title.style.fontSize = "18px";
-    });
-
-    // Force welcome subtitle spacing
-    const welcomeSubtitles =
-      this.shadowRoot.querySelectorAll(".welcome-subtitle");
-    welcomeSubtitles.forEach((subtitle) => {
-      subtitle.style.marginBottom = "15px";
-      subtitle.style.fontSize = "14px";
-    });
-
-    // Force welcome highlight colors
-    const welcomeHighlights =
-      this.shadowRoot.querySelectorAll(".welcome-highlight");
-    welcomeHighlights.forEach((highlight) => {
-      highlight.style.color = `${mainColor} !important`;
-    });
-
-    // Force welcome note spacing
-    const welcomeNotes = this.shadowRoot.querySelectorAll(".welcome-note");
-    welcomeNotes.forEach((note) => {
-      note.style.marginTop = "15px";
-      note.style.fontSize = "12px";
-    });
-
-    // Force welcome pulse colors
-    const welcomePulses = this.shadowRoot.querySelectorAll(".welcome-pulse");
-    welcomePulses.forEach((pulse) => {
-      pulse.style.backgroundColor = mainColor;
-    });
   },
 
   // Clear chat history
@@ -2169,26 +1867,6 @@ const VoiceroText = {
         initialSuggestions.style.padding = "";
         initialSuggestions.style.overflow = "visible";
       }
-
-      // Force global welcome styles BEFORE adding the welcome message
-      this.forceGlobalWelcomeStyles();
-
-      // Add welcome message again
-      this.addMessage(
-        `
-        <div class="welcome-message" style="width: 90% !important; max-width: 400px !important; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important; background: linear-gradient(135deg, #f5f7fa 0%, #e6e9f0 100%) !important; border: none !important; padding: 30px 15px !important; margin: 15px auto !important;">
-          <div class="welcome-title" style="background: linear-gradient(90deg, ${this.websiteColor || "#882be6"}, ${this.websiteColor || "#882be6"}) text; -webkit-text-fill-color: transparent; margin-bottom: 15px; font-size: 18px;">Aura, your website concierge</div>
-          <div class="welcome-subtitle" style="margin-bottom: 15px; font-size: 14px;">Text me like your best friend and I'll solve any problem you may have.</div>
-          <div class="welcome-note" style="margin-top: 15px; font-size: 12px;"><span class="welcome-pulse" style="background-color: ${this.websiteColor || "#882be6"};"></span>Ask me anything about this site!</div>
-        </div>
-        `,
-        "ai",
-        false,
-        true,
-      );
-
-      // Force colors on the welcome message
-      this.forceWelcomeMessageColors();
     }
 
     // Reset messages array
@@ -3014,9 +2692,6 @@ const VoiceroText = {
     if (inputWrapper) {
       inputWrapper.style.marginTop = "0";
     }
-
-    // Ensure welcome message colors are applied
-    this.forceWelcomeMessageColors();
   },
 
   // Add message to the chat interface (used for both user and AI messages)
@@ -3046,7 +2721,6 @@ const VoiceroText = {
     contentDiv.className = "message-content";
     contentDiv.innerHTML = text;
 
-    // If this is the welcome message, add special iPhone message styling
     if (isInitial) {
       contentDiv.style.background = "#e5e5ea";
       contentDiv.style.color = "#333";
@@ -3056,7 +2730,6 @@ const VoiceroText = {
       contentDiv.style.borderRadius = "18px";
       messageDiv.style.justifyContent = "center";
 
-      // Clean up the welcome message to ensure it looks good
       if (text.includes("voice-prompt")) {
         // Extract the actual text content
         const tempDiv = document.createElement("div");
@@ -3098,33 +2771,6 @@ const VoiceroText = {
         // Insert new message before the input wrapper
         messagesContainer.appendChild(messageDiv);
 
-        // If this is a welcome message, directly apply styles to ensure correct colors
-        if (isInitial) {
-          // Find and style the welcome title with correct colors
-          const welcomeTitle = messageDiv.querySelector(".welcome-title");
-          if (welcomeTitle) {
-            welcomeTitle.style.background = `linear-gradient(90deg, ${
-              this.websiteColor || "#882be6"
-            }, ${this.websiteColor || "#882be6"},)`;
-            welcomeTitle.style.webkitBackgroundClip = "text";
-            welcomeTitle.style.backgroundClip = "text";
-            welcomeTitle.style.webkitTextFillColor = "transparent";
-          }
-
-          // Style welcome highlights
-          const welcomeHighlight =
-            messageDiv.querySelector(".welcome-highlight");
-          if (welcomeHighlight) {
-            welcomeHighlight.style.color = this.websiteColor || "#882be6";
-          }
-
-          // Style welcome pulse
-          const welcomePulse = messageDiv.querySelector(".welcome-pulse");
-          if (welcomePulse) {
-            welcomePulse.style.backgroundColor = this.websiteColor || "#882be6";
-          }
-        }
-
         // Update all previous user message statuses to "Read" after AI responds
         if (role === "ai") {
           const userStatusDivs =
@@ -3151,7 +2797,6 @@ const VoiceroText = {
       // Update VoiceroCore state if available
     }
 
-    // If this is an AI message (and not a welcome/initial message), add report button
     if (role === "ai" && !isInitial && !isLoading) {
       try {
         // Try three different methods to ensure the report button gets added
@@ -3452,52 +3097,6 @@ const VoiceroText = {
     } catch (e) {
       return color;
     }
-  },
-
-  // Force welcome message colors globally with !important
-  forceGlobalWelcomeStyles: function () {
-    // Use the website color
-    const mainColor = this.websiteColor || "#882be6";
-
-    // Create or update global style tag
-    let styleTag = document.getElementById("voicero-forced-styles");
-    if (!styleTag) {
-      styleTag = document.createElement("style");
-      styleTag.id = "voicero-forced-styles";
-      document.head.appendChild(styleTag);
-    }
-
-    // Set extremely aggressive styling
-    styleTag.textContent = `
-      .welcome-message {
-        border: none !important;
-        padding: 30px 15px !important;
-        margin: 15px auto !important;
-        min-height: 100px !important;
-      }
-      .welcome-title {
-        background: linear-gradient(90deg, ${mainColor}, ${mainColor}) !important;
-        -webkit-background-clip: text !important;
-        background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        margin-bottom: 15px !important;
-        font-size: 18px !important;
-      }
-      .welcome-subtitle {
-        margin-bottom: 15px !important;
-        font-size: 14px !important;
-      }
-      .welcome-highlight {
-        color: ${mainColor} !important;
-      }
-      .welcome-note {
-        margin-top: 15px !important;
-        font-size: 12px !important;
-      }
-      .welcome-pulse {
-        background-color: ${mainColor} !important;
-      }
-    `;
   },
 
   // Collect page data for better context
