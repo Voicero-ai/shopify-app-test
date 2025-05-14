@@ -266,11 +266,11 @@ export const loader = async ({ request }) => {
       query {
         shop {
           shopPolicies {
-            type
-            body
+            id
             title
+            body
             url
-            handle
+            type
             createdAt
             updatedAt
           }
