@@ -759,6 +759,11 @@ const checkTrainingStatus = async (
             currentCategory: 5,
           });
           setIsTraining(false);
+
+          // Reload the page after training completes
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
         }
       } catch (error) {
         console.error("Error polling training status:", error);
@@ -947,6 +952,11 @@ const trainUntrainedItems = async (
       message: `Training complete! Your AI assistant is ready to use. Last synced: ${websiteData?.lastSyncedAt ? new Date(websiteData.lastSyncedAt).toLocaleString() : "Never"}`,
       currentCategory: 5,
     }));
+
+    // Reload the page after training is complete
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
   } catch (error) {
     console.error("Error during parallel training:", error);
     setTrainingData((prev) => ({
@@ -1371,6 +1381,11 @@ export default function Index() {
                     currentCategory: 5,
                   });
                   setIsTraining(false);
+
+                  // Reload the page after training completes
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000);
                 }
               } catch (error) {
                 console.error("Error polling training status:", error);
@@ -1557,6 +1572,10 @@ export default function Index() {
         data = JSON.parse(responseText);
 
         // Log the complete data in a clean format
+        console.log("Sync API Response:", data);
+
+        // Specifically log the pages data
+        console.log("Pages data from sync:", data.pages);
 
         // If there's an error, log it in a more readable format
         if (data.error) {

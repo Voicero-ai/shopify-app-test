@@ -5,13 +5,13 @@ const urls = {
   shopifyAdmin: "https://admin.shopify.com",
 
   // Voicero API URLs
-  voiceroApi: "https://www.voicero.ai",
-  newVoiceroApi: "https://www.voicero.ai",
+  voiceroApi: "http://localhost:3000",
+  newVoiceroApi: "http://localhost:3000",
 
   // Training API URLs
-  trainingApiBase: "https://www.voicero.ai",
-  trainingApiStatus: "https://www.voicero.ai/api/shopify/train/status",
-  trainingApiAuto: "https://www.voicero.ai/api/shopify/train",
+  trainingApiBase: "http://localhost:3000",
+  trainingApiStatus: "http://localhost:3000/api/shopify/train/status",
+  trainingApiAuto: "http://localhost:3000/api/shopify/train",
 };
 
 export default urls;

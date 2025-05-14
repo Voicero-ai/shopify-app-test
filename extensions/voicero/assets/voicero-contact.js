@@ -355,7 +355,7 @@ const VoiceroContact = {
     }
 
     // Send the request to the WordPress REST API
-    fetch("https://www.voicero.ai/api/contact/help", {
+    fetch("http://localhost:3000/api/contact/help", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

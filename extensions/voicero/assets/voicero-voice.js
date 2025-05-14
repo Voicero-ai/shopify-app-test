@@ -1544,7 +1544,7 @@ const VoiceroVoice = {
                 );
 
                 const whisperResponse = await fetch(
-                  "https://www.voicero.ai/api/whisper",
+                  "http://localhost:3000/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1691,7 +1691,7 @@ const VoiceroVoice = {
                 );
 
                 const chatResponse = await fetch(
-                  "https://www.voicero.ai/api/shopify/chat",
+                  "http://localhost:3000/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
@@ -1832,7 +1832,7 @@ const VoiceroVoice = {
                 try {
                   // Request audio generation using TTS endpoint
                   const ttsResponse = await fetch(
-                    "https://www.voicero.ai/api/tts",
+                    "http://localhost:3000/api/tts",
                     {
                       method: "POST",
                       headers: {
@@ -3032,7 +3032,7 @@ const VoiceroVoice = {
   clearChatHistory: function () {
     // Call the session/clear API endpoint
     if (window.VoiceroCore && window.VoiceroCore.sessionId) {
-      const proxyUrl = "https://www.voicero.ai/api/session/clear";
+      const proxyUrl = "http://localhost:3000/api/session/clear";
 
       fetch(proxyUrl, {
         method: "POST",

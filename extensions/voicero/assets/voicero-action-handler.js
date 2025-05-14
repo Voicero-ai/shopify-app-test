@@ -1342,7 +1342,7 @@ const VoiceroActionHandler = {
 
           // Only proceed if we have a valid API URL
           if (apiBaseUrl) {
-            fetch(`https://www.voicero.ai/api/session/message`, {
+            fetch(`http://localhost:3000/api/session/message`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
