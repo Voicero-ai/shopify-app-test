@@ -985,6 +985,10 @@ const VoiceroActionHandler = {
         if (window.VoiceroVoice?.addMessage) {
           window.VoiceroVoice.addMessage(message, "ai");
         }
+
+        // Save message to session if VoiceroCore is available
+        this.saveMessageToSession(message, "assistant");
+
         return;
       }
     }
@@ -993,9 +997,8 @@ const VoiceroActionHandler = {
 
     // Check if email and order_id are provided for tracking lookup
     if (!orderNumberToFind || (!email && !window.__VoiceroCustomerData)) {
-      
       return;
-    }   
+    }
   },
 
   handleProcess_return: async function (target) {
@@ -1092,19 +1095,20 @@ const VoiceroActionHandler = {
 
       if (orders.length === 0) {
         // If no orders found
+        const noOrdersMessage =
+          "I don't see any orders associated with your account. If you've placed an order recently, it might not be showing up yet.";
+
         if (window.VoiceroText?.addMessage) {
-          window.VoiceroText.addMessage(
-            "I don't see any orders associated with your account. If you've placed an order recently, it might not be showing up yet.",
-            "ai",
-          );
+          window.VoiceroText.addMessage(noOrdersMessage, "ai");
         }
         // Add to VoiceroVoice as well
         if (window.VoiceroVoice?.addMessage) {
-          window.VoiceroVoice.addMessage(
-            "I don't see any orders associated with your account. If you've placed an order recently, it might not be showing up yet.",
-            "ai",
-          );
+          window.VoiceroVoice.addMessage(noOrdersMessage, "ai");
         }
+
+        // Save message to session if VoiceroCore is available
+        this.saveMessageToSession(noOrdersMessage, "assistant");
+
         return;
       }
 
@@ -1122,7 +1126,7 @@ const VoiceroActionHandler = {
 
         message += `**Order #${order.order_number}** (${date})`;
         message += ` • Total: $${parseFloat(order.total_price).toFixed(2)}`;
-        message += ` • Items: ${order.line_items_count}\n`;
+        message += ` • Items: ${order.line_items_count}`;
 
         // Add tracking information if available
         if (order.has_tracking) {
@@ -1159,21 +1163,24 @@ const VoiceroActionHandler = {
       if (window.VoiceroVoice?.addMessage) {
         window.VoiceroVoice.addMessage(message, "ai");
       }
+
+      // Save message to session if VoiceroCore is available
+      this.saveMessageToSession(message, "assistant");
     } else {
       // If customer data is not available, prompt to log in
+      const loginMessage =
+        "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.";
+
       if (window.VoiceroText?.addMessage) {
-        window.VoiceroText.addMessage(
-          "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.",
-          "ai",
-        );
+        window.VoiceroText.addMessage(loginMessage, "ai");
       }
       // Add to VoiceroVoice as well
       if (window.VoiceroVoice?.addMessage) {
-        window.VoiceroVoice.addMessage(
-          "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.",
-          "ai",
-        );
+        window.VoiceroVoice.addMessage(loginMessage, "ai");
       }
+
+      // Save message to session if VoiceroCore is available
+      this.saveMessageToSession(loginMessage, "assistant");
     }
   },
 
@@ -1219,6 +1226,131 @@ const VoiceroActionHandler = {
         }
       }
     }
+  },
+
+  removeAllButtons: function () {
+    // Try to remove the toggle container completely
+    const toggleContainer = document.getElementById("voice-toggle-container");
+    if (toggleContainer && toggleContainer.parentNode) {
+      toggleContainer.parentNode.removeChild(toggleContainer);
+    }
+
+    // Also look for any stray buttons
+    const mainButton = document.getElementById("chat-website-button");
+    if (mainButton && mainButton.parentNode) {
+      mainButton.parentNode.removeChild(mainButton);
+    }
+
+    // Remove all chooser interfaces
+    const chooser = document.getElementById("interaction-chooser");
+    if (chooser && chooser.parentNode) {
+      chooser.parentNode.removeChild(chooser);
+    }
+  },
+
+  // Save a message to the current session thread
+  saveMessageToSession: function (message, role) {
+    // Check if VoiceroCore is available
+    if (!window.VoiceroCore || !window.VoiceroCore.session) {
+      return;
+    }
+
+    // Find the most recent thread (first one in the array)
+    const session = window.VoiceroCore.session;
+    if (!session.threads || !session.threads.length) {
+      return;
+    }
+
+    const currentThread = session.threads[0];
+
+    // Create a new message object
+    const newMessage = {
+      id: this.generateUUID(),
+      threadId: currentThread.id,
+      role: role || "assistant",
+      content: message,
+      pageUrl: window.location.href,
+      createdAt: new Date().toISOString(),
+      type: "system", // Mark this as a system-generated message
+    };
+
+    // Add the message to the thread
+    if (!currentThread.messages) {
+      currentThread.messages = [];
+    }
+
+    currentThread.messages.push(newMessage);
+
+    // Update lastMessageAt timestamp
+    currentThread.lastMessageAt = new Date().toISOString();
+
+    // Update session on the server
+    this.updateSessionOnServer(currentThread, newMessage);
+  },
+
+  // Helper to update session and message on the server
+  updateSessionOnServer: function (thread, message) {
+    // First try to use VoiceroCore's API methods if available
+    if (window.VoiceroCore) {
+      // If VoiceroCore has an API method for updating messages specifically
+      if (window.VoiceroCore.updateSessionMessage) {
+        window.VoiceroCore.updateSessionMessage(message);
+        return;
+      }
+
+      // If VoiceroCore has an API method for updating the thread
+      if (window.VoiceroCore.updateSessionThread) {
+        window.VoiceroCore.updateSessionThread(thread.id, message);
+        return;
+      }
+
+      // If VoiceroCore has a general session update method
+      if (window.VoiceroCore.updateSession) {
+        window.VoiceroCore.updateSession();
+        return;
+      }
+
+      // If VoiceroCore has the API base URL and session ID
+      if (window.VoiceroCore.getApiBaseUrl && window.VoiceroCore.sessionId) {
+        // Manual API call to update the message
+        try {
+          const apiBaseUrl = window.VoiceroCore.getApiBaseUrl();
+
+          // Only proceed if we have a valid API URL
+          if (apiBaseUrl) {
+            fetch(`https://www.voicero.ai/api/session/message`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(window.voiceroConfig?.getAuthHeaders
+                  ? window.voiceroConfig.getAuthHeaders()
+                  : {}),
+              },
+              body: JSON.stringify({
+                sessionId: window.VoiceroCore.sessionId,
+                message: message,
+              }),
+            }).catch((err) => {
+              // Silently handle errors to not disrupt the user
+            });
+          }
+        } catch (e) {
+          // Silently catch errors
+        }
+      }
+    }
+  },
+
+  // Helper to generate a UUID for messages
+  generateUUID: function () {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      },
+    );
   },
 };
 
