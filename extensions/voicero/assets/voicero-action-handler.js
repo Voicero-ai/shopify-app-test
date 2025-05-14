@@ -990,15 +990,39 @@ const VoiceroActionHandler = {
         this.saveMessageToSession(message, "assistant");
 
         return;
+      } else {
+        // No matching order found - provide feedback
+        const notFoundMessage = `I couldn't find order #${orderNumberToFind} in your order history. Please check the order number and try again, or view all your orders in your [account page](/account/orders).`;
+
+        // Display the not found message
+        if (window.VoiceroText?.addMessage) {
+          window.VoiceroText.addMessage(notFoundMessage, "ai");
+        }
+        if (window.VoiceroVoice?.addMessage) {
+          window.VoiceroVoice.addMessage(notFoundMessage, "ai");
+        }
+
+        // Save message to session
+        this.saveMessageToSession(notFoundMessage, "assistant");
+
+        return;
       }
     }
 
     // If we couldn't find the order or user isn't logged in
+    const loginMessage =
+      "To track an order, please make sure you're logged in to your account first. If you checked out as a guest, you'll need your order number and the email address used for the order.";
 
-    // Check if email and order_id are provided for tracking lookup
-    if (!orderNumberToFind || (!email && !window.__VoiceroCustomerData)) {
-      return;
+    // Display the login message
+    if (window.VoiceroText?.addMessage) {
+      window.VoiceroText.addMessage(loginMessage, "ai");
     }
+    if (window.VoiceroVoice?.addMessage) {
+      window.VoiceroVoice.addMessage(loginMessage, "ai");
+    }
+
+    // Save message to session
+    this.saveMessageToSession(loginMessage, "assistant");
   },
 
   handleProcess_return: async function (target) {
