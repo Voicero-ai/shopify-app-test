@@ -1577,6 +1577,10 @@ export default function Index() {
         // Specifically log the pages data
         console.log("Pages data from sync:", data.pages);
 
+        // Log policy pages specifically
+        const policyPages = data.pages.filter((page) => page.isPolicy);
+        console.log("Policy pages from sync:", policyPages);
+
         // If there's an error, log it in a more readable format
         if (data.error) {
         }
@@ -1600,18 +1604,21 @@ export default function Index() {
 
       // Step 2: Send data to backend
 
-      const syncResponse = await fetch(`http://localhost:3000/api/shopify/sync`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${accessKey}`,
+      const syncResponse = await fetch(
+        `http://localhost:3000/api/shopify/sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${accessKey}`,
+          },
+          body: JSON.stringify({
+            fullSync: true,
+            data: data,
+          }),
         },
-        body: JSON.stringify({
-          fullSync: true,
-          data: data,
-        }),
-      });
+      );
 
       if (!syncResponse.ok) {
         const errorData = await syncResponse.json();

@@ -261,6 +261,65 @@ export const loader = async ({ request }) => {
       throw new Error("Invalid pages data structure received from GraphQL");
     }
 
+    // Fetch shop policies
+    const policiesResponse = await admin.graphql(`
+      query {
+  shop {
+    privacyPolicy {
+      title
+      body
+      url
+      handle
+      createdAt
+      updatedAt
+    }
+    refundPolicy {
+      title
+      body
+      url
+      handle
+      createdAt
+      updatedAt
+    }
+    termsOfService {
+      title
+      body
+      url
+      handle
+      createdAt
+      updatedAt
+    }
+    shippingPolicy {
+      title
+      body
+      url
+      handle
+      createdAt
+      updatedAt
+    }
+    subscriptionPolicy {
+      title
+      body
+      url
+      handle
+      createdAt
+      updatedAt
+    }
+    contactInformationPolicy {
+      title
+      body
+      url
+      handle
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+    `);
+    const policiesData = await policiesResponse.json();
+    console.log("Policies data:", JSON.stringify(policiesData, null, 2));
+
     // For untruncated HTML, fetch each page with REST
     const mergedPages = await Promise.all(
       pagesData.data.pages.edges.map(async ({ node }) => {
@@ -315,6 +374,70 @@ export const loader = async ({ request }) => {
         return pageData;
       }),
     ).then((pages) => pages.filter(Boolean)); // Remove any null entries
+
+    // Process policies as pages
+    const policyPages = [];
+    const policies = policiesData.data.shop;
+
+    // Helper to create policy page object
+    const createPolicyPage = (policy, type) => {
+      if (!policy || !policy.body) return null;
+
+      return {
+        shopifyId: 0, // Policies don't have shopify IDs in the same way
+        title: policy.title || `${type} Policy`,
+        handle: policy.handle || type.toLowerCase().replace(/\s+/g, "-"),
+        content: policy.body || "",
+        bodySummary: policy.body ? policy.body.substring(0, 200) + "..." : "",
+        createdAt: policy.createdAt || new Date().toISOString(),
+        updatedAt: policy.updatedAt || new Date().toISOString(),
+        publishedAt: policy.createdAt || new Date().toISOString(),
+        isPublished: true,
+        templateSuffix: "",
+        metafields: [],
+        isPolicy: true,
+        policyType: type,
+        policyUrl: policy.url || "",
+      };
+    };
+
+    // Add each policy that exists
+    if (policies.shippingPolicy) {
+      const policyPage = createPolicyPage(policies.shippingPolicy, "Shipping");
+      if (policyPage) policyPages.push(policyPage);
+    }
+
+    if (policies.refundPolicy) {
+      const policyPage = createPolicyPage(policies.refundPolicy, "Refund");
+      if (policyPage) policyPages.push(policyPage);
+    }
+
+    if (policies.privacyPolicy) {
+      const policyPage = createPolicyPage(policies.privacyPolicy, "Privacy");
+      if (policyPage) policyPages.push(policyPage);
+    }
+
+    if (policies.termsOfService) {
+      const policyPage = createPolicyPage(
+        policies.termsOfService,
+        "Terms of Service",
+      );
+      if (policyPage) policyPages.push(policyPage);
+    }
+
+    if (policies.subscriptionPolicy) {
+      const policyPage = createPolicyPage(
+        policies.subscriptionPolicy,
+        "Subscription",
+      );
+      if (policyPage) policyPages.push(policyPage);
+    }
+
+    // Log all policy pages
+    console.log("Policy pages:", JSON.stringify(policyPages, null, 2));
+
+    // Combine regular pages with policy pages
+    const allPages = [...mergedPages, ...policyPages];
 
     // ---------------------
     // 4) Blogs + Articles (GraphQL for IDs)
@@ -794,7 +917,7 @@ export const loader = async ({ request }) => {
       shop: shopData.data.shop,
       products: mergedProducts,
       collections: formattedCollections,
-      pages: mergedPages,
+      pages: allPages,
       blogs: mergedBlogs,
       discounts: {
         codeDiscounts,
