@@ -1081,6 +1081,33 @@ const VoiceroActionHandler = {
     window.location.href = `/account/returns/new?order_id=${order_id}&email=${encodeURIComponent(email)}`;
   },
 
+  handleReturn_order: function (target) {
+    const orderNumber = target?.order_number || target?.order_id || "";
+
+    const message = `
+      <div class="voicero-message-card">
+        <h3>Start a Return</h3>
+        <p>To begin the return process, you'll need to view your order details first.</p>
+        <div class="voicero-action-buttons">
+          <a href="/account/orders" class="voicero-button">View All Orders</a>
+          ${orderNumber ? `<a href="/account/orders/${orderNumber}" class="voicero-button voicero-primary">View Order #${orderNumber}</a>` : ""}
+        </div>
+        <p class="voicero-small-text">Once you're on your order page, look for the "Start Return" button or contact customer support if you need assistance.</p>
+      </div>
+    `;
+
+    // Display the message using VoiceroText
+    if (window.VoiceroText?.addMessage) {
+      window.VoiceroText.addMessage(message, "ai");
+    }
+    // Display the message using VoiceroVoice as well
+    if (window.VoiceroVoice?.addMessage) {
+      window.VoiceroVoice.addMessage(message, "ai");
+    }
+
+    // Don't save this message to the session
+  },
+
   handleScheduler: async function (target) {
     const { action, date, time, event } = target || {};
     if (!action) {
