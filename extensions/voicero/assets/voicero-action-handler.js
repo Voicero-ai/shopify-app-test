@@ -1082,15 +1082,12 @@ const VoiceroActionHandler = {
   },
 
   handleReturn_order: function (target) {
-    const orderNumber = target?.order_number || target?.order_id || "";
-
     const message = `
       <div class="voicero-message-card">
         <h3>Start a Return</h3>
         <p>To begin the return process, you'll need to view your order details first.</p>
         <div class="voicero-action-buttons">
           <a href="/account/orders" class="voicero-button">View All Orders</a>
-          ${orderNumber ? `<a href="/account/orders/${orderNumber}" class="voicero-button voicero-primary">View Order #${orderNumber}</a>` : ""}
         </div>
         <p class="voicero-small-text">Once you're on your order page, look for the "Start Return" button or contact customer support if you need assistance.</p>
       </div>
@@ -1105,7 +1102,15 @@ const VoiceroActionHandler = {
       window.VoiceroVoice.addMessage(message, "ai");
     }
 
-    // Don't save this message to the session
+    // Save message to session if VoiceroCore is available
+    this.saveMessageToSession(message, "assistant");
+
+    // Check if there's a URL in the target (action_context) and redirect to it
+    if (target && target.url) {
+      setTimeout(() => {
+        this.handleRedirect(target);
+      }, 500); // Small delay to ensure message is displayed and saved first
+    }
   },
 
   handleScheduler: async function (target) {
