@@ -2,6 +2,12 @@
  * VoiceroAI User Data Module
  * Loads early to fetch Shopify customer data before other scripts run
  * Stores user data in global variables for later use by other modules
+ *
+ * Functionality summary:
+ * - Collects detailed customer information from Shopify
+ * - Formats and sends this data to the external VoiceroAI API
+ * - Stores and manages welcome back messages returned from the API
+ * - Provides methods to retrieve and clear welcome back messages
  */
 
 (function () {
@@ -13,6 +19,7 @@
     customer: null,
     cart: null,
     errors: [],
+    dataSent: false, // Flag to track if data has been sent
 
     /**
      * Initialize and fetch user data
@@ -22,6 +29,45 @@
 
       // Start loading data
       this.isLoading = true;
+
+      // Initialize global flag to track if welcome back message has been displayed
+      window.voiceroWelcomeBackDisplayed = false;
+
+      // Check for existing welcome back message
+      try {
+        const storedMessage = localStorage.getItem("voiceroWelcomeBackMessage");
+        if (storedMessage) {
+          console.log(
+            "VoiceroUserData: Found stored welcome back message:",
+            storedMessage,
+          );
+
+          // Check if message is older than 1 hour - if so, remove it
+          const lastMessageTime = localStorage.getItem(
+            "voiceroWelcomeBackMessageTime",
+          );
+          if (lastMessageTime) {
+            const messageAge = Date.now() - parseInt(lastMessageTime, 10);
+            if (messageAge > 60 * 60 * 1000) {
+              // 1 hour in milliseconds
+              console.log(
+                "VoiceroUserData: Welcome back message is older than 1 hour, removing it",
+              );
+              localStorage.removeItem("voiceroWelcomeBackMessage");
+              localStorage.removeItem("voiceroWelcomeBackMessageTime");
+              // Don't set the global variable since we're removing the message
+              return;
+            }
+          }
+
+          window.voiceroWelcomeBackMessage = storedMessage;
+        }
+      } catch (e) {
+        console.warn(
+          "VoiceroUserData: Error checking for welcome back message",
+          e,
+        );
+      }
 
       // Set up promise for tracking completion
       this.initPromise = new Promise((resolve) => {
@@ -69,6 +115,27 @@
               console.warn(
                 "VoiceroUserData: Unable to store user data in localStorage",
                 e,
+              );
+            }
+
+            // Send complete consolidated user data to our API
+            if (this.customer && !this.dataSent) {
+              // Create a comprehensive data object with both customer and cart
+              const userData = {
+                customer: this.customer,
+                cart: this.cart || null,
+                isLoggedIn: this.isLoggedIn,
+              };
+
+              console.log(
+                "VoiceroUserData: Sending consolidated data to API from init completion",
+              );
+
+              // Send to our API
+              this.sendCustomerDataToApi(userData);
+            } else if (this.dataSent) {
+              console.log(
+                "VoiceroUserData: Data already sent, not sending again from init completion",
               );
             }
 
@@ -247,6 +314,9 @@
           this.customer.logged_in = true;
           this.customer.timestamp = new Date().toISOString();
 
+          // NOTE: We're NOT sending customer data here anymore
+          // It will be sent once at the end of initialization
+
           resolve();
           return;
         } else {
@@ -410,15 +480,38 @@
                         } 
                       } 
                     }
-                    orders(first:5) { 
+                    orders(first:10) { 
                       edges { 
                         node { 
                           id 
                           orderNumber 
+                          processedAt
+                          fulfillmentStatus
+                          financialStatus
                           totalPriceV2 { 
                             amount 
                             currencyCode 
-                          } 
+                          }
+                          lineItems(first: 5) {
+                            edges {
+                              node {
+                                title
+                                quantity
+                              }
+                            }
+                          }
+                          fulfillments(first: 3) {
+                            trackingCompany
+                            trackingNumbers
+                            trackingUrls
+                          }
+                          shippingAddress {
+                            address1
+                            city
+                            province
+                            country
+                            zip
+                          }
                         } 
                       } 
                     }
@@ -527,6 +620,318 @@
      */
     isInitialized: function () {
       return this.initialized;
+    },
+
+    /**
+     * Get the welcome back message if one exists
+     * @returns {String|null} The welcome back message or null if none exists
+     */
+    getWelcomeBackMessage: function () {
+      // First check the global variable (for immediate access)
+      if (window.voiceroWelcomeBackMessage) {
+        console.log(
+          "VoiceroUserData: Retrieved welcome back message from global variable:",
+          window.voiceroWelcomeBackMessage,
+        );
+        return window.voiceroWelcomeBackMessage;
+      }
+
+      // Fall back to localStorage
+      try {
+        const message = localStorage.getItem("voiceroWelcomeBackMessage");
+        if (message) {
+          console.log(
+            "VoiceroUserData: Retrieved welcome back message from localStorage:",
+            message,
+          );
+          // Cache it in the global variable for faster access next time
+          window.voiceroWelcomeBackMessage = message;
+          return message;
+        }
+      } catch (e) {
+        console.warn(
+          "VoiceroUserData: Error accessing localStorage for welcome message",
+          e,
+        );
+      }
+
+      console.log("VoiceroUserData: No welcome back message found");
+      return null;
+    },
+
+    /**
+     * Send customer data to our external API
+     * @param {Object} customerData - The customer data to send
+     */
+    sendCustomerDataToApi: function (customerData) {
+      try {
+        // Check if we've already sent data to avoid duplicates
+        if (this.dataSent) {
+          console.log(
+            "VoiceroUserData: Customer data already sent, skipping duplicate send",
+          );
+          return;
+        }
+
+        console.log("VoiceroUserData: Sending customer data to external API");
+
+        // Mark data as sent to prevent duplicates
+        this.dataSent = true;
+
+        // Get the shop domain from config
+        const shopDomain =
+          window.voiceroConfig && window.voiceroConfig.shop
+            ? window.voiceroConfig.shop
+            : window.location.hostname;
+
+        // Get access headers from config if available
+        const headers =
+          window.voiceroConfig &&
+          typeof window.voiceroConfig.getAuthHeaders === "function"
+            ? window.voiceroConfig.getAuthHeaders()
+            : { Authorization: "Bearer anonymous" };
+
+        // Get website ID from config or defaults
+        const websiteId =
+          window.voiceroConfig && window.voiceroConfig.websiteId
+            ? window.voiceroConfig.websiteId
+            : shopDomain; // Use shop domain as fallback website ID
+
+        // Extract customer from userData
+        const customer = customerData.customer || {};
+
+        // Transform customer data to match the expected API format
+        // The API expects firstName, lastName instead of first_name, last_name
+        const transformedCustomer = {
+          id: customer.id || "",
+          firstName: customer.first_name || "",
+          lastName: customer.last_name || "",
+          email: customer.email || "",
+          phone: customer.phone || "",
+          acceptsMarketing: customer.accepts_marketing || false,
+          tags: customer.tags || "",
+          orders_count: customer.orders_count || 0,
+          total_spent: customer.total_spent || "0",
+        };
+
+        // Add defaultAddress if available
+        if (customer.default_address) {
+          transformedCustomer.defaultAddress = {
+            id: customer.default_address.id || "",
+            firstName: customer.default_address.first_name || "",
+            lastName: customer.default_address.last_name || "",
+            address1: customer.default_address.address1 || "",
+            city: customer.default_address.city || "",
+            province: customer.default_address.province || "",
+            zip: customer.default_address.zip || "",
+            country: customer.default_address.country || "",
+          };
+        }
+
+        // Add addresses in GraphQL format if available
+        // Your API expects addresses as {edges: [{node: {}}]} format
+        transformedCustomer.addresses = {
+          edges: [],
+        };
+
+        // Add default address to the edges if available
+        if (customer.default_address) {
+          transformedCustomer.addresses.edges.push({
+            node: {
+              id: customer.default_address.id || "",
+              firstName: customer.default_address.first_name || "",
+              lastName: customer.default_address.last_name || "",
+              address1: customer.default_address.address1 || "",
+              city: customer.default_address.city || "",
+              province: customer.default_address.province || "",
+              zip: customer.default_address.zip || "",
+              country: customer.default_address.country || "",
+            },
+          });
+        }
+
+        // Add orders if available
+        if (customer.recent_orders && customer.recent_orders.length > 0) {
+          transformedCustomer.orders = {
+            edges: customer.recent_orders.map((order) => ({
+              node: {
+                id: order.order_number,
+                orderNumber: order.order_number,
+                processedAt: order.created_at,
+                fulfillmentStatus: order.fulfillment_status || "",
+                financialStatus: order.financial_status || "",
+                totalPriceV2: {
+                  amount: order.total_price || "0",
+                  currencyCode: "USD", // Default currency
+                },
+                // Add line items structure (API expects this format with edges/node)
+                lineItems: {
+                  edges: [
+                    {
+                      node: {
+                        title: `Order #${order.order_number}`,
+                        quantity: 1,
+                      },
+                    },
+                  ],
+                },
+                // Add fulfillments if tracking info is available
+                fulfillments: order.has_tracking
+                  ? [
+                      {
+                        trackingCompany: order.tracking_company || "",
+                        trackingNumbers: [order.tracking_number || ""],
+                        trackingUrls: [order.tracking_url || ""],
+                      },
+                    ]
+                  : [],
+
+                // Add shipping address (use customer default if order doesn't have one)
+                shippingAddress: {
+                  address1: customer.default_address
+                    ? customer.default_address.address1
+                    : "",
+                  city: customer.default_address
+                    ? customer.default_address.city
+                    : "",
+                  province: customer.default_address
+                    ? customer.default_address.province
+                    : "",
+                  country: customer.default_address
+                    ? customer.default_address.country
+                    : "",
+                  zip: customer.default_address
+                    ? customer.default_address.zip
+                    : "",
+                },
+              },
+            })),
+          };
+        }
+
+        // Add cart data
+        const cart = customerData.cart || {};
+
+        // Prepare the payload with shop and customer data
+        const payload = {
+          shop: shopDomain,
+          websiteId: websiteId, // Include website ID in payload
+          customer: transformedCustomer,
+          cart: cart,
+          source: "shopify-storefront",
+          timestamp: new Date().toISOString(),
+        };
+
+        console.log("VoiceroUserData: Formatted payload for API:", payload);
+
+        // Send the data to the external API
+        fetch("http://localhost:3000/api/shopify/setCustomer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...headers,
+          },
+          body: JSON.stringify(payload),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              console.error(
+                "VoiceroUserData: API response error:",
+                response.status,
+                response.statusText,
+              );
+              throw new Error(`API response error: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log(
+              "VoiceroUserData: Successfully sent customer data to API",
+              data,
+            );
+
+            // Check if the API returned a welcome back message
+            if (data && data.welcomeBackMessage) {
+              console.log(
+                "VoiceroUserData: Received welcome back message:",
+                data.welcomeBackMessage,
+              );
+
+              // Store the welcome back message in localStorage
+              try {
+                localStorage.setItem(
+                  "voiceroWelcomeBackMessage",
+                  data.welcomeBackMessage,
+                );
+
+                // Also store the timestamp of when we received the message
+                localStorage.setItem(
+                  "voiceroWelcomeBackMessageTime",
+                  Date.now().toString(),
+                );
+
+                console.log(
+                  "VoiceroUserData: Stored welcome back message in localStorage",
+                );
+
+                // Also store in global variable for immediate access
+                window.voiceroWelcomeBackMessage = data.welcomeBackMessage;
+              } catch (e) {
+                console.warn(
+                  "VoiceroUserData: Unable to store welcome back message",
+                  e,
+                );
+              }
+            }
+          })
+          .catch((error) => {
+            console.error(
+              "VoiceroUserData: Error sending customer data to API",
+              error,
+            );
+            this.errors.push({
+              time: new Date().toISOString(),
+              message:
+                error.message || "Unknown error sending customer data to API",
+            });
+          });
+      } catch (error) {
+        console.error(
+          "VoiceroUserData: Exception sending customer data to API",
+          error,
+        );
+        this.errors.push({
+          time: new Date().toISOString(),
+          message: error.message || "Exception sending customer data to API",
+        });
+      }
+    },
+
+    /**
+     * Clear the welcome back message after it's been displayed
+     */
+    clearWelcomeBackMessage: function () {
+      console.log(
+        "VoiceroUserData: Clearing welcome back message, current value:",
+        window.voiceroWelcomeBackMessage,
+      );
+
+      // Clear from global variable
+      window.voiceroWelcomeBackMessage = null;
+
+      // Reset the displayed flag
+      window.voiceroWelcomeBackDisplayed = false;
+
+      // Clear from localStorage
+      try {
+        localStorage.removeItem("voiceroWelcomeBackMessage");
+        localStorage.removeItem("voiceroWelcomeBackMessageTime");
+        console.log(
+          "VoiceroUserData: Cleared welcome back message from localStorage",
+        );
+      } catch (e) {
+        console.warn("VoiceroUserData: Error clearing welcome back message", e);
+      }
     },
   };
 

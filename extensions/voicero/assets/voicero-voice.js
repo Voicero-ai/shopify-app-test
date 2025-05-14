@@ -966,6 +966,33 @@ const VoiceroVoice = {
 
     this.loadMessagesFromSession();
 
+    // Set up continuous checking for welcome back message for 10 seconds
+    // This ensures we catch messages that arrive shortly after the interface loads
+    this.welcomeBackCheckCount = 0;
+    this.maxWelcomeBackChecks = 20; // Check for 10 seconds (20 checks * 500ms)
+    this.hasDisplayedWelcomeBack = false;
+
+    // Clear any existing interval
+    if (this.welcomeBackCheckInterval) {
+      clearInterval(this.welcomeBackCheckInterval);
+    }
+
+    // Start checking for welcome back messages
+    this.welcomeBackCheckInterval = setInterval(() => {
+      this.checkForWelcomeBackMessage();
+
+      // Increment counter
+      this.welcomeBackCheckCount++;
+
+      // Stop checking after max attempts
+      if (this.welcomeBackCheckCount >= this.maxWelcomeBackChecks) {
+        clearInterval(this.welcomeBackCheckInterval);
+        console.log(
+          "VoiceroVoice: Completed checking for welcome back messages",
+        );
+      }
+    }, 500); // Check every 500ms
+
     // After the interface is fully loaded and visible, check if it should be minimized
     // based on the previous session state (delayed to prevent race conditions)
     setTimeout(() => {
@@ -978,6 +1005,77 @@ const VoiceroVoice = {
       // Just clear the opening flag
       this.isOpeningVoiceChat = false;
     }, 1500);
+  },
+
+  // Check for welcome back message and display it if found
+  checkForWelcomeBackMessage: function () {
+    // Skip if we've already displayed a welcome back message
+    if (this.hasDisplayedWelcomeBack) {
+      return;
+    }
+
+    // Also check for global flag to prevent showing in multiple interfaces
+    if (window.voiceroWelcomeBackDisplayed) {
+      console.log(
+        "VoiceroVoice: Welcome back message already displayed in another interface",
+      );
+      this.hasDisplayedWelcomeBack = true;
+      return;
+    }
+
+    // Check for welcome back message
+    if (
+      window.VoiceroUserData &&
+      typeof window.VoiceroUserData.getWelcomeBackMessage === "function"
+    ) {
+      const welcomeBackMessage = window.VoiceroUserData.getWelcomeBackMessage();
+
+      if (welcomeBackMessage) {
+        console.log(
+          "VoiceroVoice: Found welcome back message during continuous check:",
+          welcomeBackMessage,
+        );
+
+        // Check if the message is empty or just contains whitespace
+        if (!welcomeBackMessage.trim()) {
+          console.log(
+            "VoiceroVoice: Welcome back message is empty, not displaying",
+          );
+          this.hasDisplayedWelcomeBack = true;
+          return;
+        }
+
+        // Mark as displayed to prevent duplicates (both locally and globally)
+        this.hasDisplayedWelcomeBack = true;
+        window.voiceroWelcomeBackDisplayed = true;
+
+        // Display the welcome back message
+        this.addMessage(welcomeBackMessage, "ai");
+
+        console.log(
+          "VoiceroVoice: Welcome back message displayed, now clearing it",
+        );
+
+        // Clear the welcome back message
+        if (
+          window.VoiceroUserData &&
+          typeof window.VoiceroUserData.clearWelcomeBackMessage === "function"
+        ) {
+          window.VoiceroUserData.clearWelcomeBackMessage();
+          console.log(
+            "VoiceroVoice: Welcome back message cleared from storage",
+          );
+        }
+
+        // Clear the interval since we found the message
+        if (this.welcomeBackCheckInterval) {
+          clearInterval(this.welcomeBackCheckInterval);
+          console.log(
+            "VoiceroVoice: Stopped checking for welcome back messages after finding one",
+          );
+        }
+      }
+    }
   },
 
   // Minimize voice chat interface
@@ -3134,6 +3232,10 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
 
     // Add the message
     this.addMessage(welcomeMessage, "ai");
+
+    // NOTE: Welcome back message handling removed from here
+    // We now handle welcome back messages through the continuous check (checkForWelcomeBackMessage)
+    // to avoid duplicates when both modules try to display the message
 
     // Scroll to bottom
     if (messagesContainer) {

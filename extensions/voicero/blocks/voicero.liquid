@@ -5,7 +5,8 @@
 <script>
   // Initialize voicero with shop data - but DON'T expose the access key directly in window
   window.voiceroConfig = {
-    shop: "{{ shop.permanent_domain }}"
+    shop: "{{ shop.permanent_domain }}",
+    websiteId: "{{ shop.id }}"
   };
   
   // Store access key in a closure that's not directly accessible from window
