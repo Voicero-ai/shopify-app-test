@@ -1189,8 +1189,14 @@
       console.log("VoiceroCore: Session initialization started");
 
       const proxyUrl = "https://www.voicero.ai/api/session";
+
+      // Check if Shopify customer ID is available
+      const shopifyCustomerId = window.__VoiceroCustomerId || null;
+
+      // Create request body with websiteId and shopifyCustomerId if available
       const requestBody = JSON.stringify({
         websiteId: this.websiteId,
+        ...(shopifyCustomerId && { shopifyCustomerId }),
       });
 
       console.log("VoiceroCore: Creating session with body:", requestBody);
@@ -1291,6 +1297,9 @@
 
     // Fallback method to try creating a session using jQuery AJAX
     _createSessionFallback: function () {
+      // Get Shopify customer ID if available
+      const shopifyCustomerId = window.__VoiceroCustomerId || null;
+
       // Only run if jQuery is available
       if (typeof window.jQuery === "undefined") {
         // Use fetch as a fallback if jQuery isn't available
@@ -1299,7 +1308,10 @@
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ websiteId: this.websiteId }),
+          body: JSON.stringify({
+            websiteId: this.websiteId,
+            ...(shopifyCustomerId && { shopifyCustomerId }),
+          }),
         })
           .then((response) => response.json())
           .then((data) => {
@@ -1328,7 +1340,10 @@
       window.jQuery.ajax({
         url: "https://www.voicero.ai/api/session",
         type: "POST",
-        data: JSON.stringify({ websiteId: this.websiteId }),
+        data: JSON.stringify({
+          websiteId: this.websiteId,
+          ...(shopifyCustomerId && { shopifyCustomerId }),
+        }),
         contentType: "application/json",
         dataType: "json",
         success: (data) => {
