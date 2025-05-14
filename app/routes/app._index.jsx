@@ -765,7 +765,7 @@ const checkTrainingStatus = async (
 
           // Reload the page after training completes
           setTimeout(() => {
-            window.location.reload();
+            window.location.href = "/app";
           }, 2000);
         }
       } catch (error) {
@@ -958,7 +958,7 @@ const trainUntrainedItems = async (
 
     // Reload the page after training is complete
     setTimeout(() => {
-      window.location.reload();
+      window.location.href = "/app";
     }, 2000);
   } catch (error) {
     console.error("Error during parallel training:", error);
@@ -1387,7 +1387,7 @@ export default function Index() {
 
                   // Reload the page after training completes
                   setTimeout(() => {
-                    window.location.reload();
+                    window.location.href = "/app";
                   }, 2000);
                 }
               } catch (error) {
