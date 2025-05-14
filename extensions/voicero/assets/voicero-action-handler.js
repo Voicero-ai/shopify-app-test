@@ -123,7 +123,15 @@ const VoiceroActionHandler = {
     }
 
     try {
-      const handlerName = `handle${this.capitalizeFirstLetter(action)}`;
+      // Create a mapping for actions that might use different formats
+      const actionMapping = {
+        get_orders: "handleGet_orders",
+      };
+
+      // Get the handler name - either from the mapping or generate from the action name
+      const handlerName =
+        actionMapping[action] || `handle${this.capitalizeFirstLetter(action)}`;
+
       if (typeof this[handlerName] !== "function") {
         // console.warn(`No handler for action: ${action}`);
         return;
@@ -913,18 +921,84 @@ const VoiceroActionHandler = {
   },
 
   handleTrack_order: async function (target) {
-    const { order_id, email } = target || {};
-    if (!order_id || !email) {
-      // console.warn("Order ID and email required for tracking");
+    const { order_id, email, order_number } = target || {};
+    const orderNumberToFind = order_number || order_id;
+
+    // Check if we have customer data available from the Liquid template
+    if (
+      window.__VoiceroCustomerData &&
+      window.__VoiceroCustomerData.recent_orders
+    ) {
+      const orders = window.__VoiceroCustomerData.recent_orders;
+
+      // Find the order with the matching order number
+      const order = orders.find(
+        (o) =>
+          o.order_number === orderNumberToFind ||
+          o.name === orderNumberToFind ||
+          o.name === `#${orderNumberToFind}`,
+      );
+
+      if (order) {
+        // Build a formatted message with detailed order information
+        const date = new Date(order.created_at).toLocaleDateString();
+        const status =
+          order.fulfillment_status === "fulfilled"
+            ? "✅ Fulfilled"
+            : order.financial_status === "paid"
+              ? "💰 Paid (Processing)"
+              : "⏳ " + (order.financial_status || "Processing");
+
+        let message = `## Order Details for #${order.order_number}\n\n`;
+        message += `Order Date: ${date} - $${parseFloat(order.total_price).toFixed(2)} - ${order.line_items_count} ${order.line_items_count === 1 ? "item" : "items"}\n`;
+        message += `Order Status\n\n`;
+
+        // Add detailed tracking information if available
+        if (order.has_tracking) {
+          message += `Your order has been shipped! You can track it below:\n\n`;
+
+          if (order.tracking_company) {
+            message += `Carrier: ${order.tracking_company}\n`;
+          }
+
+          if (order.tracking_number) {
+            message += `Tracking Number: ${order.tracking_number}\n`;
+          }
+
+          if (order.tracking_url) {
+            message += `[Track Package](${order.tracking_url})\n`;
+          }
+        } else if (order.fulfillment_status === "fulfilled") {
+          message += `Your order has been fulfilled and is on its way! Unfortunately, no tracking information is available at this time.\n`;
+        } else {
+          message += `Your order is still being processed. Once it ships, tracking information will be provided.\n`;
+        }
+
+        // Add a link to view complete order details
+        message += `\n[View Complete Order Details](/account/orders/${order.name})`;
+
+        // Display the message using VoiceroText
+        if (window.VoiceroText?.addMessage) {
+          window.VoiceroText.addMessage(message, "ai");
+        }
+        return;
+      }
+    }
+
+    // If we couldn't find the order or user isn't logged in
+
+    // Check if email and order_id are provided for tracking lookup
+    if (!orderNumberToFind || (!email && !window.__VoiceroCustomerData)) {
       if (window.VoiceroText?.addMessage) {
         window.VoiceroText.addMessage(
-          "Please provide both order number and email address",
+          "To track your order, I'll need both your order number and the email address associated with the purchase.",
+          "ai",
         );
       }
       return;
     }
 
-    // Try to find and use Shopify's order lookup form
+    // Try to find and use Shopify's order lookup form if available
     const trackingForm = document.querySelector(
       'form.order-lookup, form[action*="orders/lookup"]',
     );
@@ -938,8 +1012,12 @@ const VoiceroActionHandler = {
       );
 
       if (orderIdField && emailField) {
-        orderIdField.value = order_id;
-        emailField.value = email;
+        orderIdField.value = orderNumberToFind;
+        emailField.value =
+          email ||
+          (window.__VoiceroCustomerData
+            ? window.__VoiceroCustomerData.email
+            : "");
 
         // Submit the form
         trackingForm.dispatchEvent(new Event("submit", { bubbles: true }));
@@ -947,8 +1025,20 @@ const VoiceroActionHandler = {
       }
     }
 
-    // If no form found, redirect to the order status page
-    window.location.href = `/account/orders/lookup?number=${order_id}&email=${encodeURIComponent(email)}`;
+    // Fall back to order lookup page if we can't show the order directly
+    const customerEmail =
+      email ||
+      (window.__VoiceroCustomerData ? window.__VoiceroCustomerData.email : "");
+    if (customerEmail) {
+      window.location.href = `/account/orders/lookup?number=${orderNumberToFind}&email=${encodeURIComponent(customerEmail)}`;
+    } else {
+      if (window.VoiceroText?.addMessage) {
+        window.VoiceroText.addMessage(
+          "I'll need your email address to look up your order. Could you please provide it?",
+          "ai",
+        );
+      }
+    }
   },
 
   handleProcess_return: async function (target) {
@@ -1032,6 +1122,88 @@ const VoiceroActionHandler = {
       }
     } catch (error) {
       // console.error("Scheduler error:", error);
+    }
+  },
+
+  handleGet_orders: function () {
+    // Check if we have customer data available from the Liquid template
+    if (
+      window.__VoiceroCustomerData &&
+      window.__VoiceroCustomerData.recent_orders
+    ) {
+      const orders = window.__VoiceroCustomerData.recent_orders;
+
+      if (orders.length === 0) {
+        // If no orders found
+        if (window.VoiceroText?.addMessage) {
+          window.VoiceroText.addMessage(
+            "I don't see any orders associated with your account. If you've placed an order recently, it might not be showing up yet.",
+            "ai",
+          );
+        }
+        return;
+      }
+
+      // Build a nicely formatted message with order information
+      let message = "📦 **Here are your recent orders:**\n\n";
+
+      orders.forEach((order, index) => {
+        const date = new Date(order.created_at).toLocaleDateString();
+        const status =
+          order.fulfillment_status === "fulfilled"
+            ? "✅ Fulfilled"
+            : order.financial_status === "paid"
+              ? "💰 Paid (Processing)"
+              : "⏳ " + (order.financial_status || "Processing");
+
+        message += `**Order #${order.order_number}** (${date})`;
+        message += ` • Total: $${parseFloat(order.total_price).toFixed(2)}`;
+        message += ` • Items: ${order.line_items_count}\n`;
+
+        // Add tracking information if available
+        if (order.has_tracking) {
+          message += ` • Tracking: ${order.tracking_company || "Carrier"}`;
+          if (order.tracking_url) {
+            message += ` - [Track Package](${order.tracking_url})\n`;
+          } else if (order.tracking_number) {
+            message += ` - ${order.tracking_number}\n`;
+          } else {
+            message += `\n`;
+          }
+        }
+
+        // Add a link to view order details
+        message += ` • [View Complete Order Details](/account/orders/${order.name})\n`;
+
+        // Add separator between orders, except for the last one
+        if (index < orders.length - 1) {
+          message += "\n---\n\n";
+        }
+      });
+
+      // Add a note about viewing all orders
+      message +=
+        "\n\nYou can view your complete order history in your [account page](/account).";
+      message +=
+        "\n\nIs there a specific order you'd like more information about?";
+
+      // Display the message using VoiceroText
+      if (window.VoiceroText?.addMessage) {
+        window.VoiceroText.addMessage(message, "ai");
+      }
+    } else {
+      // If customer data is not available, prompt to log in
+      if (window.VoiceroText?.addMessage) {
+        window.VoiceroText.addMessage(
+          "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.",
+          "ai",
+        );
+
+        // Redirect to login page after a short delay
+        setTimeout(() => {
+          window.location.href = "/account/login";
+        }, 3000);
+      }
     }
   },
 
