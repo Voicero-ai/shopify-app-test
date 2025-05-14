@@ -981,6 +981,10 @@ const VoiceroActionHandler = {
         if (window.VoiceroText?.addMessage) {
           window.VoiceroText.addMessage(message, "ai");
         }
+        // Display the message using VoiceroVoice as well
+        if (window.VoiceroVoice?.addMessage) {
+          window.VoiceroVoice.addMessage(message, "ai");
+        }
         return;
       }
     }
@@ -989,56 +993,9 @@ const VoiceroActionHandler = {
 
     // Check if email and order_id are provided for tracking lookup
     if (!orderNumberToFind || (!email && !window.__VoiceroCustomerData)) {
-      if (window.VoiceroText?.addMessage) {
-        window.VoiceroText.addMessage(
-          "To track your order, I'll need both your order number and the email address associated with the purchase.",
-          "ai",
-        );
-      }
+      
       return;
-    }
-
-    // Try to find and use Shopify's order lookup form if available
-    const trackingForm = document.querySelector(
-      'form.order-lookup, form[action*="orders/lookup"]',
-    );
-
-    if (trackingForm) {
-      const orderIdField = trackingForm.querySelector(
-        'input[name="order[number]"], input[name="order_number"]',
-      );
-      const emailField = trackingForm.querySelector(
-        'input[name="order[email]"], input[type="email"]',
-      );
-
-      if (orderIdField && emailField) {
-        orderIdField.value = orderNumberToFind;
-        emailField.value =
-          email ||
-          (window.__VoiceroCustomerData
-            ? window.__VoiceroCustomerData.email
-            : "");
-
-        // Submit the form
-        trackingForm.dispatchEvent(new Event("submit", { bubbles: true }));
-        return;
-      }
-    }
-
-    // Fall back to order lookup page if we can't show the order directly
-    const customerEmail =
-      email ||
-      (window.__VoiceroCustomerData ? window.__VoiceroCustomerData.email : "");
-    if (customerEmail) {
-      window.location.href = `/account/orders/lookup?number=${orderNumberToFind}&email=${encodeURIComponent(customerEmail)}`;
-    } else {
-      if (window.VoiceroText?.addMessage) {
-        window.VoiceroText.addMessage(
-          "I'll need your email address to look up your order. Could you please provide it?",
-          "ai",
-        );
-      }
-    }
+    }   
   },
 
   handleProcess_return: async function (target) {
@@ -1141,6 +1098,13 @@ const VoiceroActionHandler = {
             "ai",
           );
         }
+        // Add to VoiceroVoice as well
+        if (window.VoiceroVoice?.addMessage) {
+          window.VoiceroVoice.addMessage(
+            "I don't see any orders associated with your account. If you've placed an order recently, it might not be showing up yet.",
+            "ai",
+          );
+        }
         return;
       }
 
@@ -1191,6 +1155,10 @@ const VoiceroActionHandler = {
       if (window.VoiceroText?.addMessage) {
         window.VoiceroText.addMessage(message, "ai");
       }
+      // Add to VoiceroVoice as well
+      if (window.VoiceroVoice?.addMessage) {
+        window.VoiceroVoice.addMessage(message, "ai");
+      }
     } else {
       // If customer data is not available, prompt to log in
       if (window.VoiceroText?.addMessage) {
@@ -1198,11 +1166,13 @@ const VoiceroActionHandler = {
           "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.",
           "ai",
         );
-
-        // Redirect to login page after a short delay
-        setTimeout(() => {
-          window.location.href = "/account/login";
-        }, 3000);
+      }
+      // Add to VoiceroVoice as well
+      if (window.VoiceroVoice?.addMessage) {
+        window.VoiceroVoice.addMessage(
+          "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.",
+          "ai",
+        );
       }
     }
   },

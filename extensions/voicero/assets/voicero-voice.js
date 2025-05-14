@@ -2688,8 +2688,15 @@ const VoiceroVoice = {
     let messageContent = document.createElement("div");
     messageContent.className = "message-content voice-message-content";
 
-    if (formatMarkdown && role === "ai" && VoiceroCore) {
-      messageContent.innerHTML = VoiceroCore.formatMarkdown(content);
+    // Apply markdown formatting for AI messages (similar to VoiceroText)
+    if (role === "ai") {
+      // Format message if needed (check if VoiceroCore.formatMarkdown is available)
+      if (window.VoiceroCore && window.VoiceroCore.formatMarkdown) {
+        messageContent.innerHTML = window.VoiceroCore.formatMarkdown(content);
+      } else {
+        // Fallback to basic formatting if VoiceroCore.formatMarkdown is not available
+        messageContent.innerHTML = this.formatContent(content);
+      }
     } else {
       messageContent.textContent = content;
     }
@@ -2784,6 +2791,29 @@ const VoiceroVoice = {
     }
 
     return messageEl;
+  },
+
+  // Format content with potential links (similar to VoiceroText)
+  formatContent: function (text) {
+    if (!text) return "";
+
+    // Process URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const processedText = text.replace(
+      urlRegex,
+      '<a href="$1" target="_blank" class="chat-link">$1</a>',
+    );
+
+    // Process markdown-style bold text
+    let formattedText = processedText.replace(
+      /\*\*(.*?)\*\*/g,
+      "<strong>$1</strong>",
+    );
+
+    // Process markdown-style italic text
+    formattedText = formattedText.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    return formattedText;
   },
 
   // Format currency values for better speech pronunciation
