@@ -489,6 +489,11 @@ const VoiceroText = {
 
         // Add each message to the UI
         sortedMessages.forEach((msg) => {
+          // Skip system messages and page_data messages
+          if (msg.role === "system" || msg.type === "page_data") {
+            return; // Skip this message
+          }
+
           if (msg.role === "user") {
             // Add user message
             this.addMessage(msg.content, "user", true); // true = skip adding to messages array
@@ -519,14 +524,20 @@ const VoiceroText = {
         });
 
         // Store the complete message objects with metadata in the local array
-        this.messages = sortedMessages.map((msg) => ({
-          ...msg, // Keep all original properties (id, createdAt, threadId, etc.)
-          // Ensure 'content' is properly formatted for assistant messages
-          content:
-            msg.role === "assistant"
-              ? this.extractAnswerFromJson(msg.content)
-              : msg.content,
-        }));
+        this.messages = sortedMessages
+          .filter(
+            (msg) =>
+              // Filter out system messages and page_data messages from the messages array
+              msg.role !== "system" && msg.type !== "page_data",
+          )
+          .map((msg) => ({
+            ...msg, // Keep all original properties (id, createdAt, threadId, etc.)
+            // Ensure 'content' is properly formatted for assistant messages
+            content:
+              msg.role === "assistant"
+                ? this.extractAnswerFromJson(msg.content)
+                : msg.content,
+          }));
 
         // Store the thread ID
         this.currentThreadId = currentThread.threadId;

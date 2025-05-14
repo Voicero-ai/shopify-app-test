@@ -1295,7 +1295,8 @@ const VoiceroActionHandler = {
       content: message,
       pageUrl: window.location.href,
       createdAt: new Date().toISOString(),
-      type: "system", // Mark this as a system-generated message
+      // Don't mark as system type as it will be filtered out
+      // type: "system"
     };
 
     // Add the message to the thread
@@ -1314,6 +1315,14 @@ const VoiceroActionHandler = {
 
   // Helper to update session and message on the server
   updateSessionOnServer: function (thread, message) {
+    // Skip system messages and page_data messages
+    if (message.role === "system" || message.type === "page_data") {
+      console.log(
+        "VoiceroActionHandler: Skipping sending system or page_data message to server",
+      );
+      return;
+    }
+
     // First try to use VoiceroCore's API methods if available
     if (window.VoiceroCore) {
       // If VoiceroCore has an API method for updating messages specifically

@@ -907,8 +907,7 @@
           payload: payload,
         });
 
-        // Even in debug mode, we still save the data to the session thread
-        this.savePageDataToThread(websiteData);
+        // Don't save page data to the thread anymore
         return;
       }
 
@@ -1006,127 +1005,13 @@
             }
           }
 
-          // Save page data to the session thread AFTER we have the API response
-          // This ensures we include the context of what page the user is on
-          this.savePageDataToThread(websiteData);
+          // Do NOT save page data to the thread
         })
         .catch((error) => {
           console.error("VoiceroSecond: API request failed", error);
 
-          // Even if the API call fails, still save the page data to the thread
-          // Just without the AI response
-          this.savePageDataToThread(websiteData);
+          // Do NOT save page data to the thread on error
         });
-    },
-
-    // Save the page data to the current session thread
-    savePageDataToThread: function (websiteData) {
-      try {
-        // Check if VoiceroCore is available with session and threads
-        if (
-          !window.VoiceroCore ||
-          !window.VoiceroCore.session ||
-          !window.VoiceroCore.session.threads
-        ) {
-          console.log(
-            "VoiceroSecond: Cannot save to thread - no session available",
-          );
-          return;
-        }
-
-        // Get the current thread (first one in the array)
-        const threads = window.VoiceroCore.session.threads;
-        if (!threads.length) {
-          console.log("VoiceroSecond: No threads found in session");
-          return;
-        }
-
-        const currentThread = threads[0];
-
-        // Create a summary of the page data for the message
-        let pageType = websiteData.isProductPage
-          ? "product"
-          : websiteData.url.includes("/collection")
-            ? "collection"
-            : websiteData.url.includes("/cart")
-              ? "cart"
-              : "page";
-
-        // Create a simple message about what page the user is on
-        let messageContent = {
-          page_data: {
-            url: websiteData.url,
-            title: websiteData.title,
-            page_type: pageType,
-            is_product_page: websiteData.isProductPage,
-          },
-        };
-
-        // For product pages, include product details
-        if (websiteData.isProductPage && websiteData.productInfo) {
-          messageContent.page_data.product = {
-            name: websiteData.productInfo.name,
-            price: websiteData.productInfo.price,
-            currency: websiteData.productInfo.currency,
-          };
-        }
-
-        // Create the message object
-        const newMessage = {
-          id: this.generateUUID(),
-          threadId: currentThread.id,
-          role: "system",
-          content: JSON.stringify(messageContent),
-          pageUrl: window.location.href,
-          createdAt: new Date().toISOString(),
-          type: "page_data",
-        };
-
-        // Add the message to the thread in memory
-        if (!currentThread.messages) {
-          currentThread.messages = [];
-        }
-
-        currentThread.messages.push(newMessage);
-
-        // Update lastMessageAt timestamp
-        currentThread.lastMessageAt = new Date().toISOString();
-
-        console.log("VoiceroSecond: Added page data to thread", {
-          threadId: currentThread.id,
-          messageId: newMessage.id,
-        });
-
-        // Force VoiceroCore to update its state to reflect our changes
-        if (window.VoiceroCore && window.VoiceroCore.updateState) {
-          window.VoiceroCore.updateState();
-        }
-
-        // Add the actual API response to the interfaces if available
-        if (
-          this.latestAnalysis &&
-          this.latestAnalysis.response &&
-          this.latestAnalysis.response.answer
-        ) {
-          const aiMessage = this.latestAnalysis.response.answer;
-
-          if (window.VoiceroText && window.VoiceroText.addMessage) {
-            window.VoiceroText.addMessage(aiMessage, "assistant");
-          }
-
-          if (window.VoiceroVoice && window.VoiceroVoice.addMessage) {
-            window.VoiceroVoice.addMessage(aiMessage, "assistant");
-          }
-        }
-
-        // Update the session on the server
-        this.updateSessionOnServer(currentThread, newMessage);
-      } catch (error) {
-        console.error(
-          "VoiceroSecond: Error saving page data to thread:",
-          error,
-        );
-      }
     },
 
     // Generate a UUID for messages (needed for message IDs)
@@ -1139,119 +1024,6 @@
           return v.toString(16);
         },
       );
-    },
-
-    // Update session and message on the server
-    updateSessionOnServer: function (thread, message) {
-      try {
-        // Only proceed if we have VoiceroCore, a sessionId, and a valid message
-        if (!window.VoiceroCore || !window.VoiceroCore.sessionId || !message) {
-          return;
-        }
-
-        // Get API base URL - use development URL if in dev mode
-        const apiBaseUrl = DEVELOPMENT_MODE
-          ? DEV_API_URL
-          : window.VoiceroCore.apiBaseUrl || PROD_API_URL;
-
-        // Prepare the message API endpoint
-        const messageEndpoint = `${apiBaseUrl}/api/session/message`;
-
-        console.log("VoiceroSecond: Updating session with page data", {
-          endpoint: messageEndpoint,
-          sessionId: window.VoiceroCore.sessionId,
-        });
-
-        // Send the message to the API
-        fetch(messageEndpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(window.voiceroConfig?.getAuthHeaders
-              ? window.voiceroConfig.getAuthHeaders()
-              : {}),
-          },
-          body: JSON.stringify({
-            sessionId: window.VoiceroCore.sessionId,
-            message: message,
-          }),
-        })
-          .then((response) => {
-            console.log(
-              "VoiceroSecond: Session update response status:",
-              response.status,
-            );
-            if (!response.ok) {
-              throw new Error(
-                `Session message update failed: ${response.status}`,
-              );
-            }
-            return response.json();
-          })
-          .then((data) => {
-            console.log(
-              "VoiceroSecond: Session updated successfully with page data",
-              data,
-            );
-
-            // Update VoiceroText and VoiceroVoice to show them the page data was captured
-            // (but only if they explicitly want to show system messages)
-            if (
-              window.VoiceroText &&
-              window.VoiceroText.shouldShowSystemMessages
-            ) {
-              let pageDesc = "";
-              try {
-                const parsedContent =
-                  typeof message.content === "string"
-                    ? JSON.parse(message.content)
-                    : message.content;
-
-                pageDesc = parsedContent.page_data.is_product_page
-                  ? `product page: ${parsedContent.page_data.product?.name || "Unknown Product"}`
-                  : `${parsedContent.page_data.page_type} page`;
-              } catch (e) {
-                pageDesc = "page data";
-                console.error("Error parsing message content:", e);
-              }
-
-              window.VoiceroText.addMessage(
-                `📊 Page data captured: ${pageDesc}`,
-                "system",
-              );
-            }
-
-            if (
-              window.VoiceroVoice &&
-              window.VoiceroVoice.shouldShowSystemMessages
-            ) {
-              let pageDesc = "";
-              try {
-                const parsedContent =
-                  typeof message.content === "string"
-                    ? JSON.parse(message.content)
-                    : message.content;
-
-                pageDesc = parsedContent.page_data.is_product_page
-                  ? `product page: ${parsedContent.page_data.product?.name || "Unknown Product"}`
-                  : `${parsedContent.page_data.page_type} page`;
-              } catch (e) {
-                pageDesc = "page data";
-                console.error("Error parsing message content:", e);
-              }
-
-              window.VoiceroVoice.addMessage(
-                `📊 Page data captured: ${pageDesc}`,
-                "system",
-              );
-            }
-          })
-          .catch((error) => {
-            console.error("VoiceroSecond: Error updating session:", error);
-          });
-      } catch (error) {
-        console.error("VoiceroSecond: Error in updateSessionOnServer:", error);
-      }
     },
 
     // Update the session with a single message on the server

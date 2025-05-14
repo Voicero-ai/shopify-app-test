@@ -3158,6 +3158,11 @@ const VoiceroVoice = {
 
         // Add each message to the UI
         sortedMessages.forEach((msg) => {
+          // Skip system messages and page_data messages
+          if (msg.role === "system" || msg.type === "page_data") {
+            return; // Skip this message
+          }
+
           if (msg.role === "user") {
             // Add user message
             this.addMessage(msg.content, "user");
