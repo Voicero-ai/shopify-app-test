@@ -1,5 +1,13 @@
 {
-  "name": "Voicero Theme Extension",
+  "name": "voicero",
   "version": "1.0.0",
-  "settings": []
+  "settings": [
+    {
+      "type": "text",
+      "id": "client_id",
+      "label": "Shopify Client ID",
+      "default": "025df740c8a79a0853a7939da465efb0",
+      "info": "Your app's public Client ID from the Partner Dashboard"
+    }
+  ]
 }
