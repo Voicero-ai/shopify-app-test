@@ -202,17 +202,20 @@ export const action = async ({ request }) => {
       const storeName = shop.split(".")[0];
       const appHandle = process.env.SHOPIFY_APP_HANDLE || "voicero-app-shop";
       const site_url = encodeURIComponent(`https://${shop}`);
+
+      // Get the current app URL from the request headers
+      const host = request.headers.get("host");
+      const protocol = request.headers.get("x-forwarded-proto") || "https";
+      const appUrl = `${protocol}://${host}`;
+
+      // Use the current app URL for admin_url instead of hardcoded domain
       const admin_url = encodeURIComponent(
         `https://admin.shopify.com/store/${storeName}/apps/${appHandle}/app`,
       );
 
-      // Get and include callback URL for when the quick connect completes
-      // This allows us to handle the returned key properly
+      // Use the current app URL for callback
       const callbackUrl = encodeURIComponent(
-        `${
-          request.headers.get("referer") ||
-          `https://${session.shop}/admin/apps/${appHandle}`
-        }/api/quickConnectCallback`,
+        `${appUrl}/api/quickConnectCallback`,
       );
 
       return {
@@ -1604,21 +1607,18 @@ export default function Index() {
 
       // Step 2: Send data to backend
 
-      const syncResponse = await fetch(
-        `http://localhost:3000/api/shopify/sync`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${accessKey}`,
-          },
-          body: JSON.stringify({
-            fullSync: true,
-            data: data,
-          }),
+      const syncResponse = await fetch(`${urls.voiceroApi}/api/shopify/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${accessKey}`,
         },
-      );
+        body: JSON.stringify({
+          fullSync: true,
+          data: data,
+        }),
+      });
 
       if (!syncResponse.ok) {
         const errorData = await syncResponse.json();
