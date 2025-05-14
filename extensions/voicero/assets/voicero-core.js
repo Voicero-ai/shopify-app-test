@@ -21,7 +21,7 @@
     };
 
   const VoiceroCore = {
-    apiBaseUrls: ["http://localhost:3000"],
+    apiBaseUrls: ["https://www.voicero.ai"],
     apiBaseUrl: null, // Store the working API URL
     apiConnected: false, // Track connection status
     session: null, // Store the current session
@@ -1025,7 +1025,7 @@
       }
 
       // Ask our REST proxy for this specific sessionId
-      const proxyUrl = `http://localhost:3000/api/session?sessionId=${sessionId}`;
+      const proxyUrl = `https://www.voicero.ai/api/session?sessionId=${sessionId}`;
 
       fetch(proxyUrl, {
         method: "GET",
@@ -1299,7 +1299,7 @@
       this.lastSessionOperationTime = Date.now();
       console.log("VoiceroCore: Session initialization started");
 
-      const proxyUrl = "http://localhost:3000/api/session";
+      const proxyUrl = "https://www.voicero.ai/api/session";
 
       // Check if Shopify customer ID is available
       const shopifyCustomerId = window.__VoiceroCustomerId || null;
@@ -1414,7 +1414,7 @@
       // Only run if jQuery is available
       if (typeof window.jQuery === "undefined") {
         // Use fetch as a fallback if jQuery isn't available
-        fetch("http://localhost:3000/api/session", {
+        fetch("https://www.voicero.ai/api/session", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1449,7 +1449,7 @@
 
       // Use jQuery if available
       window.jQuery.ajax({
-        url: "http://localhost:3000/api/session",
+        url: "https://www.voicero.ai/api/session",
         type: "POST",
         data: JSON.stringify({
           websiteId: this.websiteId,
@@ -1769,7 +1769,7 @@
         }
 
         // Make API call to persist the changes
-        const proxyUrl = "http://localhost:3000/api/session/windows";
+        const proxyUrl = "https://www.voicero.ai/api/session/windows";
 
         // Format the request body to match what the Next.js API expects
         const requestBody = {

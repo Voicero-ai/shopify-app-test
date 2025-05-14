@@ -8,7 +8,7 @@
   // DEVELOPMENT MODE - Set to true during local testing, false for production
   const DEVELOPMENT_MODE = false;
   const DEV_API_URL = "https://www.voicero.a";
-  const PROD_API_URL = "http://localhost:3000";
+  const PROD_API_URL = "https://www.voicero.ai";
 
   // DEBUG MODE - When true, logs data but doesn't send API requests
   const DEBUG_MODE = false;

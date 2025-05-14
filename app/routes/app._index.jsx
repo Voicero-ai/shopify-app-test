@@ -1600,7 +1600,7 @@ export default function Index() {
 
       // Step 2: Send data to backend
 
-      const syncResponse = await fetch(`${urls.voiceroApi}/api/shopify/sync`, {
+      const syncResponse = await fetch(`http://localhost:3000/api/shopify/sync`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
