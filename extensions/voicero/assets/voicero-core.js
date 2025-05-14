@@ -180,7 +180,7 @@
       #voicero-help-close {
         position: absolute;
         top: 3px;
-        right: 6px;
+        left: 6px;
         cursor: pointer;
         font-size: 16px;
         color: #000;
@@ -255,8 +255,8 @@
           buttonContainer.insertAdjacentHTML(
             "beforeend",
             `<div id="voicero-help-bubble">
-              Need Help Shopping?
               <button id="voicero-help-close">×</button>
+              Need Help Shopping?
             </div>`,
           );
 
