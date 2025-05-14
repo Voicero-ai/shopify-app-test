@@ -51,6 +51,7 @@
       this.appState = this.appState || {};
       this.appState.hasShownVoiceWelcome = false;
       this.appState.hasShownTextWelcome = false;
+      this.appState.hasShownHelpBubble = false; // Track if help bubble has been shown
 
       // Set initializing flag to prevent button flickering during startup
       this.isInitializing = true;
@@ -132,6 +133,65 @@
           transform: translateY(0);
         }
       }
+      
+      /* Help Bubble Styles */
+      #voicero-help-bubble {
+        position: fixed;
+        bottom: 80px;
+        right: 30px;
+        background-color: white;
+        border: 1px solid #000;
+        box-shadow: 4px 4px 0 rgb(0, 0, 0);
+        border-radius: 8px;
+        padding: 10px 15px;
+        font-size: 16px;
+        font-weight: bold;
+        z-index: 2147483646;
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+        color: #000;
+        font-family: Arial, sans-serif;
+      }
+      
+      #voicero-help-bubble:after {
+        content: "";
+        position: absolute;
+        bottom: -10px;
+        right: 20px;
+        border-width: 10px 10px 0;
+        border-style: solid;
+        border-color: white transparent transparent;
+        display: block;
+        width: 0;
+      }
+      
+      #voicero-help-bubble:before {
+        content: "";
+        position: absolute;
+        bottom: -11px;
+        right: 19px;
+        border-width: 11px 11px 0;
+        border-style: solid;
+        border-color: #000 transparent transparent;
+        display: block;
+        width: 0;
+      }
+      
+      #voicero-help-close {
+        position: absolute;
+        top: 3px;
+        right: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        color: #000;
+        background: none;
+        border: none;
+        padding: 0 2px;
+      }
+      
+      #voicero-help-close:hover {
+        opacity: 0.7;
+      }
     `;
       document.head.appendChild(styleEl);
 
@@ -190,6 +250,15 @@
             </svg>
           </button>
         `;
+
+          // Add help bubble
+          buttonContainer.insertAdjacentHTML(
+            "beforeend",
+            `<div id="voicero-help-bubble">
+              Need Help Shopping?
+              <button id="voicero-help-close">×</button>
+            </div>`,
+          );
 
           // Apply enhanced button animation
           this.applyButtonAnimation();
@@ -330,10 +399,52 @@
           const mainButton = document.getElementById("chat-website-button");
           const chooser = document.getElementById("interaction-chooser");
 
+          // Add click handler for help bubble close button
+          const helpBubble = document.getElementById("voicero-help-bubble");
+          const helpClose = document.getElementById("voicero-help-close");
+
+          if (helpClose && helpBubble) {
+            helpClose.addEventListener("click", function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              helpBubble.style.display = "none";
+              // Mark as shown so it doesn't appear again this session
+              if (window.VoiceroCore) {
+                window.VoiceroCore.appState.hasShownHelpBubble = true;
+              }
+            });
+          }
+
+          // Set a timeout to show the help bubble after 4 seconds if core button is visible
+          this.helpBubbleTimeout = setTimeout(() => {
+            if (
+              window.VoiceroCore &&
+              !window.VoiceroCore.appState.hasShownHelpBubble &&
+              window.VoiceroCore.session &&
+              window.VoiceroCore.session.coreOpen &&
+              !window.VoiceroCore.session.chooserOpen &&
+              !window.VoiceroCore.session.textOpen &&
+              !window.VoiceroCore.session.voiceOpen
+            ) {
+              const helpBubble = document.getElementById("voicero-help-bubble");
+              if (helpBubble) {
+                helpBubble.style.display = "block";
+                window.VoiceroCore.appState.hasShownHelpBubble = true;
+              }
+            }
+          }, 4000);
+
           if (mainButton && chooser) {
             mainButton.addEventListener("click", function (e) {
               e.preventDefault();
               e.stopPropagation();
+
+              // Hide help bubble when button is clicked
+              const helpBubble = document.getElementById("voicero-help-bubble");
+              if (helpBubble) {
+                helpBubble.style.display = "none";
+                window.VoiceroCore.appState.hasShownHelpBubble = true;
+              }
 
               // Check if session operations are in progress
               if (window.VoiceroCore && window.VoiceroCore.isSessionBusy()) {
