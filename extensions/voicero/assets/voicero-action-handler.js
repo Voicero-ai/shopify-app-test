@@ -178,28 +178,79 @@ const VoiceroActionHandler = {
     role,
     tagName,
     placeholder,
+    form_id,
   }) {
     if (selector) {
       const element = document.querySelector(selector);
       if (element) return element;
     }
 
+    // If form_id is provided and button_text, look for buttons within that form first
+    if (form_id && button_text) {
+      const form = document.getElementById(form_id);
+      if (form) {
+        // Look for buttons, inputs of type submit, and elements with role="button"
+        const formButtons = form.querySelectorAll(
+          'button, input[type="submit"], [role="button"]',
+        );
+        for (let btn of formButtons) {
+          // Check visible text content
+          if (
+            btn.textContent &&
+            btn.textContent
+              .trim()
+              .toLowerCase()
+              .includes(button_text.toLowerCase())
+          )
+            return btn;
+
+          // Check value attribute for input buttons
+          if (
+            btn.tagName === "INPUT" &&
+            btn.value &&
+            btn.value.trim().toLowerCase().includes(button_text.toLowerCase())
+          )
+            return btn;
+
+          // Check aria-label
+          if (
+            btn.getAttribute("aria-label") &&
+            btn
+              .getAttribute("aria-label")
+              .toLowerCase()
+              .includes(button_text.toLowerCase())
+          )
+            return btn;
+        }
+      }
+    }
+
     if (button_text) {
       const interactiveElements = document.querySelectorAll(
-        'button, a, input, [role="button"]',
+        'button, a, input[type="submit"], input[type="button"], [role="button"]',
       );
 
       for (let el of interactiveElements) {
-        if (el.textContent.trim().toLowerCase() === button_text.toLowerCase())
-          return el;
+        // Changed from exact match to includes for more flexibility
         if (
-          el.tagName === "INPUT" &&
-          el.value.trim().toLowerCase() === button_text.toLowerCase()
+          el.textContent
+            .trim()
+            .toLowerCase()
+            .includes(button_text.toLowerCase())
         )
           return el;
         if (
-          el.getAttribute("aria-label")?.toLowerCase() ===
-          button_text.toLowerCase()
+          el.tagName === "INPUT" &&
+          el.value &&
+          el.value.trim().toLowerCase().includes(button_text.toLowerCase())
+        )
+          return el;
+        if (
+          el.getAttribute("aria-label") &&
+          el
+            .getAttribute("aria-label")
+            .toLowerCase()
+            .includes(button_text.toLowerCase())
         )
           return el;
       }
@@ -308,8 +359,22 @@ const VoiceroActionHandler = {
   handleFill_form: function (target) {
     const { form_id, form_type, input_fields } = target || {};
 
-    if (!input_fields || !Array.isArray(input_fields)) {
+    if (!input_fields) {
       // console.warn("No form fields provided");
+      return;
+    }
+
+    // Convert input_fields from object to array format if needed
+    let fieldsArray = [];
+    if (Array.isArray(input_fields)) {
+      fieldsArray = input_fields;
+    } else if (typeof input_fields === "object") {
+      fieldsArray = Object.entries(input_fields).map(([name, value]) => ({
+        name,
+        value,
+      }));
+    } else {
+      // console.warn("Invalid input_fields format");
       return;
     }
 
@@ -319,15 +384,15 @@ const VoiceroActionHandler = {
         ? this.findForm(form_type)
         : null;
 
-    if (!form && input_fields.length > 0) {
-      const firstField = input_fields[0];
+    if (!form && fieldsArray.length > 0) {
+      const firstField = fieldsArray[0];
       const potentialInput = document.querySelector(
         `[name="${firstField.name}"], [placeholder*="${firstField.placeholder}"], [id="${firstField.id}"]`,
       );
       if (potentialInput) form = potentialInput.closest("form");
     }
 
-    input_fields.forEach((field) => {
+    fieldsArray.forEach((field) => {
       const { name, value, placeholder, id } = field;
       if (!name && !placeholder && !id) {
         // console.warn("Invalid field configuration - no identifier:", field);
