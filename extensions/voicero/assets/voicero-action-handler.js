@@ -920,69 +920,152 @@ const VoiceroActionHandler = {
       return;
     }
 
-    // 1. Find product by name if no ID provided
-    if (product_name && !variant_id && !product_id) {
-      const productElements = Array.from(
-        document.querySelectorAll(
-          'a[href*="/products/"], .product-link, .product-item__link',
-        ),
-      );
-
-      const productElement = productElements.find((el) => {
-        const titleEl =
-          el.querySelector("h2, .product-title, .product-item__title") || el;
-        return titleEl.textContent.trim().includes(product_name);
-      });
-
-      if (productElement) {
-        productElement.click();
+    // 1. Try direct add to cart with variant_id if provided
+    if (variant_id) {
+      try {
+        const response = await this.addToCart(variant_id, quantity);
         return;
+      } catch (error) {
+        // Fall back to other methods if this fails
+        // console.error("Failed to add to cart with variant_id", error);
       }
     }
 
-    // 2. Direct Add to Cart with variant ID or product ID
-    try {
-      let formData = {
-        items: [
-          {
-            id: variant_id || product_id,
-            quantity: quantity,
-          },
-        ],
-      };
+    // 2. Try to find product on the current page (likely on a product page)
+    // Look for variant selectors, add to cart forms, etc.
+    const variantSelectors = document.querySelectorAll(
+      'select[name="id"], input[name="id"][type="hidden"], [data-variant-id]',
+    );
 
-      const response = await fetch("/cart/add.js", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+    let currentVariantId = null;
 
-      if (response.ok) {
-        if (window.VoiceroText?.addMessage) {
-          window.VoiceroText.addMessage(
-            `✅ Added ${quantity} ${product_name || "item"} to cart! ` +
-              `<a href="/cart" style="color: #00ff88;">View Cart</a>`,
-          );
-        }
-
-        // Refresh cart elements if available
-        if (typeof window.refreshCart === "function") {
-          window.refreshCart();
-        }
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.description || "Failed to add item to cart");
+    // Try to get variant ID from selectors on the page
+    for (const selector of variantSelectors) {
+      if (selector.tagName === "SELECT") {
+        currentVariantId = selector.value;
+      } else if (selector.hasAttribute("value")) {
+        currentVariantId = selector.value;
+      } else if (selector.hasAttribute("data-variant-id")) {
+        currentVariantId = selector.getAttribute("data-variant-id");
       }
-    } catch (error) {
-      // console.error("Purchase error:", error);
+
+      if (currentVariantId) break;
+    }
+
+    // If we found a variant ID on the page, use it
+    if (currentVariantId) {
+      try {
+        const response = await this.addToCart(currentVariantId, quantity);
+        return;
+      } catch (error) {
+        // console.error("Failed to add to cart with page variant_id", error);
+      }
+    }
+
+    // 3. Try to get the product data from the Shopify API
+    if (product_id) {
+      try {
+        const response = await fetch(`/products/${product_id}.js`);
+        if (response.ok) {
+          const productData = await response.json();
+          // Get the first available variant or the default variant
+          if (productData.variants && productData.variants.length > 0) {
+            const defaultVariant =
+              productData.variants.find(
+                (v) =>
+                  v.id === productData.selected_or_first_available_variant.id,
+              ) || productData.variants[0];
+
+            await this.addToCart(defaultVariant.id, quantity);
+            return;
+          }
+        }
+      } catch (error) {
+        // console.error("Failed to fetch product data", error);
+      }
+    }
+
+    // 4. Try to find "Add to cart" button as a last resort
+    const addToCartButton = this.findElement({
+      button_text: button_text || "Add to cart",
+      tagName: 'button, input[type="submit"], [role="button"]',
+    });
+
+    if (addToCartButton) {
+      addToCartButton.click();
+
+      // Display success message
       if (window.VoiceroText?.addMessage) {
         window.VoiceroText.addMessage(
-          `❌ Failed to add item to cart: ${error.message}`,
+          `✅ Added ${quantity} ${product_name || "item"} to cart! ` +
+            `<a href="/cart" style="color: #00ff88;">View Cart</a>`,
         );
       }
+      return;
     }
+
+    // 5. If all else fails, navigate to the product page
+    if (product_id) {
+      if (window.VoiceroText?.addMessage) {
+        window.VoiceroText.addMessage(
+          `Taking you to the product page for ${product_name || product_id}...`,
+        );
+      }
+      window.location.href = `/products/${product_id}`;
+      return;
+    }
+
+    // Nothing worked, show error
+    if (window.VoiceroText?.addMessage) {
+      window.VoiceroText.addMessage(
+        `❌ Sorry, I couldn't add this item to your cart automatically.`,
+      );
+    }
+  },
+
+  // Helper function to add items to cart
+  addToCart: async function (variantId, quantity = 1) {
+    if (!variantId) return false;
+
+    const formData = {
+      items: [
+        {
+          id: variantId,
+          quantity: quantity,
+        },
+      ],
+    };
+
+    const response = await fetch("/cart/add.js", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.description || "Failed to add item to cart");
+    }
+
+    const data = await response.json();
+
+    // Display success message
+    if (window.VoiceroText?.addMessage) {
+      const itemName = data.items?.[0]?.product_title || "item";
+      window.VoiceroText.addMessage(
+        `✅ Added ${quantity} ${itemName} to cart! ` +
+          `<a href="/cart" style="color: #00ff88;">View Cart</a>`,
+      );
+    }
+
+    // Refresh cart elements if available
+    if (typeof window.refreshCart === "function") {
+      window.refreshCart();
+    }
+
+    return true;
   },
 
   handleTrack_order: async function (target) {
