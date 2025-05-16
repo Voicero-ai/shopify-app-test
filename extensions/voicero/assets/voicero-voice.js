@@ -2699,6 +2699,16 @@ const VoiceroVoice = {
       }
     }
 
+    // ── Dedupe: if the last AI message is identical, do nothing ──
+    if (role === "ai") {
+      const lastAi = messagesContainer.querySelector(
+        ".ai-message:last-child .message-content",
+      );
+      if (lastAi && lastAi.textContent === content.trim()) {
+        return;
+      }
+    }
+
     if (
       content === "Generating response..." ||
       content.includes("Thinking...") ||

@@ -1204,7 +1204,7 @@ const VoiceroActionHandler = {
 
     // If we couldn't find the order or user isn't logged in
     const loginMessage =
-      "To track an order, please make sure you're logged in to your account first. If you checked out as a guest, you'll need your order number and the email address used for the order.";
+      "To track an order, please make sure you're logged in to your account first.";
 
     // Display the login message
     if (window.VoiceroText?.addMessage) {

@@ -2197,7 +2197,7 @@ Feel free to ask me anything, and I'll do my best to assist you!
 
     // Try localhost first for the /shopify/hat route, then fall back to normal endpoint
     // First, attempt to use localhost:3000 with the /shopify/hat path
-    return fetch("https://www.voicero.ai/api/shopify/chat", {
+    return fetch("http://localhost:3000/api/shopify/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
