@@ -1562,40 +1562,6 @@ const VoiceroVoice = {
                   formData.append("pageContext", JSON.stringify(pageData));
                 }
 
-                // Add conversation history for better context
-                const messagesContainer =
-                  document.getElementById("voice-messages");
-                if (messagesContainer) {
-                  // Get all messages from the interface
-                  const messageElements = messagesContainer.querySelectorAll(
-                    ".user-message, .ai-message",
-                  );
-
-                  if (messageElements.length > 0) {
-                    // Convert DOM elements to a conversation history format
-                    const conversationHistory = Array.from(messageElements).map(
-                      (msg) => {
-                        const isUser = msg.classList.contains("user-message");
-                        const contentEl = msg.querySelector(".message-content");
-                        const messageText = contentEl
-                          ? contentEl.textContent
-                          : "";
-
-                        return {
-                          role: isUser ? "user" : "assistant",
-                          content: messageText.trim(),
-                        };
-                      },
-                    );
-
-                    // Add conversation history to the form data
-                    formData.append(
-                      "conversationHistory",
-                      JSON.stringify(conversationHistory),
-                    );
-                  }
-                }
-
                 // Make the upload request to voice API
                 const whisperResponse = await fetch(
                   "http://localhost:3000/api/whisper",
@@ -2471,104 +2437,119 @@ const VoiceroVoice = {
 
   // Get past conversation context for AI
   getPastContext: function () {
-    // Initialize context object
-    const context = {
-      messages: [],
-    };
-
-    // Check if we have a thread with messages
+    // Return empty array if no thread or messages
     if (
-      window.VoiceroCore &&
-      window.VoiceroCore.thread &&
-      window.VoiceroCore.thread.messages &&
-      window.VoiceroCore.thread.messages.length > 0
+      !window.VoiceroCore ||
+      !window.VoiceroCore.thread ||
+      !window.VoiceroCore.thread.messages ||
+      window.VoiceroCore.thread.messages.length === 0
     ) {
-      const messages = window.VoiceroCore.thread.messages;
-
-      // Sort messages by creation time
-      const sortedMessages = [...messages].sort((a, b) => {
-        return new Date(a.createdAt) - new Date(b.createdAt);
-      });
-
-      // Get last 5 user questions and last 5 AI responses
-      const userMessages = sortedMessages
-        .filter((msg) => msg.role === "user")
-        .slice(-5);
-
-      const aiMessages = sortedMessages
-        .filter((msg) => msg.role === "assistant")
-        .slice(-5);
-
-      // Combine all messages in chronological order
-      const lastMessages = [...userMessages, ...aiMessages].sort(
-        (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-      );
-
-      // Add each message to context
-      lastMessages.forEach((msg) => {
-        if (msg.role === "user") {
-          context.messages.push({
-            role: "user",
-            content: msg.content,
-            id: msg.id,
-            createdAt: msg.createdAt,
-          });
-        } else if (msg.role === "assistant") {
-          // For AI messages, try to extract the answer from JSON if needed
-          let content = msg.content;
-          try {
-            const parsed = JSON.parse(content);
-            if (parsed.answer) {
-              content = parsed.answer;
-            }
-          } catch (e) {
-            // Not JSON or couldn't parse, use as is
-          }
-
-          context.messages.push({
-            role: "assistant",
-            content: content,
-            id: msg.id,
-            createdAt: msg.createdAt,
-          });
-        }
-      });
-    } else {
-      // If no thread exists, check if we have any local messages stored
+      // Check for local messages as a fallback
       if (
         window.VoiceroCore &&
         window.VoiceroCore.appState &&
         window.VoiceroCore.appState.voiceMessages
       ) {
         const voiceMessages = window.VoiceroCore.appState.voiceMessages;
+        const pastContext = [];
 
         // Add user message if available
         if (voiceMessages.user) {
-          context.messages.push({
+          pastContext.push({
+            question: voiceMessages.user,
             role: "user",
-            content: voiceMessages.user,
             createdAt: new Date().toISOString(),
+            pageUrl: window.location.href,
+            id: this.generateId(),
           });
         }
 
         // Add AI message if available
         if (voiceMessages.ai) {
-          context.messages.push({
+          pastContext.push({
+            answer: voiceMessages.ai,
             role: "assistant",
-            content: voiceMessages.ai,
             createdAt: new Date().toISOString(),
+            id: this.generateId(),
           });
         }
+
+        console.log("Voice Past Context (from local storage):", pastContext);
+        return pastContext;
       }
+
+      console.log("No thread messages available, returning empty pastContext");
+      return [];
     }
 
-    // Console log past context to verify implementation
-    console.log(
-      "Voice Past Context (Last 5 messages from each role):",
-      context,
+    // Get the messages from the thread
+    const messages = window.VoiceroCore.thread.messages;
+
+    // Sort messages by creation time
+    const sortedMessages = [...messages].sort((a, b) => {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    // Get last 5 user questions and last 5 AI responses
+    const userMessages = sortedMessages
+      .filter((msg) => msg.role === "user")
+      .slice(-5);
+
+    const aiMessages = sortedMessages
+      .filter((msg) => msg.role === "assistant")
+      .slice(-5);
+
+    // Combine all messages in chronological order
+    const lastMessages = [...userMessages, ...aiMessages].sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
     );
 
-    return context;
+    // Format for API - make sure to use question/answer fields instead of content
+    const pastContext = lastMessages.map((msg) => {
+      if (msg.role === "user") {
+        return {
+          question: msg.content, // Use the content as the question
+          role: "user",
+          createdAt: msg.createdAt,
+          pageUrl: msg.pageUrl || window.location.href,
+          id: msg.id,
+          threadId: msg.threadId || window.VoiceroCore.thread.threadId,
+        };
+      } else {
+        // For AI messages, try to extract the answer from JSON if needed
+        let content = msg.content;
+        try {
+          const parsed = JSON.parse(content);
+          if (parsed.answer) {
+            content = parsed.answer;
+          }
+        } catch (e) {
+          // Not JSON or couldn't parse, use as is
+        }
+
+        return {
+          answer: content, // Use the processed content as the answer
+          role: "assistant",
+          createdAt: msg.createdAt,
+          id: msg.id,
+          threadId: msg.threadId || window.VoiceroCore.thread.threadId,
+        };
+      }
+    });
+
+    // Log the formatted pastContext for debugging
+    console.log("Voice Past Context:", JSON.stringify(pastContext, null, 2));
+    return pastContext;
+  },
+
+  // Generate a unique ID for messages (copied from voicero-text implementation)
+  generateId: function () {
+    return (
+      "msg_" +
+      Date.now().toString(36) +
+      "_" +
+      Math.random().toString(36).substr(2, 9)
+    );
   },
 
   // Check if AudioContext is supported
