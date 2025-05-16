@@ -357,25 +357,52 @@ const VoiceroActionHandler = {
   },
 
   handleFill_form: function (target) {
-    const { form_id, form_type, input_fields } = target || {};
+    const { form_id, form_type, input_fields, inputs } = target || {};
 
-    if (!input_fields) {
-      // console.warn("No form fields provided");
-      return;
-    }
-
-    // Convert input_fields from object to array format if needed
+    // Enhanced logic to handle fields that are directly on the target object
     let fieldsArray = [];
-    if (Array.isArray(input_fields)) {
-      fieldsArray = input_fields;
-    } else if (typeof input_fields === "object") {
-      fieldsArray = Object.entries(input_fields).map(([name, value]) => ({
+
+    // Option 1: Use input_fields if provided
+    if (input_fields) {
+      // Convert input_fields from object to array format if needed
+      if (Array.isArray(input_fields)) {
+        fieldsArray = input_fields;
+      } else if (typeof input_fields === "object") {
+        fieldsArray = Object.entries(input_fields).map(([name, value]) => ({
+          name,
+          value,
+        }));
+      } else {
+        // console.warn("Invalid input_fields format");
+        return;
+      }
+    }
+    // Option 2: Check for inputs object
+    else if (inputs && typeof inputs === "object") {
+      // Convert inputs object to array format
+      fieldsArray = Object.entries(inputs).map(([name, value]) => ({
         name,
         value,
       }));
-    } else {
-      // console.warn("Invalid input_fields format");
-      return;
+    }
+    // Option 3: Check for field properties directly on the target object
+    else {
+      // Extract field-like properties from target (excluding known non-field properties)
+      const knownProps = ["form_id", "form_type", "auto_submit", "inputs"];
+      const possibleFields = Object.entries(target || {}).filter(
+        ([key]) => !knownProps.includes(key),
+      );
+
+      if (possibleFields.length > 0) {
+        fieldsArray = possibleFields.map(([name, value]) => ({
+          name,
+          value,
+        }));
+      } else {
+        // No fields found in either format
+        // console.warn("No form fields provided");
+        return;
+      }
     }
 
     let form = form_id
@@ -407,11 +434,29 @@ const VoiceroActionHandler = {
         .filter(Boolean)
         .join(", ");
 
+      // Enhanced selector to include textarea elements for comments
       const element = form
-        ? form.querySelector(selector)
-        : document.querySelector(selector);
+        ? form.querySelector(
+            selector + ", textarea" + (name ? `[name="${name}"]` : ""),
+          )
+        : document.querySelector(
+            selector + ", textarea" + (name ? `[name="${name}"]` : ""),
+          );
 
       if (!element) {
+        // Try a more relaxed selector for comment fields
+        if (name && (name.includes("comment") || name.includes("Comment"))) {
+          const commentElement = form
+            ? form.querySelector("textarea")
+            : document.querySelector("textarea");
+
+          if (commentElement) {
+            commentElement.value = value;
+            commentElement.dispatchEvent(new Event("input", { bubbles: true }));
+            return;
+          }
+        }
+
         // console.warn(`Form element not found:`, field);
         return;
       }

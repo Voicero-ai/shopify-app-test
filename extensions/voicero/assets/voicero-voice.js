@@ -460,12 +460,16 @@ const VoiceroVoice = {
     const status = document.createElement("div");
     status.id = "voicero-status";
     status.style.cssText = `
-      font-size: 12px;
-      color: #666;
+      font-size: 13px;
+      font-weight: bold;
+      color: #444;
       margin-left: auto;
-      padding-right: 8px;
+      padding: 0 12px;
       flex-grow: 1;
       text-align: center;
+      background-color: #f8f8f8;
+      border-radius: 4px;
+      min-width: 100px;
     `;
     status.textContent = ""; // Start empty
     controlsHeader.appendChild(status);
@@ -1369,6 +1373,10 @@ const VoiceroVoice = {
 
       // Update status to Listening...
       this.setStatus("Listening...");
+      this.addSystemMessage(
+        `<div id="listening-indicator-message" class="voice-prompt">I’m listening…</div>`,
+      );
+
 
       if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
         window.VoiceroCore.updateWindowState({
@@ -1523,6 +1531,10 @@ const VoiceroVoice = {
               try {
                 // Update status to Transcribing...
                 this.setStatus("Transcribing...");
+                this.addSystemMessage(
+                  `<div id="transcribing-indicator-message" class="voice-prompt">Transcribing…</div>`,
+                );
+
 
                 // Create form data for the audio upload
                 const formData = new FormData();
@@ -1659,6 +1671,11 @@ const VoiceroVoice = {
 
                   return;
                 }
+
+                  const transEl = document.getElementById(
+                    "transcribing-indicator-message",
+                  );
+                  if (transEl) transEl.remove();
 
                 // Add the user message with transcription (restored from placeholder update)
                 this.addMessage(transcription, "user");
@@ -1890,6 +1907,16 @@ const VoiceroVoice = {
                   // Update AI message with cleaned text content
                   this.addMessage(cleanedTextResponse, "ai");
 
+                  const listenEl = document.getElementById(
+                    "listening-indicator-message",
+                  );
+                  if (listenEl) listenEl.remove();
+                  const transEl = document.getElementById(
+                    "transcribing-indicator-message",
+                  );
+                  if (transEl) transEl.remove();
+
+
                   // Store in state
                   if (VoiceroCore && VoiceroCore.appState) {
                     // Initialize voiceMessages if it doesn't exist
@@ -2002,6 +2029,16 @@ const VoiceroVoice = {
                   this.removeTypingIndicator();
                   // Just show the text response if audio fails
                   this.addMessage(cleanedTextResponse, "ai");
+
+                  const listenEl = document.getElementById(
+                    "listening-indicator-message",
+                  );
+                  if (listenEl) listenEl.remove();
+                  const transEl = document.getElementById(
+                    "transcribing-indicator-message",
+                  );
+                  if (transEl) transEl.remove();
+
 
                   // Store in state
                   if (VoiceroCore && VoiceroCore.appState) {
