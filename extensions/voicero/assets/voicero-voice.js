@@ -1534,17 +1534,71 @@ const VoiceroVoice = {
             // Only process if we have actual audio data
             if (audioBlob.size > 0) {
               try {
-                // Send to Whisper API for transcription via WordPress proxy
+                // Create form data for the audio upload
                 const formData = new FormData();
-                formData.append("audio", audioBlob, "recording.webm");
-                formData.append("url", window.location.href);
                 formData.append(
-                  "threadId",
-                  VoiceroCore ? VoiceroCore.currentThreadId || "" : "",
+                  "audio",
+                  new Blob(this.audioChunks, { type: "audio/webm" }),
                 );
 
+                // Add additional data like session and thread IDs
+                if (window.VoiceroCore && window.VoiceroCore.sessionId) {
+                  formData.append("sessionId", window.VoiceroCore.sessionId);
+                }
+
+                if (this.currentThreadId) {
+                  formData.append("threadId", this.currentThreadId);
+                }
+
+                if (window.VoiceroCore && window.VoiceroCore.websiteId) {
+                  formData.append("websiteId", window.VoiceroCore.websiteId);
+                }
+
+                // Collect page data for better context (similar to text interface)
+                const pageData = this.collectPageData();
+
+                // Add page context data
+                if (pageData) {
+                  formData.append("pageContext", JSON.stringify(pageData));
+                }
+
+                // Add conversation history for better context
+                const messagesContainer =
+                  document.getElementById("voice-messages");
+                if (messagesContainer) {
+                  // Get all messages from the interface
+                  const messageElements = messagesContainer.querySelectorAll(
+                    ".user-message, .ai-message",
+                  );
+
+                  if (messageElements.length > 0) {
+                    // Convert DOM elements to a conversation history format
+                    const conversationHistory = Array.from(messageElements).map(
+                      (msg) => {
+                        const isUser = msg.classList.contains("user-message");
+                        const contentEl = msg.querySelector(".message-content");
+                        const messageText = contentEl
+                          ? contentEl.textContent
+                          : "";
+
+                        return {
+                          role: isUser ? "user" : "assistant",
+                          content: messageText.trim(),
+                        };
+                      },
+                    );
+
+                    // Add conversation history to the form data
+                    formData.append(
+                      "conversationHistory",
+                      JSON.stringify(conversationHistory),
+                    );
+                  }
+                }
+
+                // Make the upload request to voice API
                 const whisperResponse = await fetch(
-                  "https://www.voicero.ai/api/whisper",
+                  "http://localhost:3000/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1691,7 +1745,7 @@ const VoiceroVoice = {
                 );
 
                 const chatResponse = await fetch(
-                  "https://www.voicero.ai/api/shopify/chat",
+                  "http://localhost:3000/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
@@ -1823,6 +1877,15 @@ const VoiceroVoice = {
                   aiTextResponse = String(aiTextResponse);
                 }
 
+                // Also use VoiceroActionHandler if available
+                if (
+                  chatData.response &&
+                  window.VoiceroActionHandler &&
+                  typeof window.VoiceroActionHandler.handle === "function"
+                ) {
+                  window.VoiceroActionHandler.handle(chatData.response);
+                }
+
                 // Process text to extract and clean URLs
                 const processedResponse =
                   this.extractAndCleanUrls(aiTextResponse);
@@ -1924,6 +1987,45 @@ const VoiceroVoice = {
                   // Wait for audio to complete playing before proceeding
                   await audioPlaybackPromise;
 
+                  // Handle contact action if present
+                  if (
+                    actionType === "contact" &&
+                    (actionContext?.contact_help_form === true ||
+                      actionContext?.contact === true)
+                  ) {
+                    console.log(
+                      "[VOICERO VOICE] Contact action detected, showing contact form",
+                    );
+
+                    // Skip adding the AI message again since it was already added by the TTS code above
+                    // Just make sure typing indicator is removed
+                    this.removeTypingIndicator();
+
+                    // Then show contact form with a delay to ensure DOM is ready
+                    setTimeout(() => {
+                      if (
+                        window.VoiceroContact &&
+                        typeof window.VoiceroContact.showContactForm ===
+                          "function"
+                      ) {
+                        try {
+                          window.VoiceroContact.showContactForm();
+                        } catch (err) {
+                          console.error(
+                            "[VOICERO VOICE] Failed to show contact form:",
+                            err,
+                          );
+                        }
+                      } else {
+                        console.error(
+                          "[VOICERO VOICE] VoiceroContact.showContactForm not available",
+                        );
+                      }
+                    }, 500);
+
+                    return; // Exit early to prevent duplicate processing
+                  }
+
                   // Handle actions ONLY AFTER audio playback completes
                   if (window.VoiceroActionHandler) {
                     try {
@@ -1935,14 +2037,7 @@ const VoiceroVoice = {
                     }
                   }
 
-                  // After audio playback completes, handle redirect action or URL
-                  if (actionType === "redirect" && actionUrl) {
-                    this.redirectToUrl(actionUrl);
-                  }
-                  // If no action but we have extracted URLs, use the first one
-                  else if (extractedUrls.length > 0) {
-                    this.redirectToUrl(extractedUrls[0]);
-                  }
+                  
                 } catch (audioError) {
                   // Remove typing indicator before adding the error message
                   this.removeTypingIndicator();
@@ -1963,26 +2058,8 @@ const VoiceroVoice = {
                     }
                   }
 
-                  // Handle redirect even if audio failed, but with a longer delay to allow reading the message
-                  if (actionType === "redirect" && actionUrl) {
-                    // Use a longer delay for error cases to allow reading the message
-                    const redirectDelay = 5000; // 5 seconds to read message
-
-                    // Add a delay before redirecting
-                    setTimeout(() => {
-                      this.redirectToUrl(actionUrl);
-                    }, redirectDelay);
-                  }
-                  // If no action but we have extracted URLs, use the first one
-                  else if (extractedUrls.length > 0) {
-                    // Use a longer delay for error cases
-                    const redirectDelay = 5000; // 5 seconds to read message
-
-                    // Add a delay before redirecting
-                    setTimeout(() => {
-                      this.redirectToUrl(extractedUrls[0]);
-                    }, redirectDelay);
-                  }
+                  
+                  
                 }
               } catch (error) {
                 // Log the error for debugging
@@ -2495,62 +2572,6 @@ const VoiceroVoice = {
     );
 
     return context;
-  },
-
-  // Handle redirection to extracted URLs
-  redirectToUrl: function (url) {
-    if (!url) return;
-
-    try {
-      // Ensure the URL is using https instead of http
-      let secureUrl = url;
-
-      // If it's a relative URL like "/", don't modify it
-      if (url.indexOf("://") > 0) {
-        // For absolute URLs, ensure we use https://
-        secureUrl = url.replace(/^http:\/\//i, "https://");
-      } else if (url.startsWith("www.")) {
-        // If it starts with www but doesn't have a protocol, add https://
-        secureUrl = "https://" + url;
-      }
-
-      // Validate the URL - for relative URLs, use the current location as the base
-      if (secureUrl.startsWith("/") || !secureUrl.includes("://")) {
-        // For relative URLs, use current origin as base
-        new URL(secureUrl, window.location.origin);
-        // Navigate to the relative URL directly
-        window.location.href = secureUrl;
-      } else {
-        // For absolute URLs, validate and navigate
-        new URL(secureUrl);
-        window.location.href = secureUrl;
-      }
-    } catch (error) {
-      const aiMessageDiv = document.querySelector(
-        "#voice-chat-interface .ai-message",
-      );
-      if (aiMessageDiv && aiMessageDiv.querySelector(".message-content")) {
-        const messageContent = aiMessageDiv.querySelector(".message-content");
-        const notificationElement = document.createElement("div");
-        notificationElement.style.cssText = `
-          margin-top: 10px;
-          padding: 8px 12px;
-          background: #fff0f0;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #d43b3b;
-          text-align: center;
-        `;
-        notificationElement.textContent =
-          "I couldn't open the link mentioned. There might be an issue with the URL.";
-        messageContent.appendChild(notificationElement);
-
-        const messagesContainer = document.getElementById("voice-messages");
-        if (messagesContainer) {
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-      }
-    }
   },
 
   // Check if AudioContext is supported

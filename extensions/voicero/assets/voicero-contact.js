@@ -17,19 +17,16 @@ const VoiceroContact = {
     let interfaceType = "text"; // Default to text interface
 
     // Check if called from voice interface
-    if (
-      document.getElementById("voice-messages") &&
-      window.VoiceroCore &&
-      window.VoiceroCore.appState &&
-      window.VoiceroCore.appState.activeInterface === "voice"
-    ) {
+    if (document.getElementById("voice-messages")) {
       messagesContainer = document.getElementById("voice-messages");
       interfaceType = "voice";
+      console.log("VoiceroContact: Using voice interface container");
     }
     // Otherwise use text interface
     else if (window.VoiceroText && window.VoiceroText.shadowRoot) {
       messagesContainer =
         window.VoiceroText.shadowRoot.getElementById("chat-messages");
+      console.log("VoiceroContact: Using text interface container");
     }
 
     // Exit if neither interface is available
@@ -88,8 +85,11 @@ const VoiceroContact = {
 
   // Apply styles to the form elements
   applyFormStyles: function (formContainer) {
-    // Get the main theme color from VoiceroText
-    const mainColor = window.VoiceroText.websiteColor || "#882be6";
+    // Get the main theme color from VoiceroText or VoiceroVoice
+    const mainColor =
+      (window.VoiceroVoice && window.VoiceroVoice.websiteColor) ||
+      (window.VoiceroText && window.VoiceroText.websiteColor) ||
+      "#882be6";
 
     // Apply styles to form elements
     const styles = `
@@ -175,10 +175,48 @@ const VoiceroContact = {
       }
     `;
 
-    // Add styles to shadow DOM
-    const styleEl = document.createElement("style");
-    styleEl.textContent = styles;
-    window.VoiceroText.shadowRoot.appendChild(styleEl);
+    // Determine where to add the styles based on interface
+    // For voice interface, add styles directly to the document head
+    if (document.getElementById("voice-messages")) {
+      // Check if style already exists
+      const existingStyle = document.getElementById("voicero-contact-styles");
+      if (existingStyle) {
+        existingStyle.textContent = styles;
+      } else {
+        const styleEl = document.createElement("style");
+        styleEl.id = "voicero-contact-styles";
+        styleEl.textContent = styles;
+        document.head.appendChild(styleEl);
+      }
+    }
+    // For text interface with shadow DOM
+    else if (window.VoiceroText && window.VoiceroText.shadowRoot) {
+      // Check if style already exists in shadow DOM
+      const existingStyle = window.VoiceroText.shadowRoot.getElementById(
+        "voicero-contact-styles",
+      );
+      if (existingStyle) {
+        existingStyle.textContent = styles;
+      } else {
+        const styleEl = document.createElement("style");
+        styleEl.id = "voicero-contact-styles";
+        styleEl.textContent = styles;
+        window.VoiceroText.shadowRoot.appendChild(styleEl);
+      }
+    }
+    // Fallback - add to document if neither condition is met
+    else {
+      // Check if style already exists
+      const existingStyle = document.getElementById("voicero-contact-styles");
+      if (existingStyle) {
+        existingStyle.textContent = styles;
+      } else {
+        const styleEl = document.createElement("style");
+        styleEl.id = "voicero-contact-styles";
+        styleEl.textContent = styles;
+        document.head.appendChild(styleEl);
+      }
+    }
   },
 
   // Set up event listeners for the form

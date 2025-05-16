@@ -2250,8 +2250,9 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
       JSON.stringify(requestBody, null, 2),
     );
 
-    // Use direct API endpoint instead of WordPress proxy
-    return fetch("https://www.voicero.ai/api/shopify/chat", {
+    // Try localhost first for the /shopify/hat route, then fall back to normal endpoint
+    // First, attempt to use localhost:3000 with the /shopify/hat path
+    return fetch("http://localhost:3000/api/shopify/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2261,7 +2262,33 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
           : {}),
       },
       body: JSON.stringify(requestBody),
-    });
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Local endpoint failed: ${response.status}`);
+        }
+        console.log("[VOICERO TEXT] Successfully used localhost endpoint");
+        return response;
+      })
+      .catch((error) => {
+        console.log(
+          "[VOICERO TEXT] Localhost failed, falling back to voicero.ai:",
+          error.message,
+        );
+
+        // Fallback to the original endpoint with the correct path
+        return fetch("https://www.voicero.ai/api/shopify/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(window.voiceroConfig?.getAuthHeaders
+              ? window.voiceroConfig.getAuthHeaders()
+              : {}),
+          },
+          body: JSON.stringify(requestBody),
+        });
+      });
   },
 
   // Create typing indicator for AI messages
@@ -2532,6 +2559,28 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
 
           if (data.response && window.VoiceroActionHandler) {
             window.VoiceroActionHandler.handle(data.response);
+          }
+
+          // Handle contact action
+          if (
+            action === "contact" &&
+            (actionContext?.contact_help_form === true ||
+              actionContext?.contact === true)
+          ) {
+            console.log(
+              "[VOICERO TEXT] Contact action detected, showing contact form",
+            );
+            // Directly show contact form if VoiceroContact is available
+            if (
+              window.VoiceroContact &&
+              typeof window.VoiceroContact.showContactForm === "function"
+            ) {
+              setTimeout(() => window.VoiceroContact.showContactForm(), 500);
+            } else {
+              console.error(
+                "[VOICERO TEXT] VoiceroContact.showContactForm not available",
+              );
+            }
           }
 
           // Handle redirect if needed
