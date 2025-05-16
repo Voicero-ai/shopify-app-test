@@ -62,6 +62,10 @@ const VoiceroContact = {
     // Create message content
     const contentDiv = document.createElement("div");
     contentDiv.className = "message-content contact-form-message";
+    if (interfaceType === "voice") {
+      contentDiv.className =
+        "message-content voice-message-content contact-form-message";
+    }
     contentDiv.innerHTML = contactFormHTML;
 
     // Style the form to match the chat interface
@@ -81,6 +85,25 @@ const VoiceroContact = {
 
     // Set up event listeners for the form
     this.setupFormEventListeners(messageDiv, interfaceType);
+
+    // Generate a unique ID for the message for reporting
+    const messageId =
+      "msg_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    messageDiv.dataset.messageId = messageId;
+
+    // Use VoiceroSupport to attach the report button if available
+    if (
+      window.VoiceroSupport &&
+      typeof window.VoiceroSupport.attachReportButtonToMessage === "function"
+    ) {
+      // Use a small delay to ensure the DOM is ready
+      setTimeout(() => {
+        window.VoiceroSupport.attachReportButtonToMessage(
+          messageDiv,
+          interfaceType,
+        );
+      }, 100);
+    }
   },
 
   // Apply styles to the form elements
