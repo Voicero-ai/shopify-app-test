@@ -621,7 +621,10 @@ const VoiceroText = {
 
 I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questions about products, services, or anything else related to ${websiteName}.
 
-Feel free to ask me anything, and I'll do my best to assist you!`;
+Feel free to ask me anything, and I'll do my best to assist you!
+
+**Start Typing to Chat**
+`;
 
     // Add the welcome message to the interface
     this.addMessage(welcomeMessage, "ai");
@@ -2194,7 +2197,7 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
 
     // Try localhost first for the /shopify/hat route, then fall back to normal endpoint
     // First, attempt to use localhost:3000 with the /shopify/hat path
-    return fetch("https://voicero.ai/api/shopify/chat", {
+    return fetch("https://www.voicero.ai/api/shopify/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

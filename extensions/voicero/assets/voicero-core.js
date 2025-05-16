@@ -1060,6 +1060,13 @@
             this.thread = data.session.threads[0];
           }
 
+          // Ensure VoiceroCore.thread always matches session.threadId
+          const active = this.session.threads.find(
+            (t) => t.threadId === this.session.threadId,
+          );
+          // If session.threadId hasn’t been set yet, fall back to the first one
+          this.thread = active || this.session.threads[0];
+
           // Log detailed session info
           if (data.session) {
           }

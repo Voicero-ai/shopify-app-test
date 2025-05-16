@@ -1374,9 +1374,8 @@ const VoiceroVoice = {
       // Update status to Listening...
       this.setStatus("Listening...");
       this.addSystemMessage(
-        `<div id="listening-indicator-message" class="voice-prompt">I’m listening…</div>`,
+        `<div id="listening-indicator-message" class="voice-prompt">I'm listening…</div>`,
       );
-
 
       if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
         window.VoiceroCore.updateWindowState({
@@ -1535,7 +1534,6 @@ const VoiceroVoice = {
                   `<div id="transcribing-indicator-message" class="voice-prompt">Transcribing…</div>`,
                 );
 
-
                 // Create form data for the audio upload
                 const formData = new FormData();
                 formData.append(
@@ -1566,7 +1564,7 @@ const VoiceroVoice = {
 
                 // Make the upload request to voice API
                 const whisperResponse = await fetch(
-                  "https://voicero.ai/api/whisper",
+                  "https://www.voicero.ai/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1672,28 +1670,12 @@ const VoiceroVoice = {
                   return;
                 }
 
-                  const transEl = document.getElementById(
-                    "transcribing-indicator-message",
-                  );
-                  if (transEl) transEl.remove();
+                const transEl = document.getElementById(
+                  "transcribing-indicator-message",
+                );
+                if (transEl) transEl.remove();
 
-                // Add the user message with transcription (restored from placeholder update)
-                this.addMessage(transcription, "user");
-
-                // Mark that first conversation has occurred
-                if (VoiceroCore && VoiceroCore.appState) {
-                  VoiceroCore.appState.hasHadFirstConversation = true;
-                  if (
-                    VoiceroCore.saveState &&
-                    typeof VoiceroCore.saveState === "function"
-                  ) {
-                    VoiceroCore.saveState();
-                  }
-                }
-
-                // Show typing indicator instead of text placeholder
-                this.addTypingIndicator();
-
+                // MOVED: Build the request payload BEFORE adding the message to UI
                 // Now send the transcription to the Shopify chat endpoint
                 const requestBody = {
                   message: transcription,
@@ -1714,6 +1696,31 @@ const VoiceroVoice = {
                   pastContext: this.getPastContext(),
                 };
 
+                // Add the user message with transcription (MOVED: after building requestBody)
+                this.addMessage(transcription, "user");
+                if (window.VoiceroCore && VoiceroCore.appState) {
+                  VoiceroCore.appState.voiceMessages =
+                    VoiceroCore.appState.voiceMessages || {};
+                  VoiceroCore.appState.voiceMessages.user = transcription;
+                  if (typeof VoiceroCore.saveState === "function") {
+                    VoiceroCore.saveState();
+                  }
+                }
+
+                // Mark that first conversation has occurred
+                if (VoiceroCore && VoiceroCore.appState) {
+                  VoiceroCore.appState.hasHadFirstConversation = true;
+                  if (
+                    VoiceroCore.saveState &&
+                    typeof VoiceroCore.saveState === "function"
+                  ) {
+                    VoiceroCore.saveState();
+                  }
+                }
+
+                // Show typing indicator instead of text placeholder
+                this.addTypingIndicator();
+
                 // Log the request body for debugging
                 console.log(
                   "[VOICERO VOICE] Sending to /chat:",
@@ -1721,7 +1728,7 @@ const VoiceroVoice = {
                 );
 
                 const chatResponse = await fetch(
-                  "https://voicero.ai/api/shopify/chat",
+                  "https://www.voicero.ai/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
@@ -1916,7 +1923,6 @@ const VoiceroVoice = {
                   );
                   if (transEl) transEl.remove();
 
-
                   // Store in state
                   if (VoiceroCore && VoiceroCore.appState) {
                     // Initialize voiceMessages if it doesn't exist
@@ -2038,7 +2044,6 @@ const VoiceroVoice = {
                     "transcribing-indicator-message",
                   );
                   if (transEl) transEl.remove();
-
 
                   // Store in state
                   if (VoiceroCore && VoiceroCore.appState) {
@@ -2467,109 +2472,91 @@ const VoiceroVoice = {
 
   // Get past conversation context for AI
   getPastContext: function () {
-    // Return empty array if no thread or messages
+    // Try VoiceroCore.thread first
+    console.log("🔍 getPastContext(): entry", {
+      coreThread: window.VoiceroCore?.thread,
+      sessionThreads: window.VoiceroCore?.session?.threads,
+    });
+    let thread = window.VoiceroCore.thread;
+
+    // If no messages there, try finding it in session.threads
     if (
-      !window.VoiceroCore ||
-      !window.VoiceroCore.thread ||
-      !window.VoiceroCore.thread.messages ||
-      window.VoiceroCore.thread.messages.length === 0
+      (!thread || !thread.messages?.length) &&
+      window.VoiceroCore.session?.threads
     ) {
-      // Check for local messages as a fallback
-      if (
-        window.VoiceroCore &&
-        window.VoiceroCore.appState &&
-        window.VoiceroCore.appState.voiceMessages
-      ) {
-        const voiceMessages = window.VoiceroCore.appState.voiceMessages;
-        const pastContext = [];
-
-        // Add user message if available
-        if (voiceMessages.user) {
-          pastContext.push({
-            question: voiceMessages.user,
-            role: "user",
-            createdAt: new Date().toISOString(),
-            pageUrl: window.location.href,
-            id: this.generateId(),
-          });
-        }
-
-        // Add AI message if available
-        if (voiceMessages.ai) {
-          pastContext.push({
-            answer: voiceMessages.ai,
-            role: "assistant",
-            createdAt: new Date().toISOString(),
-            id: this.generateId(),
-          });
-        }
-
-        console.log("Voice Past Context (from local storage):", pastContext);
-        return pastContext;
-      }
-
-      console.log("No thread messages available, returning empty pastContext");
-      return [];
+      console.log(
+        "🔄 getPastContext(): falling back to session.threads",
+        window.VoiceroCore.session.threads,
+      );
+      thread = window.VoiceroCore.session.threads.find(
+        (t) => t.threadId === window.VoiceroCore.session.threadId,
+      );
     }
 
-    // Get the messages from the thread
-    const messages = window.VoiceroCore.thread.messages;
+    // If still none, fallback to appState.voiceMessages
+    if (!thread || !thread.messages?.length) {
+      const voiceMessages = window.VoiceroCore.appState?.voiceMessages || {};
+      const ctx = [];
+      if (voiceMessages.user) {
+        ctx.push({
+          question: voiceMessages.user,
+          role: "user",
+          createdAt: new Date().toISOString(),
+          pageUrl: window.location.href,
+          id: this.generateId(),
+        });
+      }
+      if (voiceMessages.ai) {
+        ctx.push({
+          answer: voiceMessages.ai,
+          role: "assistant",
+          createdAt: new Date().toISOString(),
+          id: this.generateId(),
+        });
+      }
+      console.log(
+        "🔔 getPastContext(): no thread.messages, falling back to appState.voiceMessages:",
+        window.VoiceroCore.appState.voiceMessages,
+        ctx,
+      );
+      return ctx;
+    }
 
-    // Sort messages by creation time
-    const sortedMessages = [...messages].sort((a, b) => {
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
-
-    // Get last 5 user questions and last 5 AI responses
-    const userMessages = sortedMessages
-      .filter((msg) => msg.role === "user")
-      .slice(-5);
-
-    const aiMessages = sortedMessages
-      .filter((msg) => msg.role === "assistant")
-      .slice(-5);
-
-    // Combine all messages in chronological order
-    const lastMessages = [...userMessages, ...aiMessages].sort(
+    // Otherwise build pastContext from thread.messages
+    const msgs = [...thread.messages].sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
     );
-
-    // Format for API - make sure to use question/answer fields instead of content
-    const pastContext = lastMessages.map((msg) => {
+    const userMsgs = msgs.filter((m) => m.role === "user").slice(-5);
+    const aiMsgs = msgs.filter((m) => m.role === "assistant").slice(-5);
+    const last = [...userMsgs, ...aiMsgs].sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+    );
+    console.log("✅ getPastContext(): returning", last);
+    return last.map((msg) => {
       if (msg.role === "user") {
         return {
-          question: msg.content, // Use the content as the question
+          question: msg.content,
           role: "user",
           createdAt: msg.createdAt,
           pageUrl: msg.pageUrl || window.location.href,
           id: msg.id,
-          threadId: msg.threadId || window.VoiceroCore.thread.threadId,
+          threadId: msg.threadId,
         };
       } else {
-        // For AI messages, try to extract the answer from JSON if needed
         let content = msg.content;
         try {
-          const parsed = JSON.parse(content);
-          if (parsed.answer) {
-            content = parsed.answer;
-          }
-        } catch (e) {
-          // Not JSON or couldn't parse, use as is
-        }
-
+          const p = JSON.parse(content);
+          if (p.answer) content = p.answer;
+        } catch {}
         return {
-          answer: content, // Use the processed content as the answer
+          answer: content,
           role: "assistant",
           createdAt: msg.createdAt,
           id: msg.id,
-          threadId: msg.threadId || window.VoiceroCore.thread.threadId,
+          threadId: msg.threadId,
         };
       }
     });
-
-    // Log the formatted pastContext for debugging
-    console.log("Voice Past Context:", JSON.stringify(pastContext, null, 2));
-    return pastContext;
   },
 
   // Generate a unique ID for messages (copied from voicero-text implementation)
@@ -3336,7 +3323,11 @@ const VoiceroVoice = {
 
 I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questions about products, services, or anything else related to ${websiteName}.
 
-Feel free to ask me anything, and I'll do my best to assist you!`;
+Feel free to ask me anything, and I'll do my best to assist you!
+
+**Click the microphone to start talking**
+
+`;
 
     console.log("Showing welcome message");
 
