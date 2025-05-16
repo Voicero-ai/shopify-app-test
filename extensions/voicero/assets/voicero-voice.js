@@ -456,6 +456,20 @@ const VoiceroVoice = {
     `;
     controlsHeader.appendChild(clearButton);
 
+    // Add status indicator to the header
+    const status = document.createElement("div");
+    status.id = "voicero-status";
+    status.style.cssText = `
+      font-size: 12px;
+      color: #666;
+      margin-left: auto;
+      padding-right: 8px;
+      flex-grow: 1;
+      text-align: center;
+    `;
+    status.textContent = ""; // Start empty
+    controlsHeader.appendChild(status);
+
     // Create minimize button for the header
     const minimizeButton = document.createElement("button");
     minimizeButton.id = "minimize-voice-chat";
@@ -1273,6 +1287,9 @@ const VoiceroVoice = {
       // Stop listening
       this.isRecording = false;
 
+      // Clear status when stopping recording
+      this.setStatus("");
+
       if (source === "manual") {
         // Turn off autoMic in session when user manually stops recording
         if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
@@ -1349,6 +1366,9 @@ const VoiceroVoice = {
       // Start listening
       this.isRecording = true;
       this.manuallyStoppedRecording = false;
+
+      // Update status to Listening...
+      this.setStatus("Listening...");
 
       if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
         window.VoiceroCore.updateWindowState({
@@ -1501,6 +1521,9 @@ const VoiceroVoice = {
             // Only process if we have actual audio data
             if (audioBlob.size > 0) {
               try {
+                // Update status to Transcribing...
+                this.setStatus("Transcribing...");
+
                 // Create form data for the audio upload
                 const formData = new FormData();
                 formData.append(
@@ -1568,6 +1591,9 @@ const VoiceroVoice = {
                     : typeof whisperData === "object" && whisperData.text
                       ? whisperData.text
                       : "Could not transcribe audio");
+
+                // Update status to indicate transcription is complete
+                this.setStatus("");
 
                 // CHECK IF TRANSCRIPTION IS MEANINGFUL
                 // If Whisper returns an empty string, very short nonsense, or the default error message, don't process further
@@ -3508,6 +3534,14 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
       if (headerContainer) {
         headerContainer.style.borderRadius = "12px 12px 0 0";
       }
+    }
+  },
+
+  // Set status message
+  setStatus: function (status) {
+    const statusElement = document.getElementById("voicero-status");
+    if (statusElement) {
+      statusElement.textContent = status;
     }
   },
 };

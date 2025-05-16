@@ -2312,6 +2312,9 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
 
       // Show typing indicator in messages container
       if (this.shadowRoot) {
+        // First ensure the animation styles are in the Shadow DOM
+        this.ensureTypingAnimationInShadowDOM();
+
         const messagesContainer =
           this.shadowRoot.getElementById("chat-messages");
         if (messagesContainer) {
@@ -3522,6 +3525,42 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
       if (headerContainer) {
         headerContainer.style.borderRadius = "0";
       }
+    }
+  },
+
+  // Ensure typing animation keyframes are in Shadow DOM
+  ensureTypingAnimationInShadowDOM: function () {
+    if (!this.shadowRoot) return;
+
+    // Check if animation styles already exist
+    if (!this.shadowRoot.getElementById("voicero-typing-styles")) {
+      console.log("Adding typing animation keyframes to Shadow DOM");
+
+      // Create style element for Shadow DOM
+      const styleEl = document.createElement("style");
+      styleEl.id = "voicero-typing-styles";
+      styleEl.textContent = `
+        @keyframes typingBounce {
+          0%, 60%, 100% { transform: translateY(0); }
+          30% { transform: translateY(-6px); }
+        }
+        
+        /* Ensure the typing dots have animation styling */
+        .typing-dot {
+          animation: typingBounce 1s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+          animation-delay: 0.4s;
+        }
+      `;
+
+      // Add to shadow DOM
+      this.shadowRoot.appendChild(styleEl);
     }
   },
 };
