@@ -1877,14 +1877,15 @@ const VoiceroVoice = {
                   aiTextResponse = String(aiTextResponse);
                 }
 
+                // Remove duplicate action handler call - will only handle actions after audio completes
                 // Also use VoiceroActionHandler if available
-                if (
-                  chatData.response &&
-                  window.VoiceroActionHandler &&
-                  typeof window.VoiceroActionHandler.handle === "function"
-                ) {
-                  window.VoiceroActionHandler.handle(chatData.response);
-                }
+                // if (
+                //   chatData.response &&
+                //   window.VoiceroActionHandler &&
+                //   typeof window.VoiceroActionHandler.handle === "function"
+                // ) {
+                //   window.VoiceroActionHandler.handle(chatData.response);
+                // }
 
                 // Process text to extract and clean URLs
                 const processedResponse =
@@ -2029,6 +2030,7 @@ const VoiceroVoice = {
                   // Handle actions ONLY AFTER audio playback completes
                   if (window.VoiceroActionHandler) {
                     try {
+                      // Let VoiceroActionHandler handle all actions including redirects
                       window.VoiceroActionHandler.handle(
                         chatData.response ?? chatData,
                       );
@@ -2036,8 +2038,6 @@ const VoiceroVoice = {
                       // console.error("VoiceroActionHandler error:", err);
                     }
                   }
-
-                  
                 } catch (audioError) {
                   // Remove typing indicator before adding the error message
                   this.removeTypingIndicator();
@@ -2057,9 +2057,6 @@ const VoiceroVoice = {
                       VoiceroCore.saveState();
                     }
                   }
-
-                  
-                  
                 }
               } catch (error) {
                 // Log the error for debugging
