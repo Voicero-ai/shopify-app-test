@@ -1566,7 +1566,7 @@ const VoiceroVoice = {
 
                 // Make the upload request to voice API
                 const whisperResponse = await fetch(
-                  "http://localhost:3000/api/whisper",
+                  "https://voicero.ai/api/whisper",
                   {
                     method: "POST",
                     headers: {
@@ -1721,7 +1721,7 @@ const VoiceroVoice = {
                 );
 
                 const chatResponse = await fetch(
-                  "http://localhost:3000/api/shopify/chat",
+                  "https://voicero.ai/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
