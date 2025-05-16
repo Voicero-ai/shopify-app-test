@@ -171,39 +171,6 @@ const VoiceroVoice = {
         margin-right: 0 !important;
       }
 
-      .typing-indicator {
-        display: flex !important;
-        gap: 4px;
-        padding: 8px 12px;
-        background: #e5e5ea;
-        border-radius: 18px;
-        width: fit-content;
-        opacity: 1 !important;
-        margin-bottom: 12px; /* Increased from 0px */
-        margin-left: 5px;
-      }
-
-      .typing-dot {
-        width: 7px;
-        height: 7px;
-        background: #999999;
-        border-radius: 50%;
-        animation: typingBounce 1s infinite;
-        opacity: 1;
-      }
-
-      .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-      .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-      @keyframes typingAnimation {
-        0%, 60%, 100% { transform: translateY(0); }
-        30% { transform: translateY(-6px); }
-      }
-      
-      @keyframes typingBounce {
-        0%, 60%, 100% { transform: translateY(0); }
-        30% { transform: translateY(-6px); }
-      }
 
       @keyframes pulseListening {
         0% { transform: scale(1); background: ${this.websiteColor}; }
@@ -2563,37 +2530,78 @@ const VoiceroVoice = {
     if (!messagesContainer) {
       return;
     }
-    // Remove any existing typing indicators
-    this.removeTypingIndicator();
 
-    // Create a basic structure that will definitely display with our CSS
-    const wrapper = document.createElement("div");
-    wrapper.className = "ai-message typing-wrapper";
-    wrapper.style.display = "flex";
-    wrapper.style.justifyContent = "flex-start";
-    wrapper.style.position = "relative";
-    wrapper.style.paddingLeft = "8px";
-    wrapper.style.marginBottom = "16px";
+    // Get send button if it exists
+    const sendButton = document.getElementById("voice-send-button");
 
-    const indicator = document.createElement("div");
-    indicator.className = "typing-indicator";
-    indicator.id = "voice-typing-indicator";
+    // Always use VoiceroWait if available
+    if (window.VoiceroWait) {
+      // Add loading animation to send button if it exists
+      if (sendButton) {
+        window.VoiceroWait.addLoadingAnimation(sendButton);
+      }
 
-    // Create the three dots
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("div");
-      dot.className = "typing-dot";
-      indicator.appendChild(dot);
+      // Show typing indicator in messages container
+      return window.VoiceroWait.showTypingIndicator(messagesContainer);
+    } else {
+      // Fallback implementation if VoiceroWait is not available
+      console.error(
+        "VoiceroWait module not found. Basic fallback implemented.",
+      );
+
+      // Add animation to send button if it exists
+      if (sendButton) {
+        sendButton.classList.add("siri-active");
+      }
+
+      // First remove any existing indicators
+      this.removeTypingIndicator();
+
+      // Create a basic wrapper (no inline styles, using CSS classes)
+      const wrapper = document.createElement("div");
+      wrapper.className = "ai-message typing-wrapper";
+
+      // Create indicator container (no inline styles, using CSS classes)
+      const indicator = document.createElement("div");
+      indicator.className = "typing-indicator";
+      indicator.id = "voice-typing-indicator";
+
+      // Create the three dots (no inline styles, using CSS classes)
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement("div");
+        dot.className = "typing-dot";
+        // Add delay classes instead of inline styles
+        if (i === 1) dot.classList.add("typing-dot-delay-1");
+        if (i === 2) dot.classList.add("typing-dot-delay-2");
+        indicator.appendChild(dot);
+      }
+
+      wrapper.appendChild(indicator);
+      messagesContainer.appendChild(wrapper);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return indicator;
     }
-
-    wrapper.appendChild(indicator);
-    messagesContainer.appendChild(wrapper);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    return indicator;
   },
 
   // Remove typing indicator
   removeTypingIndicator: function () {
+    // Get send button if it exists
+    const sendButton = document.getElementById("voice-send-button");
+
+    // Use VoiceroWait if available
+    if (window.VoiceroWait) {
+      // Hide typing indicator
+      window.VoiceroWait.hideTypingIndicator();
+
+      // Remove loading animation from send button
+      if (sendButton) {
+        window.VoiceroWait.removeLoadingAnimation(sendButton);
+      }
+
+      return;
+    }
+
+    // Fallback implementation if VoiceroWait is not available
     // Remove both the indicator itself and any typing wrapper
     const indicator = document.getElementById("voice-typing-indicator");
     if (indicator) {
@@ -2609,6 +2617,11 @@ const VoiceroVoice = {
     // Also remove any typing-wrapper elements that might exist
     const typingElements = document.querySelectorAll(".typing-wrapper");
     typingElements.forEach((el) => el.remove());
+
+    // Remove animation from send button
+    if (sendButton) {
+      sendButton.classList.remove("siri-active");
+    }
   },
 
   // Add message to the voice chat

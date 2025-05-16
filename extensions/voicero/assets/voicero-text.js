@@ -1133,35 +1133,6 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
           z-index: 9999999 !important; /* Very high z-index to ensure it stays on top */
         }
 
-        .typing-indicator {
-          display: flex !important;
-          gap: 4px;
-          padding: 8px 12px;
-          background: #e5e5ea;
-          border-radius: 18px;
-          width: fit-content;
-          opacity: 1 !important;
-          margin-bottom: 12px; /* Increased from 0px */
-          margin-left: 5px;
-        }
-
-        .typing-dot {
-          width: 7px;
-          height: 7px;
-          background: #999999;
-          border-radius: 50%;
-          animation: typingAnimation 1s infinite;
-          opacity: 1;
-        }
-
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typingAnimation {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-6px); }
-        }
-
         .user-message {
           display: flex;
           justify-content: flex-end;
@@ -1465,35 +1436,6 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
             left: 0 !important;
             right: 0 !important;
             z-index: 9999999 !important; /* Very high z-index to ensure it stays on top */
-          }
-
-          .typing-indicator {
-            display: flex !important;
-            gap: 4px;
-            padding: 8px 12px;
-            background: #e5e5ea;
-            border-radius: 18px;
-            width: fit-content;
-            opacity: 1 !important;
-            margin-bottom: 12px; /* Increased from 0px */
-            margin-left: 5px;
-          }
-
-          .typing-dot {
-            width: 7px;
-            height: 7px;
-            background: #999999;
-            border-radius: 50%;
-            animation: typingAnimation 1s infinite;
-            opacity: 1;
-          }
-
-          .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-          .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-          @keyframes typingAnimation {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-6px); }
           }
 
           .user-message {
@@ -2292,38 +2234,6 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
   },
 
   // Create typing indicator for AI messages
-  createTypingIndicator: function () {
-    // Create typing indicator
-    const typingIndicator = document.createElement("div");
-    typingIndicator.className = "typing-indicator";
-    typingIndicator.style.cssText = `
-      display: flex;
-      gap: 4px;
-      padding: 8px 12px;
-      background: #e5e5ea;
-      border-radius: 18px;
-      width: fit-content;
-      margin-bottom: 10px;
-      margin-left: 5px;
-    `;
-
-    // Create typing dots
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("div");
-      dot.className = "typing-dot";
-      dot.style.cssText = `
-        width: 7px;
-        height: 7px;
-        background: #999999;
-        border-radius: 50%;
-        animation: typingAnimation 1s infinite;
-      `;
-      if (i === 1) dot.style.animationDelay = "0.2s";
-      if (i === 2) dot.style.animationDelay = "0.4s";
-      typingIndicator.appendChild(dot);
-    }
-    return typingIndicator;
-  },
 
   // Set loading indicator state
   setLoadingIndicator: function (isLoading) {
@@ -2387,39 +2297,56 @@ Feel free to ask me anything, and I'll do my best to assist you!`;
     // Set loading state
     this.isWaitingForResponse = true;
 
-    // Apply rainbow animation to send button while waiting for response
+    // Get the send button
+    let sendButton = null;
     if (this.shadowRoot) {
-      const sendButton = this.shadowRoot.getElementById("send-message-btn");
+      sendButton = this.shadowRoot.getElementById("send-message-btn");
+    }
+
+    // Check if VoiceroWait is available and use it
+    if (window.VoiceroWait) {
+      // Add loading animation to send button
+      if (sendButton) {
+        window.VoiceroWait.addLoadingAnimation(sendButton);
+      }
+
+      // Show typing indicator in messages container
+      if (this.shadowRoot) {
+        const messagesContainer =
+          this.shadowRoot.getElementById("chat-messages");
+        if (messagesContainer) {
+          this.typingIndicator =
+            window.VoiceroWait.showTypingIndicator(messagesContainer);
+        }
+      }
+    } else {
+      // Fallback to classic animation if VoiceroWait is not available
       if (sendButton) {
         sendButton.classList.add("siri-active");
       }
     }
 
-    // Show typing indicator
-    const typingIndicator = this.createTypingIndicator();
-    let typingWrapper = null;
-    if (this.shadowRoot) {
-      const messagesContainer = this.shadowRoot.getElementById("chat-messages");
-      if (messagesContainer) {
-        typingWrapper = document.createElement("div");
-        typingWrapper.className = "ai-message typing-wrapper";
-        typingWrapper.appendChild(typingIndicator);
-        messagesContainer.appendChild(typingWrapper);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
-    }
-
     // Function to remove typing indicator and animations
     const removeTypingIndicator = () => {
-      if (typingWrapper) {
-        typingWrapper.remove();
-      }
-      const typingElements = document.querySelectorAll(".typing-wrapper");
-      typingElements.forEach((el) => el.remove());
+      if (window.VoiceroWait) {
+        // Use VoiceroWait to hide the indicator
+        window.VoiceroWait.hideTypingIndicator();
 
-      // Remove rainbow animation when response is received
-      if (this.shadowRoot) {
-        const sendButton = this.shadowRoot.getElementById("send-message-btn");
+        // Remove loading animation from send button
+        if (sendButton) {
+          window.VoiceroWait.removeLoadingAnimation(sendButton);
+        }
+      } else {
+        // Fallback to classic removal
+        if (this.typingIndicator) {
+          this.typingIndicator.remove();
+          this.typingIndicator = null;
+        }
+
+        const typingElements = document.querySelectorAll(".typing-wrapper");
+        typingElements.forEach((el) => el.remove());
+
+        // Remove rainbow animation manually
         if (sendButton) {
           sendButton.classList.remove("siri-active");
         }
