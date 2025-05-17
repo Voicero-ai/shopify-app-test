@@ -1943,8 +1943,12 @@ const VoiceroVoice = {
                   // Remove typing indicator before adding the real response
                   this.removeTypingIndicator();
 
+                  // IMPORTANT: Add flag to track if we've added the message
+                  let messageAdded = false;
+
                   // Update AI message with cleaned text content
                   this.addMessage(cleanedTextResponse, "ai");
+                  messageAdded = true;
 
                   const listenEl = document.getElementById(
                     "listening-indicator-message",
@@ -1998,16 +2002,92 @@ const VoiceroVoice = {
                     });
 
                     // Also handle errors in playback by resolving
-                    audio.addEventListener("error", () => {
+                    audio.addEventListener("error", (e) => {
                       console.warn(
                         "Audio playback error - continuing with actions anyway",
+                        e.error || e,
                       );
                       resolve();
                     });
                   });
 
-                  // Start audio playback
-                  await audio.play();
+                  // Start audio playback - with better mobile support
+                  try {
+                    // iOS Safari and many mobile browsers require user interaction
+                    // Check if it's a mobile device
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(
+                      navigator.userAgent,
+                    );
+
+                    if (isMobile) {
+                      console.log(
+                        "[VOICERO VOICE] Mobile device detected, using special audio playback approach",
+                      );
+
+                      // For iOS, we need to set these properties before play()
+                      audio.setAttribute("playsinline", "true");
+                      audio.muted = false;
+                      audio.volume = 1.0;
+
+                      // Create and use AudioContext (which often works better on mobile)
+                      try {
+                        const AudioContextClass =
+                          window.AudioContext || window.webkitAudioContext;
+                        if (AudioContextClass) {
+                          const audioCtx = new AudioContextClass();
+
+                          // This helps "wake up" the audio context on iOS
+                          if (audioCtx.state === "suspended") {
+                            audioCtx.resume();
+                          }
+                        }
+                      } catch (audioCtxErr) {
+                        console.warn(
+                          "[VOICERO VOICE] Failed to initialize AudioContext for mobile",
+                          audioCtxErr,
+                        );
+                      }
+                    }
+
+                    // Now attempt to play with detailed error reporting
+                    await audio.play().catch((err) => {
+                      console.error(
+                        "[VOICERO VOICE] Audio play() failed:",
+                        err,
+                      );
+                      // For autoplay blocked errors, we should show a message to the user
+                      if (
+                        err.name === "NotAllowedError" ||
+                        err.message?.includes("user gesture")
+                      ) {
+                        console.warn(
+                          "[VOICERO VOICE] Autoplay blocked by browser policy",
+                        );
+                        // Add a note to the message that audio is not available
+                        const messagesContainer =
+                          document.getElementById("voice-messages");
+                        if (messagesContainer) {
+                          const notification = document.createElement("div");
+                          notification.className = "voice-prompt";
+                          notification.style.cssText =
+                            "background: #fff8e1; color: #856404; margin-top: 8px;";
+                          notification.innerHTML =
+                            "Audio playback is not available. Enable audio in your browser settings.";
+                          messagesContainer.appendChild(notification);
+                          messagesContainer.scrollTop =
+                            messagesContainer.scrollHeight;
+                        }
+                      }
+                      // Let the promise resolve even on error
+                      throw err;
+                    });
+                  } catch (playError) {
+                    console.error(
+                      "[VOICERO VOICE] Failed to play audio:",
+                      playError,
+                    );
+                    // Continue anyway
+                  }
 
                   // Wait for audio to complete playing before proceeding
                   await audioPlaybackPromise;
@@ -2065,8 +2145,12 @@ const VoiceroVoice = {
                 } catch (audioError) {
                   // Remove typing indicator before adding the error message
                   this.removeTypingIndicator();
-                  // Just show the text response if audio fails
-                  this.addMessage(cleanedTextResponse, "ai");
+
+                  // Check if a message was already added in the try block
+                  if (!messageAdded) {
+                    // Only show the text response if it wasn't already added and audio fails
+                    this.addMessage(cleanedTextResponse, "ai");
+                  }
 
                   const listenEl = document.getElementById(
                     "listening-indicator-message",
