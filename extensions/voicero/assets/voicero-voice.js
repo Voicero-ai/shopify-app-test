@@ -280,7 +280,7 @@ const VoiceroVoice = {
         background: ${this.websiteColor || "#882be6"};
         color: white;
         border-radius: 18px;
-        padding: 12px 16px;
+        padding: 10px 12px;
         max-width: 70%;
         word-wrap: break-word;
         font-size: 14px;
@@ -302,7 +302,7 @@ const VoiceroVoice = {
         background: #e5e5ea;
         color: #333;
         border-radius: 18px;
-        padding: 12px 16px;
+        padding: 10px 12px;
         max-width: 70%;
         word-wrap: break-word;
         font-size: 14px;
@@ -2977,8 +2977,8 @@ const VoiceroVoice = {
         background: var(--voicero-theme-color, ${this.websiteColor});
         color: white;
         border-radius: 18px;
-        padding: 12px 16px;
-        max-width: 70%;
+        padding: 10px 12px;
+        max-width: 75%;
         word-wrap: break-word;
         font-size: 14px;
         line-height: 1.4;
@@ -3002,8 +3002,8 @@ const VoiceroVoice = {
           background: #e5e5ea;
           color: #666;
           border-radius: 18px;
-          padding: 12px 16px;
-          max-width: 70%;
+          padding: 10px 12px;
+          max-width: 75%;
           word-wrap: break-word;
           font-size: 14px;
           line-height: 1.4;
@@ -3017,8 +3017,8 @@ const VoiceroVoice = {
           background: #e5e5ea;
           color: #333;
           border-radius: 18px;
-          padding: 12px 16px;
-          max-width: 70%;
+          padding: 10px 12px;
+          max-width: 75%;
           word-wrap: break-word;
           font-size: 14px;
           line-height: 1.4;

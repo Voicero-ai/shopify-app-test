@@ -769,13 +769,13 @@ div.message-bubble.user-bubble {
 
 /* Make sure user message bubbles in voice interface match text interface */
 #voice-messages .user-message .message-content {
-  background-color: var(--voicero-theme-color) !important;
-  color: white !important;
+  padding: 8px 12px !important;
+  margin: 4px 0 !important;
 }
 
 /* Read status color */
 #voice-messages .read-status {
-  color: var(--voicero-theme-color) !important;
+  margin-top: 1px !important;
 }
 
 /* Hide voice input wrapper in text interface */
@@ -861,11 +861,3 @@ div.message-bubble.user-bubble {
   border: 1px solid rgba(136, 43, 230, 0.1) !important;
 }
 
-#voice-messages .user-message .message-content {
-  padding: 8px 12px !important;
-  margin: 4px 0 !important;
-}
-
-#voice-messages .read-status {
-  margin-top: 1px !important;
-}
