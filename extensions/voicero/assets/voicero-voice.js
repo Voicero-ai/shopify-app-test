@@ -1727,8 +1727,9 @@ const VoiceroVoice = {
                   JSON.stringify(requestBody, null, 2),
                 );
 
+                // Try localhost first for the /shopify/chat route, then fall back to normal endpoint
                 const chatResponse = await fetch(
-                  "https://www.voicero.ai/api/shopify/chat",
+                  "http://localhost:3000/api/shopify/chat",
                   {
                     method: "POST",
                     headers: {
@@ -1740,7 +1741,38 @@ const VoiceroVoice = {
                     },
                     body: JSON.stringify(requestBody),
                   },
-                );
+                )
+                  .then((response) => {
+                    if (!response.ok) {
+                      throw new Error(
+                        `Local endpoint failed: ${response.status}`,
+                      );
+                    }
+                    console.log(
+                      "[VOICERO VOICE] Successfully used localhost endpoint",
+                    );
+                    return response;
+                  })
+                  .catch((error) => {
+                    console.log(
+                      "[VOICERO VOICE] Localhost failed, falling back to voicero.ai:",
+                      error.message,
+                    );
+
+                    // Fallback to the original endpoint
+                    return fetch("https://www.voicero.ai/api/shopify/chat", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        ...(window.voiceroConfig?.getAuthHeaders
+                          ? window.voiceroConfig.getAuthHeaders()
+                          : {}),
+                      },
+                      body: JSON.stringify(requestBody),
+                    });
+                  });
+
                 if (!chatResponse.ok)
                   throw new Error("Chat API request failed");
 
@@ -2472,33 +2504,155 @@ const VoiceroVoice = {
 
   // Get past conversation context for AI
   getPastContext: function () {
-    // Try VoiceroCore.thread first
-    console.log("🔍 getPastContext(): entry", {
-      coreThread: window.VoiceroCore?.thread,
-      sessionThreads: window.VoiceroCore?.session?.threads,
-    });
-    let thread = window.VoiceroCore.thread;
+    // Initialize empty context array
+    const context = [];
 
-    // If no messages there, try finding it in session.threads
+    // Try to get thread messages from session - approach similar to text interface
     if (
-      (!thread || !thread.messages?.length) &&
-      window.VoiceroCore.session?.threads
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.threads &&
+      window.VoiceroCore.session.threads.length > 0
     ) {
-      console.log(
-        "🔄 getPastContext(): falling back to session.threads",
-        window.VoiceroCore.session.threads,
-      );
-      thread = window.VoiceroCore.session.threads.find(
-        (t) => t.threadId === window.VoiceroCore.session.threadId,
-      );
+      // Find the most recent thread by sorting the threads by lastMessageAt or createdAt
+      const threads = [...window.VoiceroCore.session.threads];
+      const sortedThreads = threads.sort((a, b) => {
+        // First try to sort by lastMessageAt if available
+        if (a.lastMessageAt && b.lastMessageAt) {
+          return new Date(b.lastMessageAt) - new Date(a.lastMessageAt);
+        }
+        // Fall back to createdAt if lastMessageAt is not available
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      // Use the most recent thread (first after sorting)
+      const recentThread = sortedThreads[0];
+
+      console.log("🔍 getPastContext(): Using recent thread", recentThread);
+
+      // Check if this thread has messages
+      if (
+        recentThread &&
+        recentThread.messages &&
+        recentThread.messages.length > 0
+      ) {
+        const threadMessages = recentThread.messages;
+
+        // Sort messages by creation time to ensure proper order
+        const sortedMessages = [...threadMessages].sort((a, b) => {
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        });
+
+        // Get last 5 user questions and last 5 AI responses in chronological order
+        const userMessages = sortedMessages
+          .filter((msg) => msg.role === "user")
+          .slice(-5);
+
+        const aiMessages = sortedMessages
+          .filter((msg) => msg.role === "assistant")
+          .slice(-5);
+
+        // Combine all messages in chronological order
+        const lastMessages = [...userMessages, ...aiMessages].sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+        );
+
+        console.log(
+          "✅ getPastContext(): Found messages in thread",
+          lastMessages.length,
+        );
+
+        // Map messages to required format for API
+        return lastMessages.map((msg) => {
+          if (msg.role === "user") {
+            return {
+              question: msg.content,
+              role: "user",
+              createdAt: msg.createdAt,
+              pageUrl: msg.pageUrl || window.location.href,
+              id: msg.id,
+              threadId: msg.threadId || recentThread.threadId,
+            };
+          } else {
+            // For assistant messages, try to extract answer from JSON if needed
+            let content = msg.content;
+            try {
+              const parsed = JSON.parse(content);
+              if (parsed && parsed.answer) {
+                content = parsed.answer;
+              }
+            } catch (e) {
+              // If parsing fails, use content as is
+            }
+
+            return {
+              answer: content,
+              role: "assistant",
+              createdAt: msg.createdAt,
+              id: msg.id,
+              threadId: msg.threadId || recentThread.threadId,
+            };
+          }
+        });
+      }
     }
 
-    // If still none, fallback to appState.voiceMessages
-    if (!thread || !thread.messages?.length) {
-      const voiceMessages = window.VoiceroCore.appState?.voiceMessages || {};
-      const ctx = [];
+    // Fallback to VoiceroCore.thread if available
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.thread &&
+      window.VoiceroCore.thread.messages
+    ) {
+      console.log("🔄 getPastContext(): Falling back to VoiceroCore.thread");
+      const msgs = [...window.VoiceroCore.thread.messages].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      );
+      const userMsgs = msgs.filter((m) => m.role === "user").slice(-5);
+      const aiMsgs = msgs.filter((m) => m.role === "assistant").slice(-5);
+      const last = [...userMsgs, ...aiMsgs].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      );
+
+      return last.map((msg) => {
+        if (msg.role === "user") {
+          return {
+            question: msg.content,
+            role: "user",
+            createdAt: msg.createdAt,
+            pageUrl: msg.pageUrl || window.location.href,
+            id: msg.id,
+            threadId: msg.threadId,
+          };
+        } else {
+          let content = msg.content;
+          try {
+            const p = JSON.parse(content);
+            if (p.answer) content = p.answer;
+          } catch {}
+          return {
+            answer: content,
+            role: "assistant",
+            createdAt: msg.createdAt,
+            id: msg.id,
+            threadId: msg.threadId,
+          };
+        }
+      });
+    }
+
+    // Last fallback to appState.voiceMessages (for very first messages)
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.appState &&
+      window.VoiceroCore.appState.voiceMessages
+    ) {
+      console.log(
+        "⚠️ getPastContext(): Falling back to appState.voiceMessages",
+      );
+      const voiceMessages = window.VoiceroCore.appState.voiceMessages || {};
+
       if (voiceMessages.user) {
-        ctx.push({
+        context.push({
           question: voiceMessages.user,
           role: "user",
           createdAt: new Date().toISOString(),
@@ -2507,56 +2661,17 @@ const VoiceroVoice = {
         });
       }
       if (voiceMessages.ai) {
-        ctx.push({
+        context.push({
           answer: voiceMessages.ai,
           role: "assistant",
           createdAt: new Date().toISOString(),
           id: this.generateId(),
         });
       }
-      console.log(
-        "🔔 getPastContext(): no thread.messages, falling back to appState.voiceMessages:",
-        window.VoiceroCore.appState.voiceMessages,
-        ctx,
-      );
-      return ctx;
     }
 
-    // Otherwise build pastContext from thread.messages
-    const msgs = [...thread.messages].sort(
-      (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-    );
-    const userMsgs = msgs.filter((m) => m.role === "user").slice(-5);
-    const aiMsgs = msgs.filter((m) => m.role === "assistant").slice(-5);
-    const last = [...userMsgs, ...aiMsgs].sort(
-      (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-    );
-    console.log("✅ getPastContext(): returning", last);
-    return last.map((msg) => {
-      if (msg.role === "user") {
-        return {
-          question: msg.content,
-          role: "user",
-          createdAt: msg.createdAt,
-          pageUrl: msg.pageUrl || window.location.href,
-          id: msg.id,
-          threadId: msg.threadId,
-        };
-      } else {
-        let content = msg.content;
-        try {
-          const p = JSON.parse(content);
-          if (p.answer) content = p.answer;
-        } catch {}
-        return {
-          answer: content,
-          role: "assistant",
-          createdAt: msg.createdAt,
-          id: msg.id,
-          threadId: msg.threadId,
-        };
-      }
-    });
+    console.log("💬 getPastContext(): Final context", context);
+    return context;
   },
 
   // Generate a unique ID for messages (copied from voicero-text implementation)
@@ -3406,18 +3521,27 @@ Feel free to ask me anything, and I'll do my best to assist you!
 
   // Collect page data for better context
   collectPageData: function () {
-    // Use the shared utility function instead of duplicating the code
-    return window.VoiceroPageData
-      ? window.VoiceroPageData.collectPageData()
-      : // Fallback implementation in case the utility isn't loaded
-        {
-          url: window.location.href,
-          full_text: document.body.innerText.trim(),
-          buttons: [],
-          forms: [],
-          sections: [],
-          images: [],
-        };
+    // Check if VoiceroPageData is available
+    if (
+      !window.VoiceroPageData ||
+      typeof window.VoiceroPageData.collectPageData !== "function"
+    ) {
+      console.warn(
+        "VoiceroVoice: VoiceroPageData module not available - ensure it's loaded before voicero-voice.js",
+      );
+      // Return minimal data
+      return {
+        url: window.location.href,
+        full_text: document.body.innerText.substring(0, 500),
+        buttons: [],
+        forms: [],
+        sections: [],
+        images: [],
+      };
+    }
+
+    // Use the shared utility function
+    return window.VoiceroPageData.collectPageData();
   },
 
   // Toggle from voice chat to text chat
