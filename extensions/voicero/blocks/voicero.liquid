@@ -94,12 +94,48 @@
   window.shopifyAppBridge = {
     // Simple method for frontend access to customer data
     getSessionToken: function() {
-      // For theme use, we don't have a real token
-      // Our customer module will handle token acquisition in other ways
-      console.log("Using shopifyAppBridge token container");
+      // Custom token method that checks cookies first
+      console.log("Using shopifyAppBridge token container (enhanced)");
+      
+      // Check for customer session cookie
+      try {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.startsWith('_shopify_customer_session=')) {
+            console.log("Found customer session token in cookies");
+            return cookie.substring('_shopify_customer_session='.length);
+          }
+        }
+      } catch (e) {
+        console.warn("Error checking cookies for token", e);
+      }
+      
       return null;
     }
   };
+  
+  // Check if the customer is actually logged in and store that info immediately
+  // This helps bypass the Liquid templating issues
+  (function() {
+    // Check for customer login indicators
+    const isLoggedIn = (
+      // Check if we have a customer object from Liquid
+      {% if customer %}true{% else %}false{% endif %} ||
+      // Check for customer-specific cookies
+      document.cookie.includes('_shopify_customer_') ||
+      // Or other specific login indicators
+      document.querySelectorAll('a[href*="/logout"]').length > 0
+    );
+    
+    // Store this status where our modules can access it
+    window.shopifyCustomerStatus = {
+      isLoggedIn: isLoggedIn,
+      checkTime: new Date().toISOString()
+    };
+    
+    console.log("Direct customer login check:", isLoggedIn);
+  })();
   
   // Inject detailed customer data if available through Liquid
   {% if customer %}
@@ -222,43 +258,46 @@
     
     // Load the customer data script first
     loadScript("{{ 'voicero-customer.js' | asset_url }}", function() {
-      // Then load the core script
-      loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
-        // Load our utility files before other modules
-        loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
-          loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
-            // Load the chooser module after utilities
-            loadScript("{{ 'voicero-chooser.js' | asset_url }}", function() {
-              // Load the welcome module before voice and text modules
-              loadScript("{{ 'voicero-welcome.js' | asset_url }}", function() {
-                // Load second-look module before voice/text to analyze page
-                loadScript("{{ 'voicero-second.js' | asset_url }}", function() {
-                  // Load the wait module first
-                  loadScript("{{ 'voicero-wait.js' | asset_url }}", function() {
-                    // Then load voice module
-                    loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
+      // Load our new auth helper right after customer script
+      loadScript("{{ 'voicero-auth-helper.js' | asset_url }}", function() {
+        // Then load the core script
+        loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+          // Load our utility files before other modules
+          loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
+            loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
+              // Load the chooser module after utilities
+              loadScript("{{ 'voicero-chooser.js' | asset_url }}", function() {
+                // Load the welcome module before voice and text modules
+                loadScript("{{ 'voicero-welcome.js' | asset_url }}", function() {
+                  // Load second-look module before voice/text to analyze page
+                  loadScript("{{ 'voicero-second.js' | asset_url }}", function() {
+                    // Load the wait module first
+                    loadScript("{{ 'voicero-wait.js' | asset_url }}", function() {
+                      // Then load voice module
+                      loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
+                        
+                        // Auto-open voice interface if it was the last active one
+                        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
+                          setTimeout(function() {
+                            if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
+                              window.VoiceroVoice.openVoiceChat();
+                            }
+                          }, 300);
+                        }
+                      });
                       
-                      // Auto-open voice interface if it was the last active one
-                      if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
-                        setTimeout(function() {
-                          if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
-                            window.VoiceroVoice.openVoiceChat();
-                          }
-                        }, 300);
-                      }
-                    });
-                    
-                    // Load text module in parallel
-                    loadScript("{{ 'voicero-text.js' | asset_url }}", function() {
-                      
-                      // Auto-open text interface if it was the last active one
-                      if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'text') {
-                        setTimeout(function() {
-                          if (window.VoiceroText && window.VoiceroText.openTextChat) {
-                            window.VoiceroText.openTextChat();
-                          }
-                        }, 300);
-                      }
+                      // Load text module in parallel
+                      loadScript("{{ 'voicero-text.js' | asset_url }}", function() {
+                        
+                        // Auto-open text interface if it was the last active one
+                        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'text') {
+                          setTimeout(function() {
+                            if (window.VoiceroText && window.VoiceroText.openTextChat) {
+                              window.VoiceroText.openTextChat();
+                            }
+                          }, 300);
+                        }
+                      });
                     });
                   });
                 });
@@ -297,42 +336,45 @@
     {%- comment -%} theme-check:disable theme-check/MissingAsset {%- endcomment -%}
     // Load the customer data script first
     loadScript("{{ 'voicero-customer.js' | asset_url }}", function() {
-      loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
-        // Load our utility files before other modules
-        loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
-          loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
-            // Load the chooser module after utilities
-            loadScript("{{ 'voicero-chooser.js' | asset_url }}", function() {
-              // Load the welcome module before voice and text modules
-              loadScript("{{ 'voicero-welcome.js' | asset_url }}", function() {
-                // Load second-look module before voice/text to analyze page
-                loadScript("{{ 'voicero-second.js' | asset_url }}", function() {
-                  // Load the wait module first
-                  loadScript("{{ 'voicero-wait.js' | asset_url }}", function() {
-                    // Then load voice module
-                    loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
+      // Load our new auth helper right after customer script
+      loadScript("{{ 'voicero-auth-helper.js' | asset_url }}", function() {
+        loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+          // Load our utility files before other modules
+          loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
+            loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
+              // Load the chooser module after utilities
+              loadScript("{{ 'voicero-chooser.js' | asset_url }}", function() {
+                // Load the welcome module before voice and text modules
+                loadScript("{{ 'voicero-welcome.js' | asset_url }}", function() {
+                  // Load second-look module before voice/text to analyze page
+                  loadScript("{{ 'voicero-second.js' | asset_url }}", function() {
+                    // Load the wait module first
+                    loadScript("{{ 'voicero-wait.js' | asset_url }}", function() {
+                      // Then load voice module
+                      loadScript("{{ 'voicero-voice.js' | asset_url }}", function() {
+                        
+                        // Auto-open voice interface if it was the last active one
+                        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
+                          setTimeout(function() {
+                            if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
+                              window.VoiceroVoice.openVoiceChat();
+                            }
+                          }, 300);
+                        }
+                      });
                       
-                      // Auto-open voice interface if it was the last active one
-                      if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'voice') {
-                        setTimeout(function() {
-                          if (window.VoiceroVoice && window.VoiceroVoice.openVoiceChat) {
-                            window.VoiceroVoice.openVoiceChat();
-                          }
-                        }, 300);
-                      }
-                    });
-                    
-                    // Load text module in parallel
-                    loadScript("{{ 'voicero-text.js' | asset_url }}", function() {
-                      
-                      // Auto-open text interface if it was the last active one
-                      if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'text') {
-                        setTimeout(function() {
-                          if (window.VoiceroText && window.VoiceroText.openTextChat) {
-                            window.VoiceroText.openTextChat();
-                          }
-                        }, 300);
-                      }
+                      // Load text module in parallel
+                      loadScript("{{ 'voicero-text.js' | asset_url }}", function() {
+                        
+                        // Auto-open text interface if it was the last active one
+                        if (window.voiceroConfig.wasOpen && window.voiceroConfig.lastInterface === 'text') {
+                          setTimeout(function() {
+                            if (window.VoiceroText && window.VoiceroText.openTextChat) {
+                              window.VoiceroText.openTextChat();
+                            }
+                          }, 300);
+                        }
+                      });
                     });
                   });
                 });

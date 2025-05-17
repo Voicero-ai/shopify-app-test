@@ -1117,11 +1117,52 @@ const VoiceroActionHandler = {
     const { order_id, email, order_number } = target || {};
     const orderNumberToFind = order_number || order_id;
 
+    // Check if email is missing
+    if (!email) {
+      const emailRequiredMessage =
+        "To track your order, please provide your email address for verification.";
+
+      // Display the message
+      if (window.VoiceroText?.addMessage) {
+        window.VoiceroText.addMessage(emailRequiredMessage, "ai");
+      }
+      if (window.VoiceroVoice?.addMessage) {
+        window.VoiceroVoice.addMessage(emailRequiredMessage, "ai");
+      }
+
+      // Save message to session
+      this.saveMessageToSession(emailRequiredMessage, "assistant");
+
+      return;
+    }
+
     // Check if we have customer data available from the Liquid template
     if (
       window.__VoiceroCustomerData &&
       window.__VoiceroCustomerData.recent_orders
     ) {
+      // Verify email matches the customer's email if customer is logged in
+      if (
+        window.__VoiceroCustomerData.email &&
+        email.toLowerCase() !== window.__VoiceroCustomerData.email.toLowerCase()
+      ) {
+        const emailMismatchMessage =
+          "The email you provided doesn't match the email associated with your account. Please use the email address that was used to place the order.";
+
+        // Display the message
+        if (window.VoiceroText?.addMessage) {
+          window.VoiceroText.addMessage(emailMismatchMessage, "ai");
+        }
+        if (window.VoiceroVoice?.addMessage) {
+          window.VoiceroVoice.addMessage(emailMismatchMessage, "ai");
+        }
+
+        // Save message to session
+        this.saveMessageToSession(emailMismatchMessage, "assistant");
+
+        return;
+      }
+
       const orders = window.__VoiceroCustomerData.recent_orders;
 
       // Find the order with the matching order number
@@ -1203,8 +1244,7 @@ const VoiceroActionHandler = {
     }
 
     // If we couldn't find the order or user isn't logged in
-    const loginMessage =
-      "To track an order, please make sure you're logged in to your account first.";
+    const loginMessage = `To track order #${orderNumberToFind}, please make sure you're logged in to your account first or provide a valid email address.`;
 
     // Display the login message
     if (window.VoiceroText?.addMessage) {

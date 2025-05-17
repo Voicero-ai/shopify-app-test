@@ -33,6 +33,21 @@
       // Initialize global flag to track if welcome back message has been displayed
       window.voiceroWelcomeBackDisplayed = false;
 
+      // NEW: Check the direct customer status check performed in the Liquid template
+      if (
+        window.shopifyCustomerStatus &&
+        window.shopifyCustomerStatus.isLoggedIn
+      ) {
+        console.log(
+          "VoiceroUserData: Found direct customer status check with logged in status:",
+          window.shopifyCustomerStatus.isLoggedIn,
+        );
+        this.isLoggedIn = true;
+        this.customer = this.customer || {};
+        this.customer.logged_in = true;
+        this.customer.direct_check = true;
+      }
+
       // Check for existing welcome back message
       try {
         const storedMessage = localStorage.getItem("voiceroWelcomeBackMessage");
@@ -119,10 +134,14 @@
             }
 
             // Send complete consolidated user data to our API
-            if (this.customer && !this.dataSent) {
+            // Always send data if we've determined the user is logged in, even if customer object is minimal
+            if ((this.customer || this.isLoggedIn) && !this.dataSent) {
               // Create a comprehensive data object with both customer and cart
               const userData = {
-                customer: this.customer,
+                customer: this.customer || {
+                  logged_in: this.isLoggedIn,
+                  minimal: true,
+                },
                 cart: this.cart || null,
                 isLoggedIn: this.isLoggedIn,
               };
@@ -314,9 +333,6 @@
           this.customer.logged_in = true;
           this.customer.timestamp = new Date().toISOString();
 
-          // NOTE: We're NOT sending customer data here anymore
-          // It will be sent once at the end of initialization
-
           resolve();
           return;
         } else {
@@ -330,6 +346,28 @@
             hasShopify: !!window.Shopify,
             hasShopifyCustomer: !!(window.Shopify && window.Shopify.customer),
           });
+        }
+
+        // NEW: Check if VoiceroAuthHelper has already done login detection
+        if (window.VoiceroAuthHelper && window.VoiceroAuthHelper.isLoggedIn) {
+          console.log(
+            "VoiceroUserData: Using login status from VoiceroAuthHelper",
+          );
+          this.isLoggedIn = true;
+          this.customer = this.customer || {};
+          this.customer.logged_in = true;
+          this.customer.timestamp = new Date().toISOString();
+
+          // If VoiceroAuthHelper has customer data, use it
+          if (window.VoiceroAuthHelper.customer) {
+            this.customer = {
+              ...this.customer,
+              ...window.VoiceroAuthHelper.customer,
+            };
+          }
+
+          resolve();
+          return;
         }
 
         // 1. Check for customer ID injected by Liquid (most reliable method)
@@ -379,7 +417,25 @@
           return;
         }
 
-        // 3. Try to use Customer Account API (requires proper session token)
+        // 3. Check cookies for customer session indicators
+        const cookies = document.cookie;
+        if (
+          cookies.includes("_shopify_customer_") ||
+          cookies.includes("_secure_session_id")
+        ) {
+          console.log(
+            "VoiceroUserData: Found customer session cookie, user is likely logged in",
+          );
+          this.isLoggedIn = true;
+          this.customer = {
+            logged_in: true,
+            timestamp: new Date().toISOString(),
+          };
+          resolve();
+          return;
+        }
+
+        // 4. Try to use Customer Account API (requires proper session token)
         const moreData = await this.fetchCustomerDetails().catch((error) => {
           console.log(
             "VoiceroUserData: Could not fetch customer details from API",
@@ -398,7 +454,19 @@
           return;
         }
 
-        // 4. Last resort - check DOM for customer-specific elements
+        // 5. Check for login/logout links in the DOM
+        const logoutLinks = document.querySelectorAll('a[href*="/logout"]');
+        if (logoutLinks.length > 0) {
+          console.log(
+            "VoiceroUserData: Found logout links, user is likely logged in",
+          );
+          this.isLoggedIn = true;
+          this.customer = { logged_in: true };
+          resolve();
+          return;
+        }
+
+        // 6. Check for account links that don't include login/register
         const accountLinks = document.querySelectorAll('a[href*="/account"]');
         const customerAccountLink = Array.from(accountLinks).find(
           (link) =>
@@ -408,6 +476,20 @@
         if (customerAccountLink) {
           console.log(
             "VoiceroUserData: Found account link that suggests user is logged in",
+          );
+          this.isLoggedIn = true;
+          this.customer = { logged_in: true };
+          resolve();
+          return;
+        }
+
+        // 7. Check if there are customer-specific elements on the page
+        const customerGreeting = document.querySelector(
+          ".customer-greeting, .customer-name, .account-name",
+        );
+        if (customerGreeting) {
+          console.log(
+            "VoiceroUserData: Found customer greeting element, user is likely logged in",
           );
           this.isLoggedIn = true;
           this.customer = { logged_in: true };
