@@ -218,30 +218,7 @@
   border-color: #ff0000;
 }
 
-/* Header styling */
-.voice-header {
-  background-color: #e6e6fa;
-  padding: 10px 20px;
-  color: #9370db;
-}
 
-.voice-header .header-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.voice-header .mic-icon {
-  width: 20px;
-  height: 20px;
-  color: #333 !important; /* Override any inherited colors */
-}
-
-.voice-header .title {
-  flex: 1;
-  font-size: 16px;
-  font-weight: 500;
-}
 
 #close-voice {
   background: none;

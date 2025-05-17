@@ -165,7 +165,7 @@ const VoiceroVoice = {
         width: 100% !important;
         left: 0 !important;
         right: 0 !important;
-        padding: 10px 15px !important;
+
         box-sizing: border-box !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
@@ -415,7 +415,6 @@ const VoiceroVoice = {
       display: flex !important;
       justify-content: space-between !important;
       align-items: center !important;
-      padding: 10px 15px !important;
       border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
       border-radius: 0 !important;
       margin: 0 !important;
@@ -815,7 +814,7 @@ const VoiceroVoice = {
         headerEl.style.margin = "0 0 15px 0";
         headerEl.style.boxShadow = "none";
         headerEl.style.boxSizing = "border-box";
-        headerEl.style.padding = "10px 15px";
+        // headerEl.style.padding = "10px 15px";
       }
 
       // Ensure input wrapper styling
@@ -3151,7 +3150,6 @@ const VoiceroVoice = {
           min-height: auto !important;
           height: auto !important;
           opacity: 1 !important;
-          padding: 15px !important;
           padding-top: 0 !important;
           overflow: auto !important;
           border: none !important;
@@ -3173,7 +3171,7 @@ const VoiceroVoice = {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          padding: 10px 15px !important;
+
           border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
           border-radius: 0 !important;
           margin: 0 !important;
