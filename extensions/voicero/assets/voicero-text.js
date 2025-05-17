@@ -1114,7 +1114,7 @@ Feel free to ask me anything, and I'll do my best to assist you!
           transition: max-height 0.25s ease, opacity 0.25s ease !important;
           overflow-y: auto !important;
           overflow-x: hidden !important;
-          max-height: 35vh !important;
+          max-height: 27vh !important;
           height: auto !important;
           position: relative !important;
         }
@@ -1419,7 +1419,7 @@ Feel free to ask me anything, and I'll do my best to assist you!
             transition: max-height 0.25s ease, opacity 0.25s ease !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
-            max-height: 35vh !important;
+            max-height: 33vh !important;
             height: auto !important;
             position: relative !important;
           }
@@ -1688,7 +1688,7 @@ Feel free to ask me anything, and I'll do my best to assist you!
           border-radius: 0 !important;
           padding: 0 !important;
           margin: 0 !important;
-          max-height: 35vh;
+          max-height: 33vh;
           overflow-y: auto;
           overflow-x: hidden;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -2926,7 +2926,7 @@ Feel free to ask me anything, and I'll do my best to assist you!
 
     if (messagesContainer) {
       // Restore proper scrolling functionality
-      messagesContainer.style.maxHeight = "35vh";
+      messagesContainer.style.maxHeight = "33vh";
       messagesContainer.style.minHeight = "auto";
       messagesContainer.style.height = "auto";
       messagesContainer.style.padding = "15px";
