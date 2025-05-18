@@ -1471,7 +1471,10 @@ const VoiceroActionHandler = {
     }
   },
 
-  handleGet_orders: function () {
+  handleGet_orders: function (target) {
+    // Check for email in the target object if provided
+    const { email } = target || {};
+
     // Check if we have customer data available from the Liquid template
     if (
       window.__VoiceroCustomerData &&
@@ -1552,21 +1555,162 @@ const VoiceroActionHandler = {
 
       // Save message to session if VoiceroCore is available
       this.saveMessageToSession(message, "assistant");
+    } else if (email) {
+      // If email is provided in the action context, use it to look up orders
+      // Try to fetch orders from the proxy using the email
+      console.log(`Attempting to fetch orders for email: ${email}`);
+
+      // Show a loading message
+      const loadingMessage = `Looking up orders associated with ${email}...`;
+      if (window.VoiceroText?.addMessage) {
+        window.VoiceroText.addMessage(loadingMessage, "ai");
+      }
+      if (window.VoiceroVoice?.addMessage) {
+        window.VoiceroVoice.addMessage(loadingMessage, "ai");
+      }
+
+      // Use ShopifyProxyClient if available to fetch orders by email
+      if (window.ShopifyProxyClient) {
+        // Add email parameter to the request
+        window.ShopifyProxyClient.get({ email: email })
+          .then((response) => {
+            if (
+              response.success &&
+              response.orders &&
+              response.orders.edges &&
+              response.orders.edges.length > 0
+            ) {
+              // Filter orders to only include those with the matching email
+              const filteredOrderEdges = response.orders.edges.filter(
+                (edge) => {
+                  const order = edge.node;
+                  return (
+                    order.customer &&
+                    order.customer.email &&
+                    order.customer.email.toLowerCase() === email.toLowerCase()
+                  );
+                },
+              );
+
+              // If we have any orders after filtering
+              if (filteredOrderEdges.length > 0) {
+                // Format the orders in a readable message
+                const orderCount = filteredOrderEdges.length;
+                let message = `📦 **Found ${orderCount} ${orderCount === 1 ? "order" : "orders"} associated with ${email}:**\n\n`;
+
+                filteredOrderEdges.forEach((edge, index) => {
+                  const order = edge.node;
+                  const date = new Date(order.createdAt).toLocaleDateString();
+
+                  message += `**Order ${order.name}** (${date})`;
+
+                  if (order.totalPriceSet && order.totalPriceSet.shopMoney) {
+                    message += ` • Total: ${order.totalPriceSet.shopMoney.currencyCode} ${order.totalPriceSet.shopMoney.amount}`;
+                  }
+
+                  if (order.lineItems && order.lineItems.edges) {
+                    message += ` • Items: ${order.lineItems.edges.length}`;
+                  }
+
+                  // Add display status if available
+                  if (order.displayFulfillmentStatus) {
+                    const status =
+                      order.displayFulfillmentStatus === "FULFILLED"
+                        ? "✅ Fulfilled"
+                        : "⏳ " + order.displayFulfillmentStatus;
+                    message += ` • Status: ${status}`;
+                  }
+
+                  // Add separator between orders, except for the last one
+                  if (index < orderCount - 1) {
+                    message += "\n\n---\n\n";
+                  }
+                });
+
+                // Display the results
+                if (window.VoiceroText?.addMessage) {
+                  window.VoiceroText.addMessage(message, "ai");
+                }
+                if (window.VoiceroVoice?.addMessage) {
+                  window.VoiceroVoice.addMessage(message, "ai");
+                }
+
+                // Save message to session
+                this.saveMessageToSession(message, "assistant");
+              } else {
+                // No orders found with this email after filtering
+                const noOrdersMessage = `I couldn't find any orders associated with ${email}. If you've placed an order recently using this email, it might not be showing up in our system yet.`;
+
+                if (window.VoiceroText?.addMessage) {
+                  window.VoiceroText.addMessage(noOrdersMessage, "ai");
+                }
+                if (window.VoiceroVoice?.addMessage) {
+                  window.VoiceroVoice.addMessage(noOrdersMessage, "ai");
+                }
+
+                // Save message to session
+                this.saveMessageToSession(noOrdersMessage, "assistant");
+              }
+            } else {
+              // No orders found
+              const noOrdersMessage = `I couldn't find any orders associated with ${email}. If you've placed an order recently using this email, it might not be showing up in our system yet.`;
+
+              if (window.VoiceroText?.addMessage) {
+                window.VoiceroText.addMessage(noOrdersMessage, "ai");
+              }
+              if (window.VoiceroVoice?.addMessage) {
+                window.VoiceroVoice.addMessage(noOrdersMessage, "ai");
+              }
+
+              // Save message to session
+              this.saveMessageToSession(noOrdersMessage, "assistant");
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching orders by email:", error);
+
+            // Show error message
+            const errorMessage = `Sorry, I encountered an error while trying to fetch your orders. Please try again later or contact customer support for assistance.`;
+
+            if (window.VoiceroText?.addMessage) {
+              window.VoiceroText.addMessage(errorMessage, "ai");
+            }
+            if (window.VoiceroVoice?.addMessage) {
+              window.VoiceroVoice.addMessage(errorMessage, "ai");
+            }
+
+            // Save message to session
+            this.saveMessageToSession(errorMessage, "assistant");
+          });
+      } else {
+        // ShopifyProxyClient not available
+        const unavailableMessage = `I'm sorry, but I'm unable to look up your orders at the moment. The order lookup service is not available.`;
+
+        if (window.VoiceroText?.addMessage) {
+          window.VoiceroText.addMessage(unavailableMessage, "ai");
+        }
+        if (window.VoiceroVoice?.addMessage) {
+          window.VoiceroVoice.addMessage(unavailableMessage, "ai");
+        }
+
+        // Save message to session
+        this.saveMessageToSession(unavailableMessage, "assistant");
+      }
     } else {
-      // If customer data is not available, prompt to log in
-      const loginMessage =
-        "To view your orders, you'll need to be logged in. I can take you to the login page, and once you're logged in, I'll be able to show you your order history.";
+      // If customer data is not available and no email provided, ask for email
+      const emailRequestMessage =
+        "To view your orders, I'll need your email address that was used to place the order. Can you please provide it?";
 
       if (window.VoiceroText?.addMessage) {
-        window.VoiceroText.addMessage(loginMessage, "ai");
+        window.VoiceroText.addMessage(emailRequestMessage, "ai");
       }
       // Add to VoiceroVoice as well
       if (window.VoiceroVoice?.addMessage) {
-        window.VoiceroVoice.addMessage(loginMessage, "ai");
+        window.VoiceroVoice.addMessage(emailRequestMessage, "ai");
       }
 
       // Save message to session if VoiceroCore is available
-      this.saveMessageToSession(loginMessage, "assistant");
+      this.saveMessageToSession(emailRequestMessage, "assistant");
     }
   },
 

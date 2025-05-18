@@ -256,17 +256,17 @@
   // Load all scripts on DOM content loaded
   document.addEventListener('DOMContentLoaded', function() {
     
-    // Load the customer data script first
-    loadScript("{{ 'voicero-customer.js' | asset_url }}", function() {
-      // Load our new auth helper right after customer script
-      loadScript("{{ 'voicero-auth-helper.js' | asset_url }}", function() {
-        // Then load the core script
-        loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
-          // Load our utility files before other modules
-          loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
-            loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
-              // Load the shopify proxy client
-              loadScript("{{ 'shopify-proxy-client.js' | asset_url }}", function() {
+    // Load orders script first 
+    loadScript("{{ 'voicero-orders.js' | asset_url }}", function() {
+      // Then load the customer data script
+      loadScript("{{ 'voicero-customer.js' | asset_url }}", function() {
+        // Load our new auth helper right after customer script
+        loadScript("{{ 'voicero-auth-helper.js' | asset_url }}", function() {
+          // Then load the core script
+          loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+            // Load our utility files before other modules
+            loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
+              loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
                 // Load the chooser module after utilities
                 loadScript("{{ 'voicero-chooser.js' | asset_url }}", function() {
                   // Load the welcome module before voice and text modules
@@ -337,16 +337,16 @@
   // Also try to load immediately if DOM is already loaded
   if (document.readyState === "complete" || document.readyState === "interactive") {
     {%- comment -%} theme-check:disable theme-check/MissingAsset {%- endcomment -%}
-    // Load the customer data script first
-    loadScript("{{ 'voicero-customer.js' | asset_url }}", function() {
-      // Load our new auth helper right after customer script
-      loadScript("{{ 'voicero-auth-helper.js' | asset_url }}", function() {
-        loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
-          // Load our utility files before other modules
-          loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
-            loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
-              // Load the shopify proxy client
-              loadScript("{{ 'shopify-proxy-client.js' | asset_url }}", function() {
+    // Load orders script first 
+    loadScript("{{ 'voicero-orders.js' | asset_url }}", function() {
+      // Then load the customer data script
+      loadScript("{{ 'voicero-customer.js' | asset_url }}", function() {
+        // Load our new auth helper right after customer script
+        loadScript("{{ 'voicero-auth-helper.js' | asset_url }}", function() {
+          loadScript("{{ 'voicero-core.js' | asset_url }}", function() {
+            // Load our utility files before other modules
+            loadScript("{{ 'voicero-color.js' | asset_url }}", function() {
+              loadScript("{{ 'voicero-page-data.js' | asset_url }}", function() {
                 // Load the chooser module after utilities
                 loadScript("{{ 'voicero-chooser.js' | asset_url }}", function() {
                   // Load the welcome module before voice and text modules
