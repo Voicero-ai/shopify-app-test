@@ -56,76 +56,120 @@ export const loader: LoaderFunction = async ({ request }) => {
 
     console.log(`Fetching orders from ${minDate} to ${maxDate}`);
 
-    const response = await admin.graphql(
-      `#graphql
-      query GetRecentOrders($first: Int!, $minDate: DateTime!, $maxDate: DateTime!) {
-        orders(
-          first: $first,
-          query: $query
-        ) {
-          edges {
-            node {
-              id
-              name
-              createdAt
-              totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
+    // Initialize variables for pagination
+    let hasNextPage = true;
+    let cursor: string | null = null;
+    let allOrderEdges: Array<{ cursor: string; node: any }> = [];
+    let pageCount = 0;
+    const PAGE_SIZE = 50; // Max 50 orders per page
+
+    // Loop until we've fetched all orders
+    while (hasNextPage) {
+      pageCount++;
+      console.log(`Fetching orders page ${pageCount}...`);
+
+      // Build the pagination part of the query
+      const paginationParams: string = cursor
+        ? `first: ${PAGE_SIZE}, after: "${cursor}"`
+        : `first: ${PAGE_SIZE}`;
+
+      // Build the GraphQL query
+      const query: string = `
+        query {
+          orders(${paginationParams}, query: "created_at:>='${minDate}' AND created_at:<='${maxDate}'") {
+            edges {
+              cursor
+              node {
+                id
+                name
+                createdAt
+                totalPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
                 }
-              }
-              customer {
-                firstName
-                lastName
-                email
-              }
-              displayFulfillmentStatus
-              lineItems(first: 5) {
-                edges {
-                  node {
-                    name
-                    quantity
-                    variant {
-                      price
-                      title
+                customer {
+                  firstName
+                  lastName
+                  email
+                }
+                displayFulfillmentStatus
+                lineItems(first: 5) {
+                  edges {
+                    node {
+                      name
+                      quantity
+                      variant {
+                        price
+                        title
+                      }
                     }
                   }
                 }
               }
             }
+            pageInfo {
+              hasNextPage
+            }
           }
         }
-      }`,
-      {
-        variables: {
-          first: 50, // Increased to get more orders
-          minDate: minDate,
-          maxDate: maxDate,
-          query: `created_at:>='${minDate}' AND created_at:<='${maxDate}'`,
-        },
-      },
+      `;
+
+      // Execute the query
+      const response: any = await admin.graphql(query);
+      const responseJson: any = await response.json();
+
+      // Extract the results
+      const { orders } = responseJson.data;
+
+      // Add this page's orders to our collection
+      if (orders.edges.length > 0) {
+        allOrderEdges = [...allOrderEdges, ...orders.edges];
+        console.log(
+          `Added ${orders.edges.length} orders from page ${pageCount}`,
+        );
+      }
+
+      // Update pagination variables for next iteration
+      hasNextPage = orders.pageInfo.hasNextPage;
+
+      // If there's another page, get the cursor of the last item
+      if (hasNextPage && orders.edges.length > 0) {
+        cursor = orders.edges[orders.edges.length - 1].cursor;
+      } else {
+        // No more pages
+        break;
+      }
+    }
+
+    console.log("📦 All orders fetched successfully");
+    console.log(
+      `Total orders found: ${allOrderEdges.length} across ${pageCount} pages`,
     );
 
-    const responseJson = await response.json();
-    console.log("📦 Orders fetched successfully");
-
     // Output a sample order to logs to verify the data
-    if (responseJson.data?.orders?.edges?.length > 0) {
+    if (allOrderEdges.length > 0) {
       console.log(
         "Sample order:",
-        JSON.stringify(responseJson.data.orders.edges[0], null, 2),
-      );
-      console.log(
-        `Total orders found: ${responseJson.data.orders.edges.length}`,
+        JSON.stringify(allOrderEdges[0].node, null, 2),
       );
     } else {
-      console.log("No orders found in the response");
+      console.log("No orders found in the date range");
     }
+
+    // Create the final response object with the same structure
+    // that the frontend expects
+    const ordersResponse = {
+      edges: allOrderEdges,
+    };
 
     return json(
       {
         success: true,
-        orders: responseJson.data.orders,
+        orders: ordersResponse,
+        totalCount: allOrderEdges.length,
+        pageCount: pageCount,
       },
       addCorsHeaders(),
     );
