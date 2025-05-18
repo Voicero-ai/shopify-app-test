@@ -40,6 +40,6 @@ redirect_urls = [
 embedded = false
 
 [app_proxy]
-url     = "https://shopify-app-is117a-nj.vercel.app/api/proxy"
-subpath = "orders-proxy"
+url     = "https://shopify-app-is117a-nj.vercel.app/app/proxy"
+subpath = "proxy"
 prefix  = "apps"
