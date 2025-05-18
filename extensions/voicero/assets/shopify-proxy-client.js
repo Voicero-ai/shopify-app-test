@@ -68,6 +68,44 @@ const ShopifyProxyClient = {
   },
 
   /**
+   * Fetch orders from the proxy and log them to the console
+   * This is a convenience method for quickly seeing order data
+   * @returns {Promise} - A promise that resolves with the orders data
+   */
+  fetchAndLogOrders: function () {
+    console.log("Fetching orders from proxy...");
+
+    return this.get()
+      .then((response) => {
+        if (response.success && response.orders) {
+          console.log("Orders received from proxy:", response.orders);
+
+          // Log each order individually for better visibility
+          if (response.orders.edges && response.orders.edges.length > 0) {
+            console.log(`Found ${response.orders.edges.length} orders:`);
+            response.orders.edges.forEach((edge, index) => {
+              console.log(`Order ${index + 1}:`, edge.node);
+            });
+          } else {
+            console.log("No orders found or unexpected format");
+          }
+
+          return response.orders;
+        } else {
+          console.error(
+            "Error in orders response:",
+            response.error || "Unknown error",
+          );
+          throw new Error(response.error || "Failed to fetch orders");
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch orders:", error);
+        throw error;
+      });
+  },
+
+  /**
    * Build the URL with query parameters
    * @param {Object} params - The parameters to include in the URL
    * @returns {string} - The complete URL with query parameters
@@ -133,11 +171,30 @@ const ShopifyProxyClient = {
 // Make globally available
 window.ShopifyProxyClient = window.ShopifyProxyClient || ShopifyProxyClient;
 
+// Initialize with debug mode on to log all requests and responses
+ShopifyProxyClient.init({ debug: true });
+
+// Auto-fetch orders when the script loads
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("DOM loaded, fetching orders...");
+  ShopifyProxyClient.fetchAndLogOrders()
+    .then((orders) => {
+      console.log("Orders fetched successfully!");
+    })
+    .catch((error) => {
+      console.error("Error auto-fetching orders:", error);
+    });
+});
+
 // Example usage:
 /*
-ShopifyProxyClient.init({
-  debug: true
-});
+// Manual fetch example
+ShopifyProxyClient.fetchAndLogOrders()
+  .then(orders => {
+    // Do something with the orders if needed
+    console.log("Total orders:", orders.edges.length);
+  })
+  .catch(error => console.error('Error:', error));
 
 // Get request example
 ShopifyProxyClient.get({ path: '/some/endpoint', shop: 'my-shop' })
