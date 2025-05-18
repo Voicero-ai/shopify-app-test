@@ -61,7 +61,7 @@ export const loader: LoaderFunction = async ({ request }) => {
       query GetRecentOrders($first: Int!, $minDate: DateTime!, $maxDate: DateTime!) {
         orders(
           first: $first,
-          query: "created_at:>='${minDate}' AND created_at:<='${maxDate}'"
+          query: $query
         ) {
           edges {
             node {
@@ -101,6 +101,7 @@ export const loader: LoaderFunction = async ({ request }) => {
           first: 50, // Increased to get more orders
           minDate: minDate,
           maxDate: maxDate,
+          query: `created_at:>='${minDate}' AND created_at:<='${maxDate}'`,
         },
       },
     );
