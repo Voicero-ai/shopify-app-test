@@ -45,15 +45,29 @@ export const loader: LoaderFunction = async ({ request }) => {
     console.log("Shop domain:", session.shop);
     console.log("Admin API client available:", !!admin);
 
-    // Use the admin object directly from the app proxy authentication
+    // Get current date and date from 20 days ago
+    const now = new Date();
+    const twentyDaysAgo = new Date();
+    twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+
+    // Format dates for the query in ISO format
+    const minDate = twentyDaysAgo.toISOString();
+    const maxDate = now.toISOString();
+
+    console.log(`Fetching orders from ${minDate} to ${maxDate}`);
+
     const response = await admin.graphql(
       `#graphql
-      query {
-        orders(first: 10) {
+      query GetRecentOrders($first: Int!, $minDate: DateTime!, $maxDate: DateTime!) {
+        orders(
+          first: $first,
+          query: "created_at:>='${minDate}' AND created_at:<='${maxDate}'"
+        ) {
           edges {
             node {
               id
               name
+              createdAt
               totalPriceSet {
                 shopMoney {
                   amount
@@ -65,12 +79,30 @@ export const loader: LoaderFunction = async ({ request }) => {
                 lastName
                 email
               }
-              createdAt
               displayFulfillmentStatus
+              lineItems(first: 5) {
+                edges {
+                  node {
+                    name
+                    quantity
+                    variant {
+                      price
+                      title
+                    }
+                  }
+                }
+              }
             }
           }
         }
       }`,
+      {
+        variables: {
+          first: 50, // Increased to get more orders
+          minDate: minDate,
+          maxDate: maxDate,
+        },
+      },
     );
 
     const responseJson = await response.json();
