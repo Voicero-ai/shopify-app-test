@@ -105,13 +105,27 @@ const VoiceroActionHandler = {
     }
 
     const { answer, action, action_context } = response;
-    // console.log("==>response", response)
+    console.log("VoiceroActionHandler received:", {
+      answer,
+      action,
+      action_context,
+    });
+
     if (answer) {
       // console.debug("AI Response:", { answer, action, action_context });
     }
 
     if (!action) {
-      // console.warn("No action specified");
+      console.warn("VoiceroActionHandler: No action specified in response");
+      return;
+    }
+
+    // Special case for contact action - handle directly for increased reliability
+    if (action === "contact") {
+      console.log(
+        "VoiceroActionHandler: Contact action detected, handling directly",
+      );
+      this.handleContact(action_context || {});
       return;
     }
 
@@ -126,6 +140,7 @@ const VoiceroActionHandler = {
       // Create a mapping for actions that might use different formats
       const actionMapping = {
         get_orders: "handleGet_orders",
+        contact: "handleContact",
       };
 
       // Get the handler name - either from the mapping or generate from the action name
@@ -133,25 +148,33 @@ const VoiceroActionHandler = {
         actionMapping[action] || `handle${this.capitalizeFirstLetter(action)}`;
 
       if (typeof this[handlerName] !== "function") {
-        // console.warn(`No handler for action: ${action}`);
+        console.warn(`VoiceroActionHandler: No handler for action: ${action}`);
         return;
       }
 
       if (targets.length > 0) {
         // If we have targets, call handler for each one
+        console.log(
+          `VoiceroActionHandler: Calling ${handlerName} with ${targets.length} targets`,
+        );
         targets.forEach((target) => {
           if (target && typeof target === "object") {
-            // console.log("==>target", target);
+            console.log("VoiceroActionHandler: Target:", target);
             this[handlerName](target);
           }
         });
       } else {
         // If no targets, just call the handler with no arguments
-        // console.log(`Calling ${handlerName} with no context`);
+        console.log(
+          `VoiceroActionHandler: Calling ${handlerName} with no context`,
+        );
         this[handlerName]();
       }
     } catch (error) {
-      // console.error(`Error handling action ${action}:`, error);
+      console.error(
+        `VoiceroActionHandler: Error handling action ${action}:`,
+        error,
+      );
     }
   },
 
@@ -1312,6 +1335,80 @@ const VoiceroActionHandler = {
 
     // Redirect to returns page
     window.location.href = `/account/returns/new?order_id=${order_id}&email=${encodeURIComponent(email)}`;
+  },
+
+  handleContact: function (target) {
+    // This handler will show the contact form even when VoiceroText is not available
+    console.log("VoiceroActionHandler: Contact action detected");
+
+    // Try to use VoiceroContact directly if available
+    if (
+      window.VoiceroContact &&
+      typeof window.VoiceroContact.showContactForm === "function"
+    ) {
+      console.log(
+        "VoiceroActionHandler: Using VoiceroContact module to show form",
+      );
+      setTimeout(() => window.VoiceroContact.showContactForm(), 500);
+      return;
+    }
+
+    // Try to use VoiceroText as fallback
+    if (
+      window.VoiceroText &&
+      typeof window.VoiceroText.showContactForm === "function"
+    ) {
+      console.log(
+        "VoiceroActionHandler: Using VoiceroText module to show form",
+      );
+      window.VoiceroText.showContactForm();
+      return;
+    }
+
+    // Last resort fallback: Create a simple contact form or show a message
+    console.log(
+      "VoiceroActionHandler: No contact modules available, creating fallback",
+    );
+
+    // Check if there's already a contact form on the page
+    const existingForm = document.querySelector('form[action*="contact"]');
+    if (existingForm) {
+      // Scroll to the existing form
+      existingForm.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Highlight the form
+      const originalStyle = existingForm.style.cssText;
+      existingForm.style.cssText =
+        "border: 2px solid #882be6 !important; padding: 10px !important; box-shadow: 0 0 15px rgba(136, 43, 230, 0.5) !important;";
+
+      // Reset style after a few seconds
+      setTimeout(() => {
+        existingForm.style.cssText = originalStyle;
+      }, 5000);
+
+      return;
+    }
+
+    // If no form exists, show a message directing to the contact page
+    alert(
+      "To contact us, please visit our contact page or send an email to our customer support.",
+    );
+
+    // Try to navigate to the contact page if it likely exists
+    const contactLinks = Array.from(document.querySelectorAll("a")).filter(
+      (a) =>
+        a.href &&
+        (a.href.includes("/contact") ||
+          a.href.includes("/support") ||
+          a.textContent.toLowerCase().includes("contact")),
+    );
+
+    if (contactLinks.length > 0) {
+      // Click the first contact link found
+      contactLinks[0].click();
+    } else {
+      // Try to navigate to a likely contact page
+      window.location.href = "/contact";
+    }
   },
 
   handleReturn_order: function (target) {

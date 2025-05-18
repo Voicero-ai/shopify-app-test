@@ -2490,32 +2490,10 @@ Feel free to ask me anything, and I'll do my best to assist you!
             }
           }
 
+          // Handle actions - directly pass to VoiceroActionHandler if available
           if (data.response && window.VoiceroActionHandler) {
             window.VoiceroActionHandler.handle(data.response);
           }
-
-          // Handle contact action
-          if (
-            action === "contact" &&
-            (actionContext?.contact_help_form === true ||
-              actionContext?.contact === true)
-          ) {
-            console.log(
-              "[VOICERO TEXT] Contact action detected, showing contact form",
-            );
-            // Directly show contact form if VoiceroContact is available
-            if (
-              window.VoiceroContact &&
-              typeof window.VoiceroContact.showContactForm === "function"
-            ) {
-              setTimeout(() => window.VoiceroContact.showContactForm(), 500);
-            } else {
-              console.error(
-                "[VOICERO TEXT] VoiceroContact.showContactForm not available",
-              );
-            }
-          }
-
           // Handle redirect if needed
           if (action === "redirect" && url) {
             setTimeout(() => {
