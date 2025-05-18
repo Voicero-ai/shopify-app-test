@@ -114,7 +114,22 @@ const ShopifyProxyClient = {
    * @private
    */
   _buildUrl: function (params = {}) {
-    const url = new URL(this.config.proxyUrl);
+    // Get the current origin to use as base for relative URLs
+    const base = window.location.origin;
+    console.log(`Using base URL: ${base}`);
+
+    // Handle both absolute and relative URLs
+    let fullUrl;
+    if (this.config.proxyUrl.startsWith("http")) {
+      // Already an absolute URL
+      fullUrl = this.config.proxyUrl;
+    } else {
+      // Relative URL, prepend the origin
+      fullUrl = `${base}${this.config.proxyUrl}`;
+    }
+
+    console.log(`Constructed full URL: ${fullUrl}`);
+    const url = new URL(fullUrl);
 
     Object.entries(params).forEach(([key, value]) => {
       url.searchParams.append(key, value);
@@ -225,4 +240,3 @@ window.onload = function () {
       console.error("❌ Error in window.onload fetch:", error);
     });
 };
-

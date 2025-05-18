@@ -32,6 +32,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   }
 
   try {
+    // Authenticate the app proxy request
     const session = await authenticate.public.appProxy(request);
     console.log("Session available:", !!session);
 
@@ -41,10 +42,11 @@ export const loader: LoaderFunction = async ({ request }) => {
     }
 
     console.log("✅ Session authenticated successfully");
+    console.log("Shop domain:", session.shop);
 
-    // Fetch orders from the Shopify API
-    const { admin } = await authenticate.admin(request);
-    console.log("Admin API client created");
+    // Get an offline session for the shop rather than trying to use admin authentication
+    const { admin } = await authenticate.admin.offline(session.shop);
+    console.log("Created offline admin API client");
 
     const response = await admin.graphql(
       `#graphql
@@ -75,7 +77,19 @@ export const loader: LoaderFunction = async ({ request }) => {
 
     const responseJson = await response.json();
     console.log("📦 Orders fetched successfully");
-    console.log("Orders data:", JSON.stringify(responseJson, null, 2));
+
+    // Output a sample order to logs to verify the data
+    if (responseJson.data?.orders?.edges?.length > 0) {
+      console.log(
+        "Sample order:",
+        JSON.stringify(responseJson.data.orders.edges[0], null, 2),
+      );
+      console.log(
+        `Total orders found: ${responseJson.data.orders.edges.length}`,
+      );
+    } else {
+      console.log("No orders found in the response");
+    }
 
     return json(
       {
@@ -91,6 +105,7 @@ export const loader: LoaderFunction = async ({ request }) => {
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to fetch orders",
+        errorStack: error instanceof Error ? error.stack : undefined,
       },
       addCorsHeaders({ status: 500 }),
     );
