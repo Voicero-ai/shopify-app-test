@@ -3,14 +3,16 @@
  * A JavaScript client for interacting with the Shopify app proxy.
  */
 
+console.log("🔥 SHOPIFY PROXY CLIENT LOADED 🔥");
+
 const ShopifyProxyClient = {
   config: {
-    proxyUrl: "https://is117a-nj.myshopify.com/apps/proxy",
+    proxyUrl: "/apps/proxy",
     defaultHeaders: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    debug: false,
+    debug: true,
   },
 
   /**
@@ -137,18 +139,25 @@ const ShopifyProxyClient = {
       },
     };
 
-    if (this.config.debug) {
-      console.log(`Making ${options.method} request to:`, url);
-      console.log("With options:", fetchOptions);
-    }
+    console.log(`🚀 Attempting to fetch from: ${url}`);
+    console.log(`With options:`, fetchOptions);
 
     return fetch(url, fetchOptions)
       .then((response) => {
+        console.log(
+          `📡 Response status: ${response.status} ${response.statusText}`,
+        );
+
         if (!response.ok) {
+          console.error(
+            `⚠️ HTTP Error: ${response.status} ${response.statusText}`,
+          );
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
         const contentType = response.headers.get("content-type");
+        console.log(`Content-Type: ${contentType}`);
+
         if (contentType && contentType.includes("application/json")) {
           return response.json();
         } else {
@@ -156,13 +165,20 @@ const ShopifyProxyClient = {
         }
       })
       .then((data) => {
-        if (this.config.debug) {
-          console.log("Received response:", data);
-        }
+        console.log("✅ Received data:", data);
         return data;
       })
       .catch((error) => {
-        console.error("Error making proxy request:", error);
+        console.error("❌ Fetch error:", error);
+        // Try to provide more helpful error info
+        if (
+          error.name === "TypeError" &&
+          error.message.includes("Failed to fetch")
+        ) {
+          console.error(
+            "This is likely a network issue, CORS problem, or the server is unavailable",
+          );
+        }
         throw error;
       });
   },
@@ -171,42 +187,42 @@ const ShopifyProxyClient = {
 // Make globally available
 window.ShopifyProxyClient = window.ShopifyProxyClient || ShopifyProxyClient;
 
+console.log("📢 Setting up ShopifyProxyClient...");
+
 // Initialize with debug mode on to log all requests and responses
 ShopifyProxyClient.init({ debug: true });
 
-// Auto-fetch orders when the script loads
+// Try to fetch immediately
+console.log("🔄 Attempting immediate fetch...");
+ShopifyProxyClient.fetchAndLogOrders()
+  .then((orders) => {
+    console.log("✅ Immediate fetch successful!");
+  })
+  .catch((error) => {
+    console.error("❌ Error in immediate fetch:", error);
+  });
+
+// Also try with DOMContentLoaded for safety
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("DOM loaded, fetching orders...");
+  console.log("🔄 DOM loaded, trying fetch again...");
   ShopifyProxyClient.fetchAndLogOrders()
     .then((orders) => {
-      console.log("Orders fetched successfully!");
+      console.log("✅ DOMContentLoaded fetch successful!");
     })
     .catch((error) => {
-      console.error("Error auto-fetching orders:", error);
+      console.error("❌ Error in DOMContentLoaded fetch:", error);
     });
 });
 
-// Example usage:
-/*
-// Manual fetch example
-ShopifyProxyClient.fetchAndLogOrders()
-  .then(orders => {
-    // Do something with the orders if needed
-    console.log("Total orders:", orders.edges.length);
-  })
-  .catch(error => console.error('Error:', error));
+// Try with window.onload as a backup
+window.onload = function () {
+  console.log("🔄 Window loaded, trying final fetch...");
+  ShopifyProxyClient.fetchAndLogOrders()
+    .then((orders) => {
+      console.log("✅ Window.onload fetch successful!");
+    })
+    .catch((error) => {
+      console.error("❌ Error in window.onload fetch:", error);
+    });
+};
 
-// Get request example
-ShopifyProxyClient.get({ path: '/some/endpoint', shop: 'my-shop' })
-  .then(data => console.log('Response:', data))
-  .catch(error => console.error('Error:', error));
-
-// Post request example
-ShopifyProxyClient.post(
-  { some: 'data', to: 'send' },
-  { path: '/some/endpoint', shop: 'my-shop' }
-)
-  .then(data => console.log('Response:', data))
-  .catch(error => console.error('Error:', error));
-*/
-// Note: No export statement is needed here since we're attaching directly to window

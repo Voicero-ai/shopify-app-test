@@ -4,18 +4,48 @@ import { Page } from "@shopify/polaris";
 
 export const dynamic = "force-dynamic";
 
-export const loader: LoaderFunction = async ({ request }) => {
-  console.log("--------hit app proxy loader--------");
+// Helper function to add CORS headers
+const addCorsHeaders = (responseInit: ResponseInit = {}) => {
+  return {
+    ...responseInit,
+    headers: {
+      ...(responseInit.headers || {}),
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  };
+};
 
-  const session = await authenticate.public.appProxy(request);
-  if (!session) {
-    console.log("No session available in app proxy");
-    return json({ error: "Unauthorized" }, { status: 401 });
+export const loader: LoaderFunction = async ({ request }) => {
+  console.log("🚀 APP PROXY LOADER HIT 🚀");
+  console.log("Request URL:", request.url);
+  console.log("Request method:", request.method);
+  console.log(
+    "Request headers:",
+    Object.fromEntries([...request.headers.entries()]),
+  );
+
+  // Handle preflight requests
+  if (request.method.toLowerCase() === "options") {
+    return new Response(null, addCorsHeaders({ status: 204 }));
   }
 
   try {
+    const session = await authenticate.public.appProxy(request);
+    console.log("Session available:", !!session);
+
+    if (!session) {
+      console.log("⚠️ No session available in app proxy");
+      return json({ error: "Unauthorized" }, addCorsHeaders({ status: 401 }));
+    }
+
+    console.log("✅ Session authenticated successfully");
+
     // Fetch orders from the Shopify API
     const { admin } = await authenticate.admin(request);
+    console.log("Admin API client created");
+
     const response = await admin.graphql(
       `#graphql
       query {
@@ -44,32 +74,43 @@ export const loader: LoaderFunction = async ({ request }) => {
     );
 
     const responseJson = await response.json();
-    console.log("Orders fetched:", JSON.stringify(responseJson, null, 2));
+    console.log("📦 Orders fetched successfully");
+    console.log("Orders data:", JSON.stringify(responseJson, null, 2));
 
-    return json({
-      success: true,
-      orders: responseJson.data.orders,
-    });
+    return json(
+      {
+        success: true,
+        orders: responseJson.data.orders,
+      },
+      addCorsHeaders(),
+    );
   } catch (error) {
-    console.error("Error fetching orders:", error);
+    console.error("❌ Error in app proxy loader:", error);
     return json(
       {
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to fetch orders",
       },
-      { status: 500 },
+      addCorsHeaders({ status: 500 }),
     );
   }
 };
 
 export const action: ActionFunction = async ({ request }) => {
-  console.log("--------hit app proxy action--------");
+  console.log("🔥 APP PROXY ACTION HIT 🔥");
+  console.log("Request URL:", request.url);
+  console.log("Request method:", request.method);
+
+  // Handle preflight requests
+  if (request.method.toLowerCase() === "options") {
+    return new Response(null, addCorsHeaders({ status: 204 }));
+  }
 
   const session = await authenticate.public.appProxy(request);
   if (!session) {
     console.log("No session available in app proxy action");
-    return json({ error: "Unauthorized" }, { status: 401 });
+    return json({ error: "Unauthorized" }, addCorsHeaders({ status: 401 }));
   }
 
   // Handle POST/PUT/DELETE requests here
@@ -79,7 +120,10 @@ export const action: ActionFunction = async ({ request }) => {
 
     // Depending on what you want to do with POST requests
     // This is just a placeholder for now
-    return json({ success: true, message: "Action processed" });
+    return json(
+      { success: true, message: "Action processed" },
+      addCorsHeaders(),
+    );
   } catch (error) {
     console.error("Error in app proxy action:", error);
     return json(
@@ -88,7 +132,7 @@ export const action: ActionFunction = async ({ request }) => {
         error:
           error instanceof Error ? error.message : "Failed to process action",
       },
-      { status: 500 },
+      addCorsHeaders({ status: 500 }),
     );
   }
 };
