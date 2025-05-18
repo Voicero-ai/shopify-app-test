@@ -13,13 +13,3 @@ export const action: ActionFunction = async ({ request }) => {
 
     return null;
 }
-
-const Proxy = () => {
-    return (
-        <Page>
-         Proxy   
-        </Page>
-    )
-}
-
-export default Proxy;
