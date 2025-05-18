@@ -108,11 +108,50 @@ const VoiceroContact = {
 
   // Apply styles to the form elements
   applyFormStyles: function (formContainer) {
-    // Get the main theme color from VoiceroText or VoiceroVoice
-    const mainColor =
-      (window.VoiceroVoice && window.VoiceroVoice.websiteColor) ||
-      (window.VoiceroText && window.VoiceroText.websiteColor) ||
-      "#882be6";
+    // Get the main theme color from VoiceroText or VoiceroVoice - more comprehensive approach
+    let mainColor;
+
+    // First try VoiceroVoice
+    if (window.VoiceroVoice && window.VoiceroVoice.websiteColor) {
+      mainColor = window.VoiceroVoice.websiteColor;
+      console.log("VoiceroContact: Using color from VoiceroVoice:", mainColor);
+    }
+    // Then try various ways to get it from VoiceroText
+    else if (window.VoiceroText) {
+      if (window.VoiceroText.websiteColor) {
+        mainColor = window.VoiceroText.websiteColor;
+        console.log(
+          "VoiceroContact: Using websiteColor from VoiceroText:",
+          mainColor,
+        );
+      } else if (
+        window.VoiceroText.colorVariants &&
+        window.VoiceroText.colorVariants.main
+      ) {
+        mainColor = window.VoiceroText.colorVariants.main;
+        console.log(
+          "VoiceroContact: Using colorVariants.main from VoiceroText:",
+          mainColor,
+        );
+      } else if (window.VoiceroText.shadowRoot) {
+        // Try to find color from send button which should have the website color
+        const sendButton =
+          window.VoiceroText.shadowRoot.getElementById("send-message-btn");
+        if (sendButton && sendButton.style.backgroundColor) {
+          mainColor = sendButton.style.backgroundColor;
+          console.log(
+            "VoiceroContact: Using extracted color from text UI:",
+            mainColor,
+          );
+        }
+      }
+    }
+
+    // Fallback to default purple if no color found
+    if (!mainColor) {
+      mainColor = "#882be6";
+      console.log("VoiceroContact: Using fallback color:", mainColor);
+    }
 
     // Apply styles to form elements
     const styles = `
@@ -180,12 +219,13 @@ const VoiceroContact = {
       }
       
       .contact-submit-btn {
-        background-color: ${mainColor};
+        background-color: ${mainColor} !important;
         color: white;
       }
       
-      .contact-submit-btn:hover {
-        opacity: 0.9;
+      /* Force color with !important to override any other styles */
+      .contact-form-message .contact-submit-btn {
+        background-color: ${mainColor} !important;
       }
       
       .contact-cancel-btn {
@@ -249,6 +289,73 @@ const VoiceroContact = {
     const cancelButton = formContainer.querySelector("#contact-cancel");
     const emailInput = formContainer.querySelector("#contact-email");
     const messageInput = formContainer.querySelector("#contact-message");
+
+    // Directly set the button color to match current interface
+    if (submitButton) {
+      // Get the main theme color with more aggressive checks
+      let buttonColor = "#882be6"; // Default purple
+
+      // First try getting from the current interface
+      if (
+        interfaceType === "voice" &&
+        window.VoiceroVoice &&
+        window.VoiceroVoice.websiteColor
+      ) {
+        buttonColor = window.VoiceroVoice.websiteColor;
+      } else if (
+        interfaceType === "text" &&
+        window.VoiceroText &&
+        window.VoiceroText.websiteColor
+      ) {
+        buttonColor = window.VoiceroText.websiteColor;
+      }
+      // If still default, try harder to get the color
+      if (buttonColor === "#882be6") {
+        if (window.VoiceroVoice && window.VoiceroVoice.websiteColor) {
+          buttonColor = window.VoiceroVoice.websiteColor;
+        } else if (window.VoiceroText && window.VoiceroText.websiteColor) {
+          buttonColor = window.VoiceroText.websiteColor;
+        }
+        // Try to get from document style if available
+        else if (
+          document.documentElement.style.getPropertyValue(
+            "--voicero-theme-color",
+          )
+        ) {
+          buttonColor = document.documentElement.style.getPropertyValue(
+            "--voicero-theme-color",
+          );
+        }
+      }
+
+      // Forcefully apply the color to the button
+      submitButton.style.backgroundColor = buttonColor;
+
+      // SUPER AGGRESSIVE APPROACH: Force the color with !important inline style
+      submitButton.setAttribute(
+        "style",
+        `background-color: ${buttonColor} !important; color: white !important`,
+      );
+
+      // Also set a timeout to apply the color again after a short delay in case it gets overridden
+      setTimeout(() => {
+        submitButton.setAttribute(
+          "style",
+          `background-color: ${buttonColor} !important; color: white !important`,
+        );
+      }, 100);
+
+      // And check again after the form is fully rendered
+      setTimeout(() => {
+        if (submitButton.style.backgroundColor !== buttonColor) {
+          submitButton.setAttribute(
+            "style",
+            `background-color: ${buttonColor} !important; color: white !important`,
+          );
+          console.log("VoiceroContact: Re-applied button color after render");
+        }
+      }, 500);
+    }
 
     // Add submit handler
     if (submitButton) {
@@ -416,7 +523,7 @@ const VoiceroContact = {
     }
 
     // Send the request to the WordPress REST API
-    fetch("https://www.voicero.ai/api/contact/help", {
+    fetch("https://www.voicero.ai/api/contacts/help", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -150,6 +150,42 @@ const VoiceroText = {
     suggestions.forEach((suggestion) => {
       suggestion.style.backgroundColor = mainColor;
     });
+
+    // Add code to update CSS variables in the shadow DOM:
+    // CRITICAL: Add CSS variables directly to shadow DOM
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
+      :host {
+        --voicero-theme-color: ${mainColor} !important;
+        --voicero-theme-color-light: ${this.colorVariants.light} !important;
+        --voicero-theme-color-hover: ${this.colorVariants.dark} !important;
+      }
+      
+      /* Force contact form button to use website color */
+      .contact-submit-btn {
+        background-color: ${mainColor} !important;
+        color: white !important;
+      }
+      
+      .contact-form-message .contact-submit-btn {
+        background-color: ${mainColor} !important;
+        color: white !important;
+      }
+    `;
+
+    // Remove existing custom variables if any
+    const existingVars = this.shadowRoot.getElementById("voicero-css-vars");
+    if (existingVars) {
+      existingVars.remove();
+    }
+
+    // Add new variables
+    styleEl.id = "voicero-css-vars";
+    this.shadowRoot.appendChild(styleEl);
+
+    console.log(
+      `VoiceroText: Applied CSS variables to shadow DOM: ${mainColor}`,
+    );
   },
 
   // Open text chat interface
