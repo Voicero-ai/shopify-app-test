@@ -21,10 +21,6 @@ export const loader: LoaderFunction = async ({ request }) => {
   console.log("🚀 APP PROXY LOADER HIT 🚀");
   console.log("Request URL:", request.url);
   console.log("Request method:", request.method);
-  console.log(
-    "Request headers:",
-    Object.fromEntries([...request.headers.entries()]),
-  );
 
   // Handle preflight requests
   if (request.method.toLowerCase() === "options") {
@@ -33,21 +29,23 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   try {
     // Authenticate the app proxy request
-    const session = await authenticate.public.appProxy(request);
+    // This gives us access to session, admin, and storefront APIs for the shop
+    const { session, admin } = await authenticate.public.appProxy(request);
     console.log("Session available:", !!session);
 
-    if (!session) {
-      console.log("⚠️ No session available in app proxy");
-      return json({ error: "Unauthorized" }, addCorsHeaders({ status: 401 }));
+    if (!session || !admin) {
+      console.log("⚠️ No session or admin API client available");
+      return json(
+        { error: "Unauthorized or app not installed" },
+        addCorsHeaders({ status: 401 }),
+      );
     }
 
     console.log("✅ Session authenticated successfully");
     console.log("Shop domain:", session.shop);
+    console.log("Admin API client available:", !!admin);
 
-    // Get an offline session for the shop rather than trying to use admin authentication
-    const { admin } = await authenticate.admin.offline(session.shop);
-    console.log("Created offline admin API client");
-
+    // Use the admin object directly from the app proxy authentication
     const response = await admin.graphql(
       `#graphql
       query {
@@ -122,14 +120,22 @@ export const action: ActionFunction = async ({ request }) => {
     return new Response(null, addCorsHeaders({ status: 204 }));
   }
 
-  const session = await authenticate.public.appProxy(request);
-  if (!session) {
-    console.log("No session available in app proxy action");
-    return json({ error: "Unauthorized" }, addCorsHeaders({ status: 401 }));
-  }
-
-  // Handle POST/PUT/DELETE requests here
   try {
+    // Authenticate the app proxy request
+    const { session, admin } = await authenticate.public.appProxy(request);
+
+    if (!session || !admin) {
+      console.log("⚠️ No session or admin API client available in action");
+      return json(
+        { error: "Unauthorized or app not installed" },
+        addCorsHeaders({ status: 401 }),
+      );
+    }
+
+    console.log("✅ Action session authenticated successfully");
+    console.log("Shop domain:", session.shop);
+
+    // Handle POST/PUT/DELETE requests here
     const data = await request.json();
     console.log("Received data:", data);
 
@@ -140,12 +146,13 @@ export const action: ActionFunction = async ({ request }) => {
       addCorsHeaders(),
     );
   } catch (error) {
-    console.error("Error in app proxy action:", error);
+    console.error("❌ Error in app proxy action:", error);
     return json(
       {
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to process action",
+        errorStack: error instanceof Error ? error.stack : undefined,
       },
       addCorsHeaders({ status: 500 }),
     );
