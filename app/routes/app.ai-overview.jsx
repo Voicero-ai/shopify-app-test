@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import {
+  useLoaderData,
+  useNavigate,
+  useRouteError,
+  isRouteErrorResponse,
+} from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -80,21 +85,20 @@ export const loader = async ({ request }) => {
 
     // Now make a second API call to get AI history
     let aiHistoryData = null;
+    let aiHistoryError = false;
+
     try {
-      const historyResponse = await fetch(
-        `http://localhost:3000/api/shopify/aiHistory`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${accessKey}`,
-          },
-          body: JSON.stringify({
-            websiteId: data.website.id,
-          }),
+      const historyResponse = await fetch(`/api/aiHistory`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-      );
+        body: JSON.stringify({
+          websiteId: data.website.id,
+          accessKey: accessKey,
+        }),
+      });
 
       if (historyResponse.ok) {
         aiHistoryData = await historyResponse.json();
@@ -104,15 +108,18 @@ export const loader = async ({ request }) => {
           "Failed to fetch AI history data:",
           await historyResponse.text(),
         );
+        aiHistoryError = true;
       }
     } catch (historyError) {
       console.error("Error fetching AI history:", historyError);
+      aiHistoryError = true;
     }
 
     return json({
       websiteData: data.website,
       aiHistoryData,
       accessKey,
+      aiHistoryError,
     });
   } catch (error) {
     console.error("Error fetching data:", error);
@@ -122,12 +129,26 @@ export const loader = async ({ request }) => {
   }
 };
 
+// Helper function to check if we're running on client or server
+// This is needed to handle the ProgressBar component which requires client-side rendering
+function useIsClient() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  return isClient;
+}
+
 export default function AIOverviewPage() {
-  const { websiteData, aiHistoryData, error, disconnected } = useLoaderData();
+  const { websiteData, aiHistoryData, error, disconnected, aiHistoryError } =
+    useLoaderData();
   const navigate = useNavigate();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
+  const isClient = useIsClient();
 
   // Redirect if disconnected
   useEffect(() => {
@@ -208,11 +229,36 @@ export default function AIOverviewPage() {
                       <Text variant="headingLg" as="h2" alignment="center">
                         {monthlyUsage} / {monthlyQuota} queries used this month
                       </Text>
-                      <ProgressBar
-                        progress={usagePercentage}
-                        size="large"
-                        tone={usagePercentage < 90 ? "success" : "critical"}
-                      />
+                      <div>
+                        {isClient ? (
+                          <ProgressBar
+                            progress={usagePercentage}
+                            size="large"
+                            tone={usagePercentage < 90 ? "success" : "critical"}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              height: "8px",
+                              backgroundColor: "#e0e0e0",
+                              borderRadius: "4px",
+                              margin: "12px 0",
+                              position: "relative",
+                              overflow: "hidden",
+                            }}
+                          >
+                            <div
+                              style={{
+                                position: "absolute",
+                                height: "100%",
+                                backgroundColor:
+                                  usagePercentage < 90 ? "#008060" : "#d82c0d",
+                                width: `${usagePercentage}%`,
+                              }}
+                            ></div>
+                          </div>
+                        )}
+                      </div>
                       <Text variant="bodyMd" as="p" alignment="center">
                         {100 - usagePercentage > 0
                           ? `${(100 - usagePercentage).toFixed(1)}% remaining`
@@ -323,7 +369,9 @@ export default function AIOverviewPage() {
                       borderRadius="200"
                     >
                       <Text alignment="center">
-                        No recent queries available
+                        {aiHistoryError
+                          ? "Error loading queries. Next.js API server not available."
+                          : "No recent queries available"}
                       </Text>
                     </Box>
                   )}
@@ -412,6 +460,40 @@ export default function AIOverviewPage() {
           onDismiss={toggleToast}
         />
       )}
+    </Page>
+  );
+}
+
+// Error boundary for this route
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const navigate = useNavigate();
+
+  let errorMessage = "Unknown error";
+  if (isRouteErrorResponse(error)) {
+    errorMessage = `${error.status} ${error.statusText}`;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <Page>
+      <EmptyState
+        heading="Error loading AI usage data"
+        image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+        action={{
+          content: "Back to Dashboard",
+          onAction: () => navigate("/app"),
+        }}
+      >
+        <p>{errorMessage}</p>
+        {error.stack && (
+          <details>
+            <summary>Error details</summary>
+            <pre>{error.stack}</pre>
+          </details>
+        )}
+      </EmptyState>
     </Page>
   );
 }
