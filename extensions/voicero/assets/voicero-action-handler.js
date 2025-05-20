@@ -847,7 +847,15 @@ const VoiceroActionHandler = {
 
   handleAccount_manage: async function (target) {
     const fields = target || {};
-    const editable = ["first_name", "last_name", "email", "phone"];
+    // Add address fields to the list of editable fields
+    const editable = [
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "address",
+      "default_address",
+    ];
     // pick only supported fields
     const updates = {};
     editable.forEach((k) => {
@@ -872,10 +880,20 @@ You can manage the following account settings:
 - Name (first_name, last_name)
 - Email address (email)
 - Phone number (phone)
+- Default address (address or default_address)
 
 To make changes, please specify what you'd like to update.
       `);
       return;
+    }
+
+    // Handle address fields: both "address" and "default_address" should be treated the same
+    // This ensures backward compatibility with both naming styles
+    if (updates.address && !updates.defaultAddress) {
+      updates.defaultAddress = updates.address;
+      delete updates.address;
+    } else if (updates.defaultAddress && !updates.address) {
+      // Keep defaultAddress as is
     }
 
     // Check if logged in using VoiceroUserData or customer data injection
@@ -1000,7 +1018,10 @@ To make changes, please specify what you'd like to update.
     }
 
     // Validate address if provided (checking for completeness)
-    if (updates.address) {
+    if (updates.address || updates.defaultAddress) {
+      const addressToValidate = updates.defaultAddress || updates.address;
+
+      // Check if the address has all required fields
       const requiredFields = {
         address1: "Street address",
         city: "City",
@@ -1008,12 +1029,35 @@ To make changes, please specify what you'd like to update.
         country: "Country",
       };
 
-      for (const [field, label] of Object.entries(requiredFields)) {
-        if (!updates.address[field] || !updates.address[field].trim()) {
-          errors.push(
-            `${label} is missing. Please provide a complete address.`,
-          );
+      // Only validate if addressToValidate is an object (not null or undefined)
+      if (addressToValidate && typeof addressToValidate === "object") {
+        let missingFields = [];
+
+        for (const [field, label] of Object.entries(requiredFields)) {
+          if (
+            !addressToValidate[field] ||
+            !String(addressToValidate[field]).trim()
+          ) {
+            missingFields.push(label);
+          }
         }
+
+        if (missingFields.length > 0) {
+          if (missingFields.length === Object.keys(requiredFields).length) {
+            errors.push(
+              "Address is incomplete. Please provide a full address with street, city, ZIP/postal code, and country.",
+            );
+          } else {
+            errors.push(
+              `Address is missing ${missingFields.join(", ")}. Please provide a complete address.`,
+            );
+          }
+        }
+      } else if (addressToValidate) {
+        // If address is provided but not as an object, it's invalid
+        errors.push(
+          "Address format is invalid. Please provide a complete address with street, city, ZIP/postal code, and country.",
+        );
       }
     }
 

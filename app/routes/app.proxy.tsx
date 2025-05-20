@@ -261,6 +261,18 @@ export const action: ActionFunction = async ({ request }) => {
                 lastName
                 email
                 phone
+                defaultAddress {
+                  id
+                  address1
+                  address2
+                  city
+                  province
+                  provinceCode
+                  zip
+                  country
+                  countryCode
+                  phone
+                }
               }
               userErrors {
                 field
@@ -381,26 +393,49 @@ function validateCustomerFields(customer: any): string[] {
     }
   }
 
-  // Validate address if provided
-  if (customer.address) {
-    if (!customer.address.address1) {
+  // Validate default address if provided
+  if (customer.defaultAddress) {
+    const address = customer.defaultAddress;
+
+    // Check if the address is an object with the required properties
+    if (typeof address !== "object") {
+      errors.push(
+        "Address must be provided as a complete object with all required fields",
+      );
+      return errors;
+    }
+
+    // Check required address fields
+    if (!address.address1 || !String(address.address1).trim()) {
       errors.push("Street address is required");
     }
 
-    if (!customer.address.city) {
+    if (!address.city || !String(address.city).trim()) {
       errors.push("City is required for the address");
     }
 
-    if (!customer.address.province && !customer.address.provinceCode) {
-      errors.push("State/Province is required for the address");
-    }
-
-    if (!customer.address.zip) {
+    if (!address.zip || !String(address.zip).trim()) {
       errors.push("ZIP/Postal code is required for the address");
     }
 
-    if (!customer.address.country && !customer.address.countryCode) {
+    if (!address.country && !address.countryCode) {
       errors.push("Country is required for the address");
+    }
+
+    // Not all jurisdictions require provinces/states, so this is less strict
+    if (
+      address.country === "United States" ||
+      address.country === "US" ||
+      address.countryCode === "US" ||
+      address.country === "Canada" ||
+      address.country === "CA" ||
+      address.countryCode === "CA"
+    ) {
+      if (!address.province && !address.provinceCode) {
+        errors.push(
+          "State/Province is required for addresses in the US and Canada",
+        );
+      }
     }
   }
 
@@ -427,6 +462,11 @@ function getFriendlyErrorMessage(field: string, message: string): string {
     "province can't be blank": "State/Province cannot be empty.",
     "zip can't be blank": "ZIP/Postal code cannot be empty.",
     "country can't be blank": "Country cannot be empty.",
+    "defaultAddress.address1 can't be blank": "Street address cannot be empty.",
+    "defaultAddress.city can't be blank": "City cannot be empty.",
+    "defaultAddress.province can't be blank": "State/Province cannot be empty.",
+    "defaultAddress.zip can't be blank": "ZIP/Postal code cannot be empty.",
+    "defaultAddress.country can't be blank": "Country cannot be empty.",
 
     // Name errors
     "first_name can't be blank": "First name cannot be empty.",
@@ -439,6 +479,16 @@ function getFriendlyErrorMessage(field: string, message: string): string {
   // Check if we have a friendly message for this error
   if (errorMap[lookupKey]) {
     return errorMap[lookupKey];
+  }
+
+  // Handle address field errors more cleanly
+  if (field && field.startsWith("defaultAddress.")) {
+    const addressPart = field.replace("defaultAddress.", "");
+    const readableField = addressPart
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase());
+
+    return `Address ${readableField}: ${message}`;
   }
 
   // If the field is specified, create a field-specific message
