@@ -426,7 +426,7 @@ export const action: ActionFunction = async ({ request }) => {
               addressResult.data.customerAddressCreate.customerAddress?.id;
             if (newAddressId) {
               console.log("Setting new address as default:", newAddressId);
-              // Use customerUpdateDefaultAddress mutation (not customerDefaultAddressUpdate)
+              // Use customerUpdateDefaultAddress mutation
               const defaultMutation = `
                 mutation customerUpdateDefaultAddress($customerId: ID!, $addressId: ID!) {
                   customerUpdateDefaultAddress(
@@ -435,6 +435,11 @@ export const action: ActionFunction = async ({ request }) => {
                   ) {
                     customer {
                       id
+                      defaultAddress {
+                        id
+                        address1
+                        city
+                      }
                     }
                     userErrors {
                       field
@@ -484,7 +489,7 @@ export const action: ActionFunction = async ({ request }) => {
 
           // Now get the updated customer data to return
           const getUpdatedCustomer = `
-            query getCustomer($customerId: ID!) {
+            query getUpdatedCustomer($customerId: ID!) {
               customer(id: $customerId) {
                 id
                 firstName
