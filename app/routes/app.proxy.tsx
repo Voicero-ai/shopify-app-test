@@ -238,6 +238,19 @@ export const action: ActionFunction = async ({ request }) => {
           );
         }
 
+        // Validate fields before sending to Shopify
+        const validationErrors = validateCustomerFields(customerInput);
+        if (validationErrors.length > 0) {
+          return json(
+            {
+              success: false,
+              error: validationErrors.join(". "),
+              validationErrors,
+            },
+            addCorsHeaders(),
+          );
+        }
+
         // Build the GraphQL mutation
         const query = `
           mutation customerUpdate($input: CustomerInput!) {
@@ -276,12 +289,18 @@ export const action: ActionFunction = async ({ request }) => {
           responseJson.data.customerUpdate.userErrors.length > 0
         ) {
           const errors = responseJson.data.customerUpdate.userErrors;
+
+          // Transform generic Shopify error messages into more user-friendly ones
+          const friendlyErrors = errors.map(
+            (e: { field: string; message: string }) => {
+              return getFriendlyErrorMessage(e.field, e.message);
+            },
+          );
+
           return json(
             {
               success: false,
-              error: errors
-                .map((e: { message: string }) => e.message)
-                .join("; "),
+              error: friendlyErrors.join(". "),
               details: errors,
             },
             addCorsHeaders(),
@@ -330,3 +349,107 @@ export const action: ActionFunction = async ({ request }) => {
     );
   }
 };
+
+// Function to validate customer fields before sending to API
+function validateCustomerFields(customer: any): string[] {
+  const errors: string[] = [];
+
+  // Validate phone number if provided
+  if (customer.phone) {
+    // Remove all non-digit characters for validation
+    const digitsOnly = customer.phone.replace(/\D/g, "");
+
+    if (digitsOnly.length < 10) {
+      errors.push("Phone number must have at least 10 digits");
+    } else if (digitsOnly.length > 15) {
+      errors.push("Phone number has too many digits");
+    }
+
+    // Check if phone contains any valid digits
+    if (!/\d/.test(customer.phone)) {
+      errors.push("Phone number must contain numeric digits");
+    }
+  }
+
+  // Validate email if provided
+  if (customer.email) {
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+      errors.push(
+        "Email address format is invalid. Please provide a valid email (example: name@example.com)",
+      );
+    }
+  }
+
+  // Validate address if provided
+  if (customer.address) {
+    if (!customer.address.address1) {
+      errors.push("Street address is required");
+    }
+
+    if (!customer.address.city) {
+      errors.push("City is required for the address");
+    }
+
+    if (!customer.address.province && !customer.address.provinceCode) {
+      errors.push("State/Province is required for the address");
+    }
+
+    if (!customer.address.zip) {
+      errors.push("ZIP/Postal code is required for the address");
+    }
+
+    if (!customer.address.country && !customer.address.countryCode) {
+      errors.push("Country is required for the address");
+    }
+  }
+
+  return errors;
+}
+
+// Function to convert API error messages to user-friendly messages
+function getFriendlyErrorMessage(field: string, message: string): string {
+  // Map of common error messages to more user-friendly versions
+  const errorMap: Record<string, string> = {
+    // Phone errors
+    "phone is invalid":
+      "The phone number format is invalid. Please use a standard format like (123) 456-7890 or +1 234 567 8901.",
+
+    // Email errors
+    "email is invalid":
+      "The email address format is invalid. Please provide a valid email (example: name@example.com).",
+    "email has already been taken":
+      "This email address is already in use by another account.",
+
+    // Address errors
+    "address1 can't be blank": "Street address cannot be empty.",
+    "city can't be blank": "City cannot be empty.",
+    "province can't be blank": "State/Province cannot be empty.",
+    "zip can't be blank": "ZIP/Postal code cannot be empty.",
+    "country can't be blank": "Country cannot be empty.",
+
+    // Name errors
+    "first_name can't be blank": "First name cannot be empty.",
+    "last_name can't be blank": "Last name cannot be empty.",
+  };
+
+  // Build the lookup key from field and message
+  const lookupKey = message.toLowerCase();
+
+  // Check if we have a friendly message for this error
+  if (errorMap[lookupKey]) {
+    return errorMap[lookupKey];
+  }
+
+  // If the field is specified, create a field-specific message
+  if (field) {
+    const readableField = field
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase());
+
+    return `${readableField}: ${message}`;
+  }
+
+  // Default fallback
+  return message;
+}

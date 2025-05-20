@@ -902,6 +902,13 @@ To make changes, please specify what you'd like to update.
       return;
     }
 
+    // Do basic client-side validation for common issues
+    const validationErrors = this.validateAccountFields(updates);
+    if (validationErrors.length > 0) {
+      this.notify("⚠️ " + validationErrors.join("\n\n⚠️ "));
+      return;
+    }
+
     // Prepare data to send to the proxy endpoint
     const updateData = {
       action: "updateCustomer",
@@ -932,13 +939,85 @@ To make changes, please specify what you'd like to update.
         } else {
           const errorMessage =
             response.error || "Unknown error updating profile";
-          this.notify("Update failed: " + errorMessage);
+
+          // Format validation errors more nicely if they exist
+          if (
+            response.validationErrors &&
+            response.validationErrors.length > 0
+          ) {
+            this.notify(
+              "Update failed:\n\n" + response.validationErrors.join("\n\n"),
+            );
+          } else {
+            // Fallback to regular error display
+            this.notify("Update failed: " + errorMessage);
+          }
         }
       })
       .catch((error) => {
         console.error("Error updating customer via proxy:", error);
         this.notify("Network error—please try again later.");
       });
+  },
+
+  // Add a client-side validation function to catch common issues before sending to server
+  validateAccountFields: function (updates) {
+    const errors = [];
+
+    // Validate phone number if provided
+    if (updates.phone) {
+      // Check for a reasonably formatted phone number
+      const digitsOnly = updates.phone.replace(/\D/g, "");
+
+      if (digitsOnly.length === 0) {
+        errors.push(
+          "Phone number cannot be empty if provided. Please enter a valid phone number with at least 10 digits.",
+        );
+      } else if (digitsOnly.length < 10) {
+        errors.push(
+          "Phone number must have at least 10 digits. Please enter a complete phone number.",
+        );
+      }
+    }
+
+    // Validate email if provided
+    if (updates.email) {
+      // Basic email format check
+      if (!updates.email.includes("@") || !updates.email.includes(".")) {
+        errors.push(
+          "Email address is invalid. Please provide a complete email address (example: name@example.com).",
+        );
+      }
+    }
+
+    // Check for empty name fields
+    if (updates.firstName !== undefined && !updates.firstName.trim()) {
+      errors.push("First name cannot be empty.");
+    }
+
+    if (updates.lastName !== undefined && !updates.lastName.trim()) {
+      errors.push("Last name cannot be empty.");
+    }
+
+    // Validate address if provided (checking for completeness)
+    if (updates.address) {
+      const requiredFields = {
+        address1: "Street address",
+        city: "City",
+        zip: "ZIP/Postal code",
+        country: "Country",
+      };
+
+      for (const [field, label] of Object.entries(requiredFields)) {
+        if (!updates.address[field] || !updates.address[field].trim()) {
+          errors.push(
+            `${label} is missing. Please provide a complete address.`,
+          );
+        }
+      }
+    }
+
+    return errors;
   },
 
   // Helper to handle GraphQL response
