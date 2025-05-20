@@ -19,12 +19,11 @@ import {
   Icon,
 } from "@shopify/polaris";
 import {
-  AnalyticsIcon,
-  ChartBarIcon,
+  DataPresentationIcon,
+  ChartVerticalIcon,
   ChatIcon,
   RefreshIcon,
   GlobeIcon,
-  BrowserIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import urls from "../config/urls";
@@ -163,7 +162,7 @@ export default function AIOverviewPage() {
                 <BlockStack gap="400">
                   <InlineStack align="space-between">
                     <InlineStack gap="200">
-                      <Icon source={AnalyticsIcon} color="highlight" />
+                      <Icon source={DataPresentationIcon} color="highlight" />
                       <Text as="h3" variant="headingMd">
                         Monthly Query Usage
                       </Text>
@@ -203,7 +202,7 @@ export default function AIOverviewPage() {
                 <BlockStack gap="400">
                   <InlineStack align="space-between">
                     <InlineStack gap="200">
-                      <Icon source={ChartBarIcon} color="highlight" />
+                      <Icon source={ChartVerticalIcon} color="highlight" />
                       <Text as="h3" variant="headingMd">
                         Usage Statistics
                       </Text>
@@ -241,7 +240,7 @@ export default function AIOverviewPage() {
                     </InlineStack>
                     <InlineStack gap="200" align="start">
                       <Box width="24px">
-                        <Icon source={BrowserIcon} color="base" />
+                        <Icon source={GlobeIcon} color="base" />
                       </Box>
                       <BlockStack gap="0">
                         <InlineStack gap="200">
