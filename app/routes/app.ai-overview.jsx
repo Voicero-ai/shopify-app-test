@@ -104,13 +104,8 @@ export const loader = async ({ request }) => {
             data[key].length > 500
           ) {
             console.log(`Found potential analysis in property: ${key}`);
-            return json({
-              websiteData: data.website,
-              aiHistoryData: null, // Will be fetched later
-              analysis: data[key],
-              accessKey,
-              aiHistoryError: false,
-            });
+            analysis = data[key];
+            break;
           }
         }
       }
@@ -121,91 +116,15 @@ export const loader = async ({ request }) => {
       analysis ? "Found" : "Not found",
     );
 
-    // Now make a second API call to get AI history
-    let aiHistoryData = null;
-    let aiHistoryError = false;
-
-    try {
-      // Get the request URL to build an absolute URL
-      const url = new URL(request.url);
-      const baseUrl = `${url.protocol}//${url.host}`;
-
-      // Use the correct path that matches our file structure
-      const historyResponse = await fetch(`${baseUrl}/api/aiHistory`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          websiteId: data.website.id,
-          accessKey: accessKey,
-        }),
-      });
-
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json();
-        console.log("AI History Response:", historyData);
-
-        // Check the shape of the historyData response
-        console.log("History data has keys:", Object.keys(historyData));
-
-        // Extract analysis from the aiHistory response - THIS is where the analysis comes from!
-        // Make sure we handle the response regardless of its format (threads or analysis directly)
-        const analysisFromHistory = historyData.analysis;
-
-        // Check if we have data in the expected format
-        aiHistoryData = Array.isArray(historyData)
-          ? historyData
-          : historyData.threads || historyData.queries || [];
-
-        // If we found analysis in the history response, use that
-        if (analysisFromHistory) {
-          // Make sure it's a string before assigning
-          if (typeof analysisFromHistory === "string") {
-            analysis = analysisFromHistory;
-            console.log(
-              "Found analysis in aiHistory response: " +
-                analysisFromHistory.substring(0, 100) +
-                "...",
-            );
-          } else if (typeof analysisFromHistory === "object") {
-            // If it's an object, stringify it
-            analysis = JSON.stringify(analysisFromHistory);
-            console.log("Analysis was an object, stringified it");
-          }
-        }
-      } else {
-        console.error(
-          "Failed to fetch AI history data:",
-          await historyResponse.text(),
-        );
-        aiHistoryError = true;
-      }
-    } catch (historyError) {
-      console.error("Error fetching AI history:", historyError);
-      aiHistoryError = true;
-    }
-
-    // Check one more time if we have an analysis from the response
-    const finalAnalysis =
-      analysis ||
-      "No analysis available from the API. Please check the server logs for more information.";
-    console.log(
-      "Final analysis before returning:",
-      finalAnalysis
-        ? typeof finalAnalysis === "string"
-          ? finalAnalysis.substring(0, 100) + "..."
-          : "Object analysis"
-        : "null",
-    );
-
+    // Return the connect API data immediately without waiting for AI history
     return json({
       websiteData: data.website,
-      aiHistoryData,
-      analysis: finalAnalysis,
+      analysis,
       accessKey,
-      aiHistoryError,
+      // Return null for AI history data, will be fetched client-side
+      aiHistoryData: null,
+      aiHistoryError: false,
+      aiHistoryLoading: true,
     });
   } catch (error) {
     console.error("Error fetching data:", error);
@@ -243,19 +162,93 @@ function CustomProgressBar({ progress, tone = "success" }) {
 }
 
 export default function AIOverviewPage() {
-  const {
-    websiteData,
-    aiHistoryData,
-    analysis,
-    error,
-    disconnected,
-    aiHistoryError,
-  } = useLoaderData();
+  const { websiteData, analysis, error, disconnected, accessKey } =
+    useLoaderData();
+
   const navigate = useNavigate();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Separate loading states for different components
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [aiHistoryLoading, setAiHistoryLoading] = useState(true);
+  const [aiHistoryData, setAiHistoryData] = useState(null);
+  const [aiHistoryError, setAiHistoryError] = useState(false);
+  const [updatedAnalysis, setUpdatedAnalysis] = useState(analysis);
+
+  // Fetch AI history data on client side
+  useEffect(() => {
+    async function fetchAiHistory() {
+      if (!websiteData || !accessKey) return;
+
+      try {
+        // Get the current URL to build an absolute URL
+        const baseUrl = window.location.origin;
+
+        // Make the API call to get AI history
+        const historyResponse = await fetch(`${baseUrl}/api/aiHistory`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            websiteId: websiteData.id,
+            accessKey: accessKey,
+          }),
+        });
+
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          console.log("AI History Response:", historyData);
+
+          // Check the shape of the historyData response
+          console.log("History data has keys:", Object.keys(historyData));
+
+          // Extract analysis from the aiHistory response if available
+          const analysisFromHistory = historyData.analysis;
+
+          // Check if we have data in the expected format
+          const formattedHistoryData = Array.isArray(historyData)
+            ? historyData
+            : historyData.threads || historyData.queries || [];
+
+          setAiHistoryData(formattedHistoryData);
+
+          // If we found analysis in the history response, use that
+          if (analysisFromHistory) {
+            // Make sure it's a string before assigning
+            if (typeof analysisFromHistory === "string") {
+              setUpdatedAnalysis(analysisFromHistory);
+              console.log(
+                "Found analysis in aiHistory response: " +
+                  analysisFromHistory.substring(0, 100) +
+                  "...",
+              );
+            } else if (typeof analysisFromHistory === "object") {
+              // If it's an object, stringify it
+              setUpdatedAnalysis(JSON.stringify(analysisFromHistory));
+              console.log("Analysis was an object, stringified it");
+            }
+          }
+        } else {
+          console.error(
+            "Failed to fetch AI history data:",
+            await historyResponse.text(),
+          );
+          setAiHistoryError(true);
+        }
+      } catch (historyError) {
+        console.error("Error fetching AI history:", historyError);
+        setAiHistoryError(true);
+      } finally {
+        setAiHistoryLoading(false);
+      }
+    }
+
+    fetchAiHistory();
+  }, [websiteData, accessKey]);
 
   // Helper function to format markdown text with bold, italics, etc.
   const formatMarkdownText = (text) => {
@@ -306,32 +299,6 @@ export default function AIOverviewPage() {
     }
   }, [disconnected, navigate]);
 
-  // Set loading state based on data availability
-  useEffect(() => {
-    // When data is available or there's an error, stop loading
-    if (aiHistoryData !== null || aiHistoryError) {
-      // Short delay to ensure the analysis renders properly
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 500);
-    }
-  }, [aiHistoryData, aiHistoryError]);
-
-  // Calculate usage percentages - use the correct property names
-  const monthlyUsage = websiteData?.monthlyQueries || 0;
-  const monthlyQuota = websiteData?.queryLimit || 1000;
-  const usagePercentage = Math.min(100, (monthlyUsage / monthlyQuota) * 100);
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
   // Debug data to console
   useEffect(() => {
     if (websiteData) {
@@ -340,20 +307,27 @@ export default function AIOverviewPage() {
     if (aiHistoryData) {
       console.log("AI History in component:", aiHistoryData);
     }
-    console.log("Analysis in component RAW:", analysis);
+    console.log("Analysis in component RAW:", updatedAnalysis);
     // Check if analysis has markdown formatting
-    if (typeof analysis === "string") {
-      if (analysis.includes("###")) {
+    if (typeof updatedAnalysis === "string") {
+      if (updatedAnalysis.includes("###")) {
         console.log("Analysis appears to be markdown formatted with headings");
       }
       // Log the first 100 chars to see what we're working with
-      console.log("Analysis preview: " + analysis.substring(0, 100) + "...");
+      console.log(
+        "Analysis preview: " + updatedAnalysis.substring(0, 100) + "...",
+      );
     } else {
-      console.log("Analysis is not a string:", typeof analysis);
+      console.log("Analysis is not a string:", typeof updatedAnalysis);
     }
-  }, [websiteData, aiHistoryData, analysis]);
+  }, [websiteData, aiHistoryData, updatedAnalysis]);
 
   const toggleToast = () => setShowToast(!showToast);
+
+  // Calculate usage percentages - use the correct property names
+  const monthlyUsage = websiteData?.monthlyQueries || 0;
+  const monthlyQuota = websiteData?.queryLimit || 1000;
+  const usagePercentage = Math.min(100, (monthlyUsage / monthlyQuota) * 100);
 
   if (disconnected) {
     return null; // Don't render anything while redirecting
@@ -440,8 +414,8 @@ export default function AIOverviewPage() {
                 </InlineStack>
                 <Divider />
                 <BlockStack gap="300">
-                  {isLoading ? (
-                    // Loading state
+                  {analysisLoading || (aiHistoryLoading && !updatedAnalysis) ? (
+                    // Loading state for analysis
                     <Box padding="400">
                       <BlockStack gap="200">
                         <Text alignment="center">Loading analysis...</Text>
@@ -473,10 +447,11 @@ export default function AIOverviewPage() {
                     // Analysis data display - always show something
                     <Box padding="400">
                       <BlockStack gap="300">
-                        {typeof analysis === "string" && analysis ? (
+                        {typeof updatedAnalysis === "string" &&
+                        updatedAnalysis ? (
                           // Format the string analysis with line breaks and headings
                           <div>
-                            {analysis.split("\n").map((line, index) => {
+                            {updatedAnalysis.split("\n").map((line, index) => {
                               // Format headings (lines starting with #)
                               if (line.startsWith("###")) {
                                 return (
@@ -606,18 +581,21 @@ export default function AIOverviewPage() {
                               }
                             })}
                           </div>
-                        ) : analysis && typeof analysis === "object" ? (
+                        ) : updatedAnalysis &&
+                          typeof updatedAnalysis === "object" ? (
                           // Handle if analysis is an object with multiple properties
-                          Object.entries(analysis).map(([key, value]) => (
-                            <BlockStack key={key} gap="100">
-                              <Text variant="bodyMd" fontWeight="bold">
-                                {key.charAt(0).toUpperCase() +
-                                  key.slice(1).replace(/([A-Z])/g, " $1")}
-                                :
-                              </Text>
-                              <Text variant="bodyMd">{value}</Text>
-                            </BlockStack>
-                          ))
+                          Object.entries(updatedAnalysis).map(
+                            ([key, value]) => (
+                              <BlockStack key={key} gap="100">
+                                <Text variant="bodyMd" fontWeight="bold">
+                                  {key.charAt(0).toUpperCase() +
+                                    key.slice(1).replace(/([A-Z])/g, " $1")}
+                                  :
+                                </Text>
+                                <Text variant="bodyMd">{value}</Text>
+                              </BlockStack>
+                            ),
+                          )
                         ) : (
                           // Fallback if no analysis data
                           <Text alignment="center">
@@ -687,8 +665,8 @@ export default function AIOverviewPage() {
                 </InlineStack>
                 <Divider />
                 <BlockStack gap="300">
-                  {isLoading ? (
-                    // Loading state
+                  {aiHistoryLoading ? (
+                    // Loading state for AI history
                     <Box
                       padding="300"
                       background="bg-surface-secondary"
