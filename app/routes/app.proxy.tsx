@@ -302,7 +302,7 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-              mutation updateAddress($input: CustomerAddressUpdateInput!) {
+              mutation customerAddressUpdate($input: CustomerAddressUpdateInput!) {
                 customerAddressUpdate(input: $input) {
                   customerAddress {
                     id
