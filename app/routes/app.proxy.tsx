@@ -221,19 +221,15 @@ export const action: ActionFunction = async ({ request }) => {
       console.log("Processing customer update:", data.customer);
 
       try {
-        // Build customer update mutation
-        const customerInput = { ...data.customer };
-        const customerId = customerInput.id;
-        const hasAddressUpdate = !!customerInput.defaultAddress;
-        const addressData = customerInput.defaultAddress;
+        // Get the customer ID and address data
+        const customerId = data.customer.id;
+        const hasAddressUpdate = !!data.customer.defaultAddress;
+        const addressData = data.customer.defaultAddress;
 
-        // Remove ID and defaultAddress from input as they need special handling
-        if (customerInput.id) {
-          delete customerInput.id;
-        }
-        if (customerInput.defaultAddress) {
-          delete customerInput.defaultAddress;
-        }
+        // Create a copy of customer data without the ID and address for basic customer updates
+        const customerInput = { ...data.customer };
+        delete customerInput.id;
+        delete customerInput.defaultAddress;
 
         // Check if we have any data to update
         if (Object.keys(customerInput).length === 0 && !hasAddressUpdate) {
@@ -243,7 +239,7 @@ export const action: ActionFunction = async ({ request }) => {
           );
         }
 
-        // Validate customer fields
+        // Validate the data before proceeding
         const validationErrors = validateCustomerFields({
           ...customerInput,
           ...(hasAddressUpdate ? { defaultAddress: addressData } : {}),
@@ -260,22 +256,16 @@ export const action: ActionFunction = async ({ request }) => {
           );
         }
 
-        // Different handling based on whether we're updating address or customer details
-        let queryResult;
+        let responseData;
 
-        // If we're updating an address
+        // CASE 1: We're updating the customer's address
         if (hasAddressUpdate) {
-          // First check if customer has any addresses
+          console.log("Updating customer address");
+
+          // Step 1: Check if customer has a default address
           const customerQuery = `
             query getCustomer($customerId: ID!) {
               customer(id: $customerId) {
-                addresses(first: 10) {
-                  edges {
-                    node {
-                      id
-                    }
-                  }
-                }
                 defaultAddress {
                   id
                 }
@@ -290,15 +280,9 @@ export const action: ActionFunction = async ({ request }) => {
           });
 
           const customerData = await customerResponse.json();
-          console.log("Customer address check:", customerData);
+          console.log("Customer data:", customerData);
 
-          // Determine if we need to create a new address or update an existing one
-          const existingAddresses =
-            customerData.data.customer.addresses?.edges || [];
-          const defaultAddressId =
-            customerData.data.customer.defaultAddress?.id;
-
-          // Format the address input
+          // Format address data
           const addressInput = {
             address1: addressData.address1,
             address2: addressData.address2 || "",
@@ -309,16 +293,22 @@ export const action: ActionFunction = async ({ request }) => {
             phone: addressData.phone || "",
           };
 
-          let mutation;
-          let variables;
-          let newAddressId = null;
+          // Check if customer has a default address to update
+          const defaultAddressId =
+            customerData.data.customer.defaultAddress?.id;
 
-          // If this customer has no addresses, create a new one
-          if (existingAddresses.length === 0) {
-            console.log("Creating new address for customer");
-            mutation = `
-              mutation customerAddressCreate($input: CustomerAddressCreateInput!) {
-                customerAddressCreate(customerAddressCreateInput: $input) {
+          if (defaultAddressId) {
+            // Step 2A: Update existing default address
+            console.log("Updating existing default address:", defaultAddressId);
+
+            const updateAddressMutation = `
+              mutation updateAddress($addressId: ID!, $address: MailingAddressInput!) {
+                customerAddressUpdate(
+                  customerAddressUpdateInput: {
+                    id: $addressId,
+                    address: $address
+                  }
+                ) {
                   customerAddress {
                     id
                     formatted
@@ -331,164 +321,158 @@ export const action: ActionFunction = async ({ request }) => {
               }
             `;
 
-            variables = {
-              input: {
-                customerId: `gid://shopify/Customer/${customerId}`,
+            const updateResponse = await admin.graphql(updateAddressMutation, {
+              variables: {
+                addressId: defaultAddressId,
                 address: addressInput,
               },
-            };
-          }
-          // If customer has an existing default address, update it
-          else if (defaultAddressId) {
-            console.log("Updating existing default address");
-            mutation = `
-              mutation customerAddressUpdate($input: CustomerAddressUpdateInput!) {
-                customerAddressUpdate(customerAddressUpdateInput: $input) {
-                  customerAddress {
-                    id
-                    formatted
-                  }
-                  customerUserErrors {
-                    field
-                    message
-                  }
-                }
-              }
-            `;
+            });
 
-            variables = {
-              input: {
-                id: defaultAddressId,
-                address: addressInput,
-              },
-            };
-          }
-          // Otherwise create a new address
-          else {
-            console.log("Creating new address");
-            mutation = `
-              mutation customerAddressCreate($input: CustomerAddressCreateInput!) {
-                customerAddressCreate(customerAddressCreateInput: $input) {
-                  customerAddress {
-                    id
-                    formatted
-                  }
-                  customerUserErrors {
-                    field
-                    message
-                  }
-                }
-              }
-            `;
+            const updateResult = await updateResponse.json();
+            console.log("Address update result:", updateResult);
 
-            variables = {
-              input: {
-                customerId: `gid://shopify/Customer/${customerId}`,
-                address: addressInput,
-              },
-            };
-          }
-
-          // Execute the address mutation
-          const addressResponse = await admin.graphql(mutation, { variables });
-          const addressResult = await addressResponse.json();
-          console.log("Address update result:", addressResult);
-
-          // Check for address-specific errors
-          const operationName = mutation.includes("customerAddressCreate")
-            ? "customerAddressCreate"
-            : "customerAddressUpdate";
-
-          if (
-            addressResult.data[operationName].customerUserErrors &&
-            addressResult.data[operationName].customerUserErrors.length > 0
-          ) {
-            const errors = addressResult.data[operationName].customerUserErrors;
-            const friendlyErrors = errors.map(
-              (e: { field: string; message: string }) => {
-                return getFriendlyErrorMessage(e.field, e.message);
-              },
-            );
-
-            return json(
-              {
-                success: false,
-                error: friendlyErrors.join(". "),
-                details: errors,
-              },
-              addCorsHeaders(),
-            );
-          }
-
-          // If we created a new address, we need to set it as the default
-          if (mutation.includes("customerAddressCreate")) {
-            newAddressId =
-              addressResult.data.customerAddressCreate.customerAddress?.id;
-            if (newAddressId) {
-              console.log("Setting new address as default:", newAddressId);
-              // Use customerUpdateDefaultAddress mutation
-              const defaultMutation = `
-                mutation customerUpdateDefaultAddress($customerId: ID!, $addressId: ID!) {
-                  customerUpdateDefaultAddress(
-                    customerId: $customerId, 
-                    addressId: $addressId
-                  ) {
-                    customer {
-                      id
-                      defaultAddress {
-                        id
-                        address1
-                        city
-                      }
-                    }
-                    userErrors {
-                      field
-                      message
-                    }
-                  }
-                }
-              `;
-
-              const defaultResponse = await admin.graphql(defaultMutation, {
-                variables: {
-                  customerId: `gid://shopify/Customer/${customerId}`,
-                  addressId: newAddressId,
+            // Check for errors
+            if (
+              updateResult.data.customerAddressUpdate.customerUserErrors &&
+              updateResult.data.customerAddressUpdate.customerUserErrors
+                .length > 0
+            ) {
+              const errors =
+                updateResult.data.customerAddressUpdate.customerUserErrors;
+              const friendlyErrors = errors.map(
+                (e: { field: string; message: string }) => {
+                  return getFriendlyErrorMessage(e.field, e.message);
                 },
-              });
+              );
 
-              const defaultResult = await defaultResponse.json();
-              console.log("Set default address result:", defaultResult);
+              return json(
+                {
+                  success: false,
+                  error: friendlyErrors.join(". "),
+                  details: errors,
+                },
+                addCorsHeaders(),
+              );
+            }
+          } else {
+            // Step 2B: Create new address
+            console.log("Creating new address for customer");
 
-              // Check for errors in setting default address
-              if (
-                defaultResult.data.customerUpdateDefaultAddress.userErrors &&
-                defaultResult.data.customerUpdateDefaultAddress.userErrors
-                  .length > 0
-              ) {
-                const errors =
-                  defaultResult.data.customerUpdateDefaultAddress.userErrors;
-                const friendlyErrors = errors.map(
-                  (e: { field: string; message: string }) => {
-                    return getFriendlyErrorMessage(e.field, e.message);
-                  },
-                );
-
-                return json(
-                  {
-                    success: false,
-                    error:
-                      "Error setting default address: " +
-                      friendlyErrors.join(". "),
-                    details: errors,
-                  },
-                  addCorsHeaders(),
-                );
+            const createAddressMutation = `
+              mutation createAddress($customerId: ID!, $address: MailingAddressInput!) {
+                customerAddressCreate(
+                  customerAddressCreateInput: {
+                    customerId: $customerId,
+                    address: $address
+                  }
+                ) {
+                  customerAddress {
+                    id
+                    formatted
+                  }
+                  customerUserErrors {
+                    field
+                    message
+                  }
+                }
               }
+            `;
+
+            const createResponse = await admin.graphql(createAddressMutation, {
+              variables: {
+                customerId: `gid://shopify/Customer/${customerId}`,
+                address: addressInput,
+              },
+            });
+
+            const createResult = await createResponse.json();
+            console.log("Address create result:", createResult);
+
+            // Check for errors
+            if (
+              createResult.data.customerAddressCreate.customerUserErrors &&
+              createResult.data.customerAddressCreate.customerUserErrors
+                .length > 0
+            ) {
+              const errors =
+                createResult.data.customerAddressCreate.customerUserErrors;
+              const friendlyErrors = errors.map(
+                (e: { field: string; message: string }) => {
+                  return getFriendlyErrorMessage(e.field, e.message);
+                },
+              );
+
+              return json(
+                {
+                  success: false,
+                  error: friendlyErrors.join(". "),
+                  details: errors,
+                },
+                addCorsHeaders(),
+              );
+            }
+
+            // Step 3: Set newly created address as default
+            const newAddressId =
+              createResult.data.customerAddressCreate.customerAddress.id;
+            console.log("Setting new address as default:", newAddressId);
+
+            const setDefaultMutation = `
+              mutation setDefault($customerId: ID!, $addressId: ID!) {
+                customerUpdateDefaultAddress(
+                  customerId: $customerId,
+                  addressId: $addressId
+                ) {
+                  customer {
+                    id
+                  }
+                  userErrors {
+                    field
+                    message
+                  }
+                }
+              }
+            `;
+
+            const defaultResponse = await admin.graphql(setDefaultMutation, {
+              variables: {
+                customerId: `gid://shopify/Customer/${customerId}`,
+                addressId: newAddressId,
+              },
+            });
+
+            const defaultResult = await defaultResponse.json();
+            console.log("Set default result:", defaultResult);
+
+            // Check for errors
+            if (
+              defaultResult.data.customerUpdateDefaultAddress.userErrors &&
+              defaultResult.data.customerUpdateDefaultAddress.userErrors
+                .length > 0
+            ) {
+              const errors =
+                defaultResult.data.customerUpdateDefaultAddress.userErrors;
+              const friendlyErrors = errors.map(
+                (e: { field: string; message: string }) => {
+                  return getFriendlyErrorMessage(e.field, e.message);
+                },
+              );
+
+              return json(
+                {
+                  success: false,
+                  error:
+                    "Error setting default address: " +
+                    friendlyErrors.join(". "),
+                  details: errors,
+                },
+                addCorsHeaders(),
+              );
             }
           }
 
-          // Now get the updated customer data to return
-          const getUpdatedCustomer = `
+          // Step 4: Get updated customer data
+          const finalQuery = `
             query getUpdatedCustomer($customerId: ID!) {
               customer(id: $customerId) {
                 id
@@ -513,19 +497,23 @@ export const action: ActionFunction = async ({ request }) => {
             }
           `;
 
-          const updatedResponse = await admin.graphql(getUpdatedCustomer, {
+          const finalResponse = await admin.graphql(finalQuery, {
             variables: {
               customerId: `gid://shopify/Customer/${customerId}`,
             },
           });
 
-          queryResult = await updatedResponse.json();
+          const finalResult = await finalResponse.json();
+          console.log("Final customer data:", finalResult);
+
+          responseData = finalResult.data.customer;
         }
-        // If we're only updating customer profile (not address)
+        // CASE 2: Just updating customer details
         else {
-          // Build the GraphQL mutation for customer details only
-          const query = `
-            mutation customerUpdate($input: CustomerInput!) {
+          console.log("Updating customer details (no address)");
+
+          const updateMutation = `
+            mutation updateCustomer($input: CustomerInput!) {
               customerUpdate(input: $input) {
                 customer {
                   id
@@ -555,8 +543,7 @@ export const action: ActionFunction = async ({ request }) => {
             }
           `;
 
-          // Execute the customer update mutation
-          const response = await admin.graphql(query, {
+          const response = await admin.graphql(updateMutation, {
             variables: {
               input: {
                 id: `gid://shopify/Customer/${customerId}`,
@@ -565,17 +552,15 @@ export const action: ActionFunction = async ({ request }) => {
             },
           });
 
-          queryResult = await response.json();
-          console.log("Customer update response:", queryResult);
+          const result = await response.json();
+          console.log("Customer update result:", result);
 
           // Check for errors
           if (
-            queryResult.data.customerUpdate.userErrors &&
-            queryResult.data.customerUpdate.userErrors.length > 0
+            result.data.customerUpdate.userErrors &&
+            result.data.customerUpdate.userErrors.length > 0
           ) {
-            const errors = queryResult.data.customerUpdate.userErrors;
-
-            // Transform generic Shopify error messages into more user-friendly ones
+            const errors = result.data.customerUpdate.userErrors;
             const friendlyErrors = errors.map(
               (e: { field: string; message: string }) => {
                 return getFriendlyErrorMessage(e.field, e.message);
@@ -591,15 +576,15 @@ export const action: ActionFunction = async ({ request }) => {
               addCorsHeaders(),
             );
           }
+
+          responseData = result.data.customerUpdate.customer;
         }
 
         // Success!
         return json(
           {
             success: true,
-            customer: hasAddressUpdate
-              ? queryResult.data.customer
-              : queryResult.data.customerUpdate.customer,
+            customer: responseData,
           },
           addCorsHeaders(),
         );
