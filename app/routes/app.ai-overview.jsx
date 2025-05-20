@@ -1,0 +1,343 @@
+import { useState, useEffect } from "react";
+import { json } from "@remix-run/node";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  Text,
+  Button,
+  InlineStack,
+  Box,
+  Badge,
+  Divider,
+  Toast,
+  Frame,
+  ProgressBar,
+  EmptyState,
+  Icon,
+} from "@shopify/polaris";
+import {
+  DataVisualizationIcon,
+  ChartVerticalIcon,
+  ChatIcon,
+  RefreshIcon,
+  GlobeIcon,
+  BrowserIcon,
+} from "@shopify/polaris-icons";
+import { authenticate } from "../shopify.server";
+import urls from "../config/urls";
+
+export const dynamic = "force-dynamic";
+
+export const loader = async ({ request }) => {
+  const { admin } = await authenticate.admin(request);
+
+  // Get the access key from metafields
+  const metafieldResponse = await admin.graphql(`
+    query {
+      shop {
+        metafield(namespace: "voicero", key: "access_key") {
+          value
+        }
+      }
+    }
+  `);
+
+  const metafieldData = await metafieldResponse.json();
+  const accessKey = metafieldData.data.shop.metafield?.value;
+
+  if (!accessKey) {
+    return json({
+      disconnected: true,
+      error: "No access key found",
+    });
+  }
+
+  try {
+    // Fetch website data from the connect API
+    const response = await fetch(`${urls.voiceroApi}/api/connect`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      return json({
+        error: "Failed to fetch website data",
+      });
+    }
+
+    const data = await response.json();
+    console.log("API Response:", data); // Console log the API output
+
+    if (!data.website) {
+      return json({
+        error: "No website data found",
+      });
+    }
+
+    return json({
+      websiteData: data.website,
+      accessKey,
+    });
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    return json({
+      error: error.message || "Failed to fetch website data",
+    });
+  }
+};
+
+export default function AIOverviewPage() {
+  const { websiteData, error, disconnected } = useLoaderData();
+  const navigate = useNavigate();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
+
+  // Redirect if disconnected
+  useEffect(() => {
+    if (disconnected) {
+      navigate("/app");
+    }
+  }, [disconnected, navigate]);
+
+  // Calculate usage percentages
+  const monthlyUsage = websiteData?.monthlyUsage || 0;
+  const monthlyQuota = websiteData?.monthlyQuota || 1000;
+  const usagePercentage = Math.min(100, (monthlyUsage / monthlyQuota) * 100);
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const toggleToast = () => setShowToast(!showToast);
+
+  if (disconnected) {
+    return null; // Don't render anything while redirecting
+  }
+
+  if (error) {
+    return (
+      <Page>
+        <EmptyState
+          heading="Unable to load AI usage data"
+          image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+          action={{ content: "Back to Dashboard", url: "/app" }}
+        >
+          <p>{error}</p>
+        </EmptyState>
+      </Page>
+    );
+  }
+
+  return (
+    <Frame>
+      <Page
+        title="AI Usage Overview"
+        backAction={{
+          content: "Back",
+          onAction: () => navigate("/app"),
+        }}
+        primaryAction={{
+          content: "Refresh Data",
+          icon: RefreshIcon,
+          onAction: () => window.location.reload(),
+        }}
+      >
+        <BlockStack gap="500">
+          <Layout>
+            <Layout.Section>
+              {/* Main Usage Card */}
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between">
+                    <InlineStack gap="200">
+                      <Icon source={DataVisualizationIcon} color="highlight" />
+                      <Text as="h3" variant="headingMd">
+                        Monthly Query Usage
+                      </Text>
+                    </InlineStack>
+                    <Badge
+                      status={usagePercentage < 90 ? "success" : "critical"}
+                    >
+                      {usagePercentage < 90 ? "Good" : "Near Limit"}
+                    </Badge>
+                  </InlineStack>
+                  <Divider />
+                  <BlockStack gap="300">
+                    <Box padding="400">
+                      <BlockStack gap="400">
+                        <Text variant="headingLg" as="h2" alignment="center">
+                          {monthlyUsage} / {monthlyQuota} queries used this
+                          month
+                        </Text>
+                        <ProgressBar
+                          progress={usagePercentage}
+                          size="large"
+                          tone={usagePercentage < 90 ? "success" : "critical"}
+                        />
+                        <Text variant="bodyMd" as="p" alignment="center">
+                          {100 - usagePercentage > 0
+                            ? `${(100 - usagePercentage).toFixed(1)}% remaining`
+                            : "Quota exceeded"}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+
+              {/* Usage Statistics */}
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between">
+                    <InlineStack gap="200">
+                      <Icon source={ChartVerticalIcon} color="highlight" />
+                      <Text as="h3" variant="headingMd">
+                        Usage Statistics
+                      </Text>
+                    </InlineStack>
+                  </InlineStack>
+                  <Divider />
+                  <BlockStack gap="300">
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon source={ChatIcon} color="base" />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            Total Queries:
+                          </Text>
+                          <Text as="p">{websiteData?.totalQueries || 0}</Text>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon source={RefreshIcon} color="base" />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            Reset Date:
+                          </Text>
+                          <Text as="p">
+                            {formatDate(websiteData?.quotaResetDate)}
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon source={BrowserIcon} color="base" />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            Current Plan:
+                          </Text>
+                          <Badge>{websiteData?.plan || "Basic"}</Badge>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+
+              {/* Website Overview */}
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between">
+                    <InlineStack gap="200">
+                      <Icon source={GlobeIcon} color="highlight" />
+                      <Text as="h3" variant="headingMd">
+                        Website Overview
+                      </Text>
+                    </InlineStack>
+                    <Button onClick={() => navigate("/app/settings")}>
+                      Manage Settings
+                    </Button>
+                  </InlineStack>
+                  <Divider />
+                  <BlockStack gap="300">
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon source={GlobeIcon} color="base" />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            Website:
+                          </Text>
+                          <Text as="p">{websiteData?.name || "Not set"}</Text>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon source={GlobeIcon} color="base" />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            URL:
+                          </Text>
+                          <Text as="p">{websiteData?.url || "Not set"}</Text>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon source={RefreshIcon} color="base" />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            Last Synced:
+                          </Text>
+                          <Text as="p">
+                            {websiteData?.lastSyncedAt
+                              ? new Date(
+                                  websiteData.lastSyncedAt,
+                                ).toLocaleString()
+                              : "Never"}
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
+                    <InlineStack gap="200">
+                      <Box width="24px" />
+                      <Button onClick={() => navigate("/app/pricing")}>
+                        Upgrade Plan
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        </BlockStack>
+
+        {showToast && (
+          <Toast
+            content={toastMessage}
+            tone={toastType}
+            onDismiss={toggleToast}
+          />
+        )}
+      </Page>
+    </Frame>
+  );
+}

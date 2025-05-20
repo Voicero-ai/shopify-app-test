@@ -43,6 +43,7 @@ export default function App() {
           </Link>
           <Link to="/app/website">Website</Link>
           <Link to="/app/settings">Settings</Link>
+          <Link to="/app/ai-overview">AI Overview</Link>
         </NavMenu>
         <Outlet />
       </PolarisAppProvider>
