@@ -224,22 +224,31 @@ export const action: ActionFunction = async ({ request }) => {
         // Build customer update mutation
         const customerInput = { ...data.customer };
         const customerId = customerInput.id;
+        const hasAddressUpdate = !!customerInput.defaultAddress;
+        const addressData = customerInput.defaultAddress;
 
-        // Remove ID from input as it's not part of the update input
+        // Remove ID and defaultAddress from input as they need special handling
         if (customerInput.id) {
           delete customerInput.id;
         }
+        if (customerInput.defaultAddress) {
+          delete customerInput.defaultAddress;
+        }
 
         // Check if we have any data to update
-        if (Object.keys(customerInput).length === 0) {
+        if (Object.keys(customerInput).length === 0 && !hasAddressUpdate) {
           return json(
             { success: false, error: "No valid fields to update" },
             addCorsHeaders(),
           );
         }
 
-        // Validate fields before sending to Shopify
-        const validationErrors = validateCustomerFields(customerInput);
+        // Validate customer fields
+        const validationErrors = validateCustomerFields({
+          ...customerInput,
+          ...(hasAddressUpdate ? { defaultAddress: addressData } : {}),
+        });
+
         if (validationErrors.length > 0) {
           return json(
             {
@@ -251,11 +260,208 @@ export const action: ActionFunction = async ({ request }) => {
           );
         }
 
-        // Build the GraphQL mutation
-        const query = `
-          mutation customerUpdate($input: CustomerInput!) {
-            customerUpdate(input: $input) {
-              customer {
+        // Different handling based on whether we're updating address or customer details
+        let queryResult;
+
+        // If we're updating an address
+        if (hasAddressUpdate) {
+          // First check if customer has any addresses
+          const customerQuery = `
+            query getCustomer($customerId: ID!) {
+              customer(id: $customerId) {
+                addresses(first: 10) {
+                  edges {
+                    node {
+                      id
+                    }
+                  }
+                }
+                defaultAddress {
+                  id
+                }
+              }
+            }
+          `;
+
+          const customerResponse = await admin.graphql(customerQuery, {
+            variables: {
+              customerId: `gid://shopify/Customer/${customerId}`,
+            },
+          });
+
+          const customerData = await customerResponse.json();
+          console.log("Customer address check:", customerData);
+
+          // Determine if we need to create a new address or update an existing one
+          const existingAddresses =
+            customerData.data.customer.addresses?.edges || [];
+          const defaultAddressId =
+            customerData.data.customer.defaultAddress?.id;
+
+          // Format the address input
+          const addressInput = {
+            address1: addressData.address1,
+            address2: addressData.address2 || "",
+            city: addressData.city,
+            province: addressData.province,
+            zip: addressData.zip,
+            country: addressData.country,
+            phone: addressData.phone || "",
+          };
+
+          let mutation;
+          let variables;
+
+          // If this customer has no addresses, create a new one
+          if (existingAddresses.length === 0) {
+            console.log("Creating new address for customer");
+            mutation = `
+              mutation customerAddressCreate($customerAddressCreateInput: CustomerAddressCreateInput!) {
+                customerAddressCreate(customerAddressCreateInput: $customerAddressCreateInput) {
+                  customerAddress {
+                    id
+                    formatted
+                  }
+                  customerUserErrors {
+                    field
+                    message
+                  }
+                }
+              }
+            `;
+
+            variables = {
+              customerAddressCreateInput: {
+                customerId: `gid://shopify/Customer/${customerId}`,
+                address: addressInput,
+              },
+            };
+          }
+          // If customer has an existing default address, update it
+          else if (defaultAddressId) {
+            console.log("Updating existing default address");
+            mutation = `
+              mutation customerAddressUpdate($customerAddressUpdateInput: CustomerAddressUpdateInput!) {
+                customerAddressUpdate(customerAddressUpdateInput: $customerAddressUpdateInput) {
+                  customerAddress {
+                    id
+                    formatted
+                  }
+                  customerUserErrors {
+                    field
+                    message
+                  }
+                }
+              }
+            `;
+
+            variables = {
+              customerAddressUpdateInput: {
+                customerId: `gid://shopify/Customer/${customerId}`,
+                id: defaultAddressId,
+                address: addressInput,
+              },
+            };
+          }
+          // Otherwise create a new address and set as default
+          else {
+            console.log("Creating new address and setting as default");
+            mutation = `
+              mutation customerAddressCreate($customerAddressCreateInput: CustomerAddressCreateInput!) {
+                customerAddressCreate(customerAddressCreateInput: $customerAddressCreateInput) {
+                  customerAddress {
+                    id
+                    formatted
+                  }
+                  customerUserErrors {
+                    field
+                    message
+                  }
+                }
+              }
+            `;
+
+            variables = {
+              customerAddressCreateInput: {
+                customerId: `gid://shopify/Customer/${customerId}`,
+                address: addressInput,
+                defaultAddress: true,
+              },
+            };
+          }
+
+          // Execute the address mutation
+          const addressResponse = await admin.graphql(mutation, { variables });
+          const addressResult = await addressResponse.json();
+          console.log("Address update result:", addressResult);
+
+          // Check for address-specific errors
+          const operationName = mutation.includes("customerAddressCreate")
+            ? "customerAddressCreate"
+            : "customerAddressUpdate";
+
+          if (
+            addressResult.data[operationName].customerUserErrors &&
+            addressResult.data[operationName].customerUserErrors.length > 0
+          ) {
+            const errors = addressResult.data[operationName].customerUserErrors;
+            const friendlyErrors = errors.map(
+              (e: { field: string; message: string }) => {
+                return getFriendlyErrorMessage(e.field, e.message);
+              },
+            );
+
+            return json(
+              {
+                success: false,
+                error: friendlyErrors.join(". "),
+                details: errors,
+              },
+              addCorsHeaders(),
+            );
+          }
+
+          // If we created a new address but it's not the default yet
+          if (
+            mutation.includes("customerAddressCreate") &&
+            variables &&
+            "customerAddressCreateInput" in variables &&
+            !variables.customerAddressCreateInput.defaultAddress &&
+            addressResult.data.customerAddressCreate.customerAddress?.id
+          ) {
+            // Set the new address as default
+            const defaultMutation = `
+              mutation customerDefaultAddressUpdate($customerDefaultAddressUpdateInput: CustomerDefaultAddressUpdateInput!) {
+                customerDefaultAddressUpdate(customerDefaultAddressUpdateInput: $customerDefaultAddressUpdateInput) {
+                  customer {
+                    id
+                  }
+                  customerUserErrors {
+                    field
+                    message
+                  }
+                }
+              }
+            `;
+
+            const defaultResponse = await admin.graphql(defaultMutation, {
+              variables: {
+                customerDefaultAddressUpdateInput: {
+                  customerId: `gid://shopify/Customer/${customerId}`,
+                  addressId:
+                    addressResult.data.customerAddressCreate.customerAddress.id,
+                },
+              },
+            });
+
+            const defaultResult = await defaultResponse.json();
+            console.log("Set default address result:", defaultResult);
+          }
+
+          // Now get the updated customer data to return
+          const getUpdatedCustomer = `
+            query getCustomer($customerId: ID!) {
+              customer(id: $customerId) {
                 id
                 firstName
                 lastName
@@ -272,58 +478,99 @@ export const action: ActionFunction = async ({ request }) => {
                   country
                   countryCode
                   phone
+                  formatted
                 }
               }
-              userErrors {
-                field
-                message
+            }
+          `;
+
+          const updatedResponse = await admin.graphql(getUpdatedCustomer, {
+            variables: {
+              customerId: `gid://shopify/Customer/${customerId}`,
+            },
+          });
+
+          queryResult = await updatedResponse.json();
+        }
+        // If we're only updating customer profile (not address)
+        else {
+          // Build the GraphQL mutation for customer details only
+          const query = `
+            mutation customerUpdate($input: CustomerInput!) {
+              customerUpdate(input: $input) {
+                customer {
+                  id
+                  firstName
+                  lastName
+                  email
+                  phone
+                  defaultAddress {
+                    id
+                    address1
+                    address2
+                    city
+                    province
+                    provinceCode
+                    zip
+                    country
+                    countryCode
+                    phone
+                    formatted
+                  }
+                }
+                userErrors {
+                  field
+                  message
+                }
               }
             }
+          `;
+
+          // Execute the customer update mutation
+          const response = await admin.graphql(query, {
+            variables: {
+              input: {
+                id: `gid://shopify/Customer/${customerId}`,
+                ...customerInput,
+              },
+            },
+          });
+
+          queryResult = await response.json();
+          console.log("Customer update response:", queryResult);
+
+          // Check for errors
+          if (
+            queryResult.data.customerUpdate.userErrors &&
+            queryResult.data.customerUpdate.userErrors.length > 0
+          ) {
+            const errors = queryResult.data.customerUpdate.userErrors;
+
+            // Transform generic Shopify error messages into more user-friendly ones
+            const friendlyErrors = errors.map(
+              (e: { field: string; message: string }) => {
+                return getFriendlyErrorMessage(e.field, e.message);
+              },
+            );
+
+            return json(
+              {
+                success: false,
+                error: friendlyErrors.join(". "),
+                details: errors,
+              },
+              addCorsHeaders(),
+            );
           }
-        `;
-
-        // Execute the mutation
-        const response = await admin.graphql(query, {
-          variables: {
-            input: {
-              id: `gid://shopify/Customer/${customerId}`,
-              ...customerInput,
-            },
-          },
-        });
-
-        const responseJson = await response.json();
-        console.log("Customer update response:", responseJson);
-
-        // Check for errors
-        if (
-          responseJson.data.customerUpdate.userErrors &&
-          responseJson.data.customerUpdate.userErrors.length > 0
-        ) {
-          const errors = responseJson.data.customerUpdate.userErrors;
-
-          // Transform generic Shopify error messages into more user-friendly ones
-          const friendlyErrors = errors.map(
-            (e: { field: string; message: string }) => {
-              return getFriendlyErrorMessage(e.field, e.message);
-            },
-          );
-
-          return json(
-            {
-              success: false,
-              error: friendlyErrors.join(". "),
-              details: errors,
-            },
-            addCorsHeaders(),
-          );
         }
 
         // Success!
         return json(
           {
             success: true,
-            customer: responseJson.data.customerUpdate.customer,
+            customer: hasAddressUpdate
+              ? queryResult.data.customer
+              : queryResult.data.customerUpdate.customer,
           },
           addCorsHeaders(),
         );
