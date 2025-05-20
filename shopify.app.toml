@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "025df740c8a79a0853a7939da465efb0"
-application_url = "https://shopify-app-is117a-nj.vercel.app"
+application_url = "https://cab-trade-daisy-amber.trycloudflare.com"
 embedded = true
 name = "voicero-app-shop-test"
 handle = "voicero-app-shop-test"
@@ -31,15 +31,15 @@ scopes = "read_content,read_products,read_discounts,write_content,read_metaobjec
 
 [auth]
 redirect_urls = [
-  "https://shopify-app-is117a-nj.vercel.app/auth/callback",
-  "https://shopify-app-is117a-nj.vercel.app/auth/shopify/callback",
-  "https://shopify-app-is117a-nj.vercel.app/api/auth/callback"
+  "https://cab-trade-daisy-amber.trycloudflare.com/auth/callback",
+  "https://cab-trade-daisy-amber.trycloudflare.com/auth/shopify/callback",
+  "https://cab-trade-daisy-amber.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url     = "https://shopify-app-is117a-nj.vercel.app/app/proxy"
+url = "https://cab-trade-daisy-amber.trycloudflare.com/app/proxy"
 subpath = "proxy"
-prefix  = "apps"
+prefix = "apps"

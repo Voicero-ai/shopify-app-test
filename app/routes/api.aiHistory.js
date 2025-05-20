@@ -23,20 +23,17 @@ export async function action({ request }) {
 
   try {
     // Forward the request to the external Next.js API
-    const response = await fetch(
-      `http://localhost:3000/api/shopify/aiHistory`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${accessKey}`,
-        },
-        body: JSON.stringify({
-          websiteId,
-        }),
+    const response = await fetch(`http://localhost:3000/api/aiHistory`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessKey}`,
       },
-    );
+      body: JSON.stringify({
+        websiteId,
+      }),
+    });
 
     // If the external API is not available, return a fallback response with mock data
     if (!response.ok) {
@@ -113,7 +110,7 @@ export async function loader({ request }) {
   try {
     // Forward the request to the external Next.js API
     const response = await fetch(
-      `http://localhost:3000/api/shopify/aiHistory?websiteId=${websiteId}`,
+      `http://localhost:3000/api/aiHistory?websiteId=${websiteId}`,
       {
         method: "GET",
         headers: {
