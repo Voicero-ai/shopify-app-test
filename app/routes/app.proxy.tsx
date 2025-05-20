@@ -302,13 +302,23 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-              mutation customerAddressUpdate($input: CustomerAddressUpdateInput!) {
-                customerAddressUpdate(input: $input) {
-                  customerAddress {
+              mutation customerAddressUpdate(
+                $address: MailingAddressInput!, 
+                $addressId: ID!, 
+                $customerId: ID!, 
+                $setAsDefault: Boolean
+              ) {
+                customerAddressUpdate(
+                  address: $address, 
+                  addressId: $addressId, 
+                  customerId: $customerId, 
+                  setAsDefault: $setAsDefault
+                ) {
+                  address {
                     id
                     formatted
                   }
-                  customerUserErrors {
+                  userErrors {
                     field
                     message
                   }
@@ -318,10 +328,10 @@ export const action: ActionFunction = async ({ request }) => {
 
             const updateResponse = await admin.graphql(updateAddressMutation, {
               variables: {
-                input: {
-                  id: defaultAddressId, // Already has the gid:// prefix from the query
-                  address: addressInput,
-                },
+                address: addressInput,
+                addressId: defaultAddressId,
+                customerId: `gid://shopify/Customer/${customerId}`,
+                setAsDefault: true,
               },
             });
 
@@ -330,12 +340,10 @@ export const action: ActionFunction = async ({ request }) => {
 
             // Check for errors
             if (
-              updateResult.data.customerAddressUpdate.customerUserErrors &&
-              updateResult.data.customerAddressUpdate.customerUserErrors
-                .length > 0
+              updateResult.data.customerAddressUpdate.userErrors &&
+              updateResult.data.customerAddressUpdate.userErrors.length > 0
             ) {
-              const errors =
-                updateResult.data.customerAddressUpdate.customerUserErrors;
+              const errors = updateResult.data.customerAddressUpdate.userErrors;
               const friendlyErrors = errors.map(
                 (e: { field: string; message: string }) => {
                   return getFriendlyErrorMessage(e.field, e.message);
@@ -356,13 +364,21 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Creating new address for customer");
 
             const createAddressMutation = `
-              mutation createAddress($input: CustomerAddressCreateInput!) {
-                customerAddressCreate(input: $input) {
-                  customerAddress {
+              mutation customerAddressCreate(
+                $address: MailingAddressInput!, 
+                $customerId: ID!, 
+                $setAsDefault: Boolean
+              ) {
+                customerAddressCreate(
+                  address: $address, 
+                  customerId: $customerId, 
+                  setAsDefault: $setAsDefault
+                ) {
+                  address {
                     id
                     formatted
                   }
-                  customerUserErrors {
+                  userErrors {
                     field
                     message
                   }
@@ -372,10 +388,9 @@ export const action: ActionFunction = async ({ request }) => {
 
             const createResponse = await admin.graphql(createAddressMutation, {
               variables: {
-                input: {
-                  customerId: `gid://shopify/Customer/${customerId}`,
-                  address: addressInput,
-                },
+                address: addressInput,
+                customerId: `gid://shopify/Customer/${customerId}`,
+                setAsDefault: true,
               },
             });
 
@@ -384,12 +399,10 @@ export const action: ActionFunction = async ({ request }) => {
 
             // Check for errors
             if (
-              createResult.data.customerAddressCreate.customerUserErrors &&
-              createResult.data.customerAddressCreate.customerUserErrors
-                .length > 0
+              createResult.data.customerAddressCreate.userErrors &&
+              createResult.data.customerAddressCreate.userErrors.length > 0
             ) {
-              const errors =
-                createResult.data.customerAddressCreate.customerUserErrors;
+              const errors = createResult.data.customerAddressCreate.userErrors;
               const friendlyErrors = errors.map(
                 (e: { field: string; message: string }) => {
                   return getFriendlyErrorMessage(e.field, e.message);
@@ -406,62 +419,12 @@ export const action: ActionFunction = async ({ request }) => {
               );
             }
 
-            // Step 3: Set newly created address as default
+            // Step 3: Get the newly created address ID
             const newAddressId =
-              createResult.data.customerAddressCreate.customerAddress.id;
-            console.log("Setting new address as default:", newAddressId);
+              createResult.data.customerAddressCreate.address.id;
+            console.log("New address created:", newAddressId);
 
-            const setDefaultMutation = `
-              mutation setDefault($input: CustomerUpdateDefaultAddressInput!) {
-                customerUpdateDefaultAddress(input: $input) {
-                  customer {
-                    id
-                  }
-                  userErrors {
-                    field
-                    message
-                  }
-                }
-              }
-            `;
-
-            const defaultResponse = await admin.graphql(setDefaultMutation, {
-              variables: {
-                input: {
-                  customerId: `gid://shopify/Customer/${customerId}`,
-                  addressId: newAddressId, // Already has the gid:// prefix from the response
-                },
-              },
-            });
-
-            const defaultResult = await defaultResponse.json();
-            console.log("Set default result:", defaultResult);
-
-            // Check for errors
-            if (
-              defaultResult.data.customerUpdateDefaultAddress.userErrors &&
-              defaultResult.data.customerUpdateDefaultAddress.userErrors
-                .length > 0
-            ) {
-              const errors =
-                defaultResult.data.customerUpdateDefaultAddress.userErrors;
-              const friendlyErrors = errors.map(
-                (e: { field: string; message: string }) => {
-                  return getFriendlyErrorMessage(e.field, e.message);
-                },
-              );
-
-              return json(
-                {
-                  success: false,
-                  error:
-                    "Error setting default address: " +
-                    friendlyErrors.join(". "),
-                  details: errors,
-                },
-                addCorsHeaders(),
-              );
-            }
+            // We don't need to set as default separately since we're using setAsDefault: true in the create mutation
           }
 
           // Step 4: Get updated customer data
@@ -520,7 +483,7 @@ export const action: ActionFunction = async ({ request }) => {
           console.log("Updating customer details (no address)");
 
           const updateMutation = `
-            mutation updateCustomer($input: CustomerInput!) {
+            mutation customerUpdate($input: CustomerInput!) {
               customerUpdate(input: $input) {
                 customer {
                   id
