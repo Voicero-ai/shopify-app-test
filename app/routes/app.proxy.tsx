@@ -216,6 +216,101 @@ export const action: ActionFunction = async ({ request }) => {
     const data = await request.json();
     console.log("Received data:", data);
 
+    // Handle customer update action
+    if (data.action === "updateCustomer" && data.customer) {
+      console.log("Processing customer update:", data.customer);
+
+      try {
+        // Build customer update mutation
+        const customerInput = { ...data.customer };
+        const customerId = customerInput.id;
+
+        // Remove ID from input as it's not part of the update input
+        if (customerInput.id) {
+          delete customerInput.id;
+        }
+
+        // Check if we have any data to update
+        if (Object.keys(customerInput).length === 0) {
+          return json(
+            { success: false, error: "No valid fields to update" },
+            addCorsHeaders(),
+          );
+        }
+
+        // Build the GraphQL mutation
+        const query = `
+          mutation customerUpdate($input: CustomerInput!) {
+            customerUpdate(input: $input) {
+              customer {
+                id
+                firstName
+                lastName
+                email
+                phone
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `;
+
+        // Execute the mutation
+        const response = await admin.graphql(query, {
+          variables: {
+            input: {
+              id: `gid://shopify/Customer/${customerId}`,
+              ...customerInput,
+            },
+          },
+        });
+
+        const responseJson = await response.json();
+        console.log("Customer update response:", responseJson);
+
+        // Check for errors
+        if (
+          responseJson.data.customerUpdate.userErrors &&
+          responseJson.data.customerUpdate.userErrors.length > 0
+        ) {
+          const errors = responseJson.data.customerUpdate.userErrors;
+          return json(
+            {
+              success: false,
+              error: errors
+                .map((e: { message: string }) => e.message)
+                .join("; "),
+              details: errors,
+            },
+            addCorsHeaders(),
+          );
+        }
+
+        // Success!
+        return json(
+          {
+            success: true,
+            customer: responseJson.data.customerUpdate.customer,
+          },
+          addCorsHeaders(),
+        );
+      } catch (error) {
+        console.error("Error updating customer:", error);
+        return json(
+          {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unknown error updating customer",
+          },
+          addCorsHeaders({ status: 500 }),
+        );
+      }
+    }
+
     // Depending on what you want to do with POST requests
     // This is just a placeholder for now
     return json(

@@ -284,7 +284,7 @@
               window.__VoiceroCustomerData.last_name,
             email: window.__VoiceroCustomerData.email,
             orders_count: window.__VoiceroCustomerData.orders_count,
-            total_spent: window.__VoiceroCustomerData.total_spent,
+            total_spent: `$${(parseFloat(window.__VoiceroCustomerData.total_spent || 0) / 100).toFixed(2)}`,
             created_at: window.__VoiceroCustomerData.created_at,
           });
 
@@ -316,7 +316,7 @@
                 number: order.order_number,
                 date: order.created_at,
                 status: order.fulfillment_status,
-                total: order.total_price,
+                total: `$${(parseFloat(order.total_price || 0) / 100).toFixed(2)}`,
                 tracking: order.has_tracking
                   ? `${order.tracking_company} #${order.tracking_number}`
                   : "None",
@@ -793,7 +793,9 @@
           acceptsMarketing: customer.accepts_marketing || false,
           tags: customer.tags || "",
           orders_count: customer.orders_count || 0,
-          total_spent: customer.total_spent || "0",
+          total_spent: customer.total_spent
+            ? (parseFloat(customer.total_spent) / 100).toFixed(2)
+            : "0.00",
         };
 
         // Add defaultAddress if available
@@ -843,7 +845,9 @@
                 fulfillmentStatus: order.fulfillment_status || "",
                 financialStatus: order.financial_status || "",
                 totalPriceV2: {
-                  amount: order.total_price || "0",
+                  amount: order.total_price
+                    ? (parseFloat(order.total_price) / 100).toFixed(2)
+                    : "0.00",
                   currencyCode: "USD", // Default currency
                 },
                 // Add line items structure (API expects this format with edges/node)

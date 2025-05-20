@@ -836,44 +836,212 @@ const VoiceroActionHandler = {
   },
 
   handleAccount_reset: async function (target) {
-    const { email } = target || {};
-    if (!email) {
-      // console.warn("Email required for account reset");
+    // Redirect to new account management function with specific reset action
+    return this.handleAccount_manage({ ...target, action_type: "reset" });
+  },
+
+  handleAccount_management: function (target) {
+    // Redirect to the shared account management function
+    return this.handleAccount_manage(target);
+  },
+
+  handleAccount_manage: async function (target) {
+    const fields = target || {};
+    const editable = ["first_name", "last_name", "email", "phone"];
+    // pick only supported fields
+    const updates = {};
+    editable.forEach((k) => {
+      if (fields[k] !== undefined) {
+        // convert snake to camel
+        const camel = k.replace(/_([a-z])/g, (_, m) => m.toUpperCase());
+        updates[camel] = fields[k];
+      }
+    });
+
+    // Special case for password reset action
+    if (fields.action_type === "reset") {
+      const resetMessage =
+        "To reset your password, you'll need to log out first and then use the 'Forgot password' option on the login page.";
+      this.notify(resetMessage);
       return;
     }
 
-    const accountForm =
-      this.findForm("account") ||
-      document.querySelector('form[action*="/account/recover"]');
-    if (accountForm) {
-      const emailField = accountForm.querySelector(
-        'input[type="email"], input[name="email"]',
+    if (Object.keys(updates).length === 0) {
+      this.notify(`
+You can manage the following account settings:
+- Name (first_name, last_name)
+- Email address (email)
+- Phone number (phone)
+
+To make changes, please specify what you'd like to update.
+      `);
+      return;
+    }
+
+    // Check if logged in using VoiceroUserData or customer data injection
+    const isLoggedIn =
+      (window.VoiceroUserData && window.VoiceroUserData.isLoggedIn) ||
+      (window.__VoiceroCustomerData && window.__VoiceroCustomerData.id);
+
+    if (!isLoggedIn) {
+      this.notify(
+        "You must be logged in to update your account. Please log in to continue.",
       );
-      if (emailField) {
-        emailField.value = email;
-        accountForm.dispatchEvent(new Event("submit", { bubbles: true }));
-        return;
-      }
+      return;
     }
 
-    // Shopify account recovery endpoint
-    try {
-      const response = await fetch("/account/recover", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: `form_type=recover_customer_password&email=${encodeURIComponent(email)}`,
+    // Display a loading message
+    this.notify("Updating your account information...");
+
+    // Use ShopifyProxyClient to send the update
+    if (!window.ShopifyProxyClient) {
+      console.error("ShopifyProxyClient not available");
+      this.notify(
+        "Sorry, I couldn't update your account information. The client library is missing.",
+      );
+      return;
+    }
+
+    // Prepare data to send to the proxy endpoint
+    const updateData = {
+      action: "updateCustomer",
+      customer: {
+        ...updates,
+        // Include the customer ID if we have it
+        id: window.__VoiceroCustomerData?.id || null,
+      },
+    };
+
+    console.log("Sending customer update to proxy:", updateData);
+
+    // Send the update via the proxy
+    window.ShopifyProxyClient.post(updateData)
+      .then((response) => {
+        console.log("Customer update response:", response);
+
+        if (response.success) {
+          this.notify("Your profile has been updated successfully!");
+
+          // If we need to refresh data, do so here
+          if (
+            window.VoiceroUserData &&
+            typeof window.VoiceroUserData.fetchCustomerData === "function"
+          ) {
+            window.VoiceroUserData.fetchCustomerData();
+          }
+        } else {
+          const errorMessage =
+            response.error || "Unknown error updating profile";
+          this.notify("Update failed: " + errorMessage);
+        }
+      })
+      .catch((error) => {
+        console.error("Error updating customer via proxy:", error);
+        this.notify("Network error—please try again later.");
       });
+  },
 
-      if (response.ok && window.VoiceroText?.addMessage) {
-        window.VoiceroText.addMessage(
-          "Password reset instructions have been sent to your email.",
-        );
+  // Helper to handle GraphQL response
+  handleGraphQLResponse: function (data, errors) {
+    if (
+      errors?.length ||
+      (data?.customerUpdate?.customerUserErrors &&
+        data.customerUpdate.customerUserErrors.length > 0)
+    ) {
+      const msgs = [
+        ...(errors?.map((e) => e.message) || []),
+        ...(data?.customerUpdate?.customerUserErrors?.map((e) => e.message) ||
+          []),
+      ];
+      this.notify("Update failed: " + msgs.join("; "));
+    } else {
+      this.notify("Profile updated successfully!");
+
+      // If we need to refresh data, do so here
+      if (
+        window.VoiceroUserData &&
+        typeof window.VoiceroUserData.fetchCustomerData === "function"
+      ) {
+        window.VoiceroUserData.fetchCustomerData();
       }
-    } catch (error) {
-      // console.error("Account reset error:", error);
     }
+  },
+
+  // helper to grab the storefront token from the cookie
+  getCustomerAccessToken: function () {
+    // Method 1: Try the standard customerAccessToken cookie
+    const customerAccessTokenMatch = document.cookie.match(
+      /customerAccessToken=([^;]+)/,
+    );
+    if (customerAccessTokenMatch && customerAccessTokenMatch[1]) {
+      return customerAccessTokenMatch[1];
+    }
+
+    // Method 2: Look for Shopify's customer token cookie (various formats)
+    const shopifyTokenMatch = document.cookie.match(
+      /_shopify_customer_token=([^;]+)/,
+    );
+    if (shopifyTokenMatch && shopifyTokenMatch[1]) {
+      return shopifyTokenMatch[1];
+    }
+
+    // Method 3: Check the Shopify session cookie
+    const sessionMatch = document.cookie.match(
+      /_shopify_customer_session=([^;]+)/,
+    );
+    if (sessionMatch && sessionMatch[1]) {
+      return sessionMatch[1];
+    }
+
+    // Method 4: Check for token from customer object injected by Liquid
+    if (window.__VoiceroCustomerData && window.__VoiceroCustomerData.id) {
+      console.log(
+        "Using customer ID from VoiceroCustomerData as fallback token",
+      );
+      return window.__VoiceroCustomerData.id;
+    }
+
+    // Method 5: Check for a customer access token in the Shopify object
+    if (window.Shopify && window.Shopify.customer) {
+      if (window.Shopify.customer.customer_auth_token) {
+        return window.Shopify.customer.customer_auth_token;
+      }
+      if (window.Shopify.customer.token) {
+        return window.Shopify.customer.token;
+      }
+      if (window.Shopify.customer.id) {
+        console.log("Using Shopify customer ID as fallback token");
+        return window.Shopify.customer.id;
+      }
+    }
+
+    // Method 6: Check in localStorage (some themes store it there)
+    try {
+      const storedToken = localStorage.getItem("customerAccessToken");
+      if (storedToken) {
+        return storedToken;
+      }
+    } catch (e) {
+      console.warn("Error accessing localStorage for token", e);
+    }
+
+    // No token found
+    console.warn("No customer access token found with any method");
+    return null;
+  },
+
+  // simple wrapper to show a toast/message
+  notify: function (msg) {
+    if (window.VoiceroText?.addMessage) {
+      window.VoiceroText.addMessage(msg, "ai");
+    } else if (window.VoiceroVoice?.addMessage) {
+      window.VoiceroVoice.addMessage(msg, "ai");
+    } else {
+      alert(msg);
+    }
+
+    // Save message to session if available
+    this.saveMessageToSession(msg, "assistant");
   },
 
   handleStart_subscription: function (target) {
@@ -1207,7 +1375,7 @@ const VoiceroActionHandler = {
               : "⏳ " + (order.financial_status || "Processing");
 
         let message = `## Order Details for #${order.order_number}\n\n`;
-        message += `Order Date: ${date} - $${parseFloat(order.total_price).toFixed(2)} - ${order.line_items_count} ${order.line_items_count === 1 ? "item" : "items"}\n`;
+        message += `Order Date: ${date} - $${(parseFloat(order.total_price || 0) / 100).toFixed(2)} - ${order.line_items_count} ${order.line_items_count === 1 ? "item" : "items"}\n`;
         message += `Order Status\n\n`;
 
         // Add detailed tracking information if available
@@ -1249,7 +1417,7 @@ const VoiceroActionHandler = {
         return;
       } else {
         // No matching order found - provide feedback
-        const notFoundMessage = `I couldn't find order #${orderNumberToFind} in your order history. Please check the order number and try again, or view all your orders in your [account page](/account/orders).`;
+        const notFoundMessage = `I couldn't find order #${orderNumberToFind} in your order history. Please check the order number and try again, or view all your orders in your [account page](/account).`;
 
         // Display the not found message
         if (window.VoiceroText?.addMessage) {
@@ -1514,7 +1682,7 @@ const VoiceroActionHandler = {
               : "⏳ " + (order.financial_status || "Processing");
 
         message += `**Order #${order.order_number}** (${date})`;
-        message += ` • Total: $${parseFloat(order.total_price).toFixed(2)}`;
+        message += ` • Total: $${(parseFloat(order.total_price || 0) / 100).toFixed(2)}`;
         message += ` • Items: ${order.line_items_count}`;
 
         // Add tracking information if available
@@ -1522,10 +1690,6 @@ const VoiceroActionHandler = {
           message += ` • Tracking: ${order.tracking_company || "Carrier"}`;
           if (order.tracking_url) {
             message += ` - [Track Package](${order.tracking_url})\n`;
-          } else if (order.tracking_number) {
-            message += ` - ${order.tracking_number}\n`;
-          } else {
-            message += `\n`;
           }
         }
 
