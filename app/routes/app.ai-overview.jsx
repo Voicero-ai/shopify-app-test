@@ -82,7 +82,7 @@ export const loader = async ({ request }) => {
     let aiHistoryData = null;
     try {
       const historyResponse = await fetch(
-        `${urls.voiceroApi}/api/shopify/aiHistory`,
+        `http://localhost:3000/api/shopify/aiHistory`,
         {
           method: "POST",
           headers: {
