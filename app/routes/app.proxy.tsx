@@ -302,13 +302,8 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-              mutation updateAddress($addressId: ID!, $address: MailingAddressInput!) {
-                customerAddressUpdate(
-                  customerAddressUpdateInput: {
-                    id: $addressId,
-                    address: $address
-                  }
-                ) {
+              mutation updateAddress($input: CustomerAddressUpdateInput!) {
+                customerAddressUpdate(input: $input) {
                   customerAddress {
                     id
                     formatted
@@ -323,8 +318,10 @@ export const action: ActionFunction = async ({ request }) => {
 
             const updateResponse = await admin.graphql(updateAddressMutation, {
               variables: {
-                addressId: defaultAddressId,
-                address: addressInput,
+                input: {
+                  id: defaultAddressId, // Already has the gid:// prefix from the query
+                  address: addressInput,
+                },
               },
             });
 
@@ -359,13 +356,8 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Creating new address for customer");
 
             const createAddressMutation = `
-              mutation createAddress($customerId: ID!, $address: MailingAddressInput!) {
-                customerAddressCreate(
-                  customerAddressCreateInput: {
-                    customerId: $customerId,
-                    address: $address
-                  }
-                ) {
+              mutation createAddress($input: CustomerAddressCreateInput!) {
+                customerAddressCreate(input: $input) {
                   customerAddress {
                     id
                     formatted
@@ -380,8 +372,10 @@ export const action: ActionFunction = async ({ request }) => {
 
             const createResponse = await admin.graphql(createAddressMutation, {
               variables: {
-                customerId: `gid://shopify/Customer/${customerId}`,
-                address: addressInput,
+                input: {
+                  customerId: `gid://shopify/Customer/${customerId}`,
+                  address: addressInput,
+                },
               },
             });
 
@@ -418,11 +412,8 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Setting new address as default:", newAddressId);
 
             const setDefaultMutation = `
-              mutation setDefault($customerId: ID!, $addressId: ID!) {
-                customerUpdateDefaultAddress(
-                  customerId: $customerId,
-                  addressId: $addressId
-                ) {
+              mutation setDefault($input: CustomerUpdateDefaultAddressInput!) {
+                customerUpdateDefaultAddress(input: $input) {
                   customer {
                     id
                   }
@@ -436,8 +427,10 @@ export const action: ActionFunction = async ({ request }) => {
 
             const defaultResponse = await admin.graphql(setDefaultMutation, {
               variables: {
-                customerId: `gid://shopify/Customer/${customerId}`,
-                addressId: newAddressId,
+                input: {
+                  customerId: `gid://shopify/Customer/${customerId}`,
+                  addressId: newAddressId, // Already has the gid:// prefix from the response
+                },
               },
             });
 
@@ -492,6 +485,20 @@ export const action: ActionFunction = async ({ request }) => {
                   countryCode
                   phone
                   formatted
+                }
+                addresses(first: 10) {
+                  edges {
+                    node {
+                      id
+                      address1
+                      city
+                      province
+                      zip
+                      country
+                      formatted
+                      default
+                    }
+                  }
                 }
               }
             }
@@ -595,8 +602,8 @@ export const action: ActionFunction = async ({ request }) => {
             success: false,
             error:
               error instanceof Error
-                ? error.message
-                : "Unknown error updating customer",
+                ? `Unable to update your account at this time. Please wait a moment and try again later. Technical details: ${error.message}`
+                : "We're unable to update your account right now. Please wait a few minutes and try again later.",
           },
           addCorsHeaders({ status: 500 }),
         );
