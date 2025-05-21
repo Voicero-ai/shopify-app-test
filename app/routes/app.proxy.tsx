@@ -721,53 +721,83 @@ export const action: ActionFunction = async ({ request }) => {
         }
 
         // Process the requested action
-        if (data.action === "cancel" && order.cancelable) {
-          const cancelQuery = `
-            mutation cancelOrder($id: ID!) {
-              orderCancel(
-                input: {
-                  id: $id
-                  notifyCustomer: true
-                }
-              ) {
-                order {
-                  id
-                  displayFulfillmentStatus
-                }
-                userErrors {
-                  field
-                  message
+        if (data.action === "cancel") {
+          if (order.cancelable) {
+            const cancelQuery = `
+              mutation cancelOrder($id: ID!) {
+                orderCancel(
+                  input: {
+                    id: $id
+                    notifyCustomer: true
+                  }
+                ) {
+                  order {
+                    id
+                    displayFulfillmentStatus
+                  }
+                  userErrors {
+                    field
+                    message
+                  }
                 }
               }
+            `;
+
+            const cancelResponse = await admin.graphql(cancelQuery, {
+              variables: {
+                id: order.id,
+              },
+            });
+
+            const cancelData = await cancelResponse.json();
+            console.log("Cancel result:", cancelData);
+
+            if (cancelData.data.orderCancel.userErrors.length > 0) {
+              return json(
+                {
+                  success: false,
+                  error: cancelData.data.orderCancel.userErrors[0].message,
+                },
+                addCorsHeaders(),
+              );
             }
-          `;
 
-          const cancelResponse = await admin.graphql(cancelQuery, {
-            variables: {
-              id: order.id,
-            },
-          });
-
-          const cancelData = await cancelResponse.json();
-          console.log("Cancel result:", cancelData);
-
-          if (cancelData.data.orderCancel.userErrors.length > 0) {
             return json(
               {
-                success: false,
-                error: cancelData.data.orderCancel.userErrors[0].message,
+                success: true,
+                message: `Order ${order.name} has been cancelled successfully`,
               },
               addCorsHeaders(),
             );
+          } else {
+            // Check if order is fulfilled
+            if (order.displayFulfillmentStatus === "FULFILLED") {
+              return json(
+                {
+                  success: false,
+                  error:
+                    "This order has already been fulfilled and cannot be cancelled. Once you receive your order, you can initiate a return.",
+                  suggest_return: true,
+                  order_details: {
+                    order_number: order.name,
+                    status: order.displayFulfillmentStatus,
+                  },
+                },
+                addCorsHeaders(),
+              );
+            } else {
+              // Not cancelable for other reasons
+              return json(
+                {
+                  success: false,
+                  error:
+                    "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
+                  suggest_contact: true,
+                },
+                addCorsHeaders(),
+              );
+            }
           }
-
-          return json(
-            {
-              success: true,
-              message: `Order ${order.name} has been cancelled successfully`,
-            },
-            addCorsHeaders(),
-          );
         }
 
         if (data.action === "refund" && order.refundable) {

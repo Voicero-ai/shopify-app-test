@@ -32,6 +32,11 @@ const VoiceroReturnHandler = {
       console.log("VoiceroReturnHandler initialized with config:", this.config);
     }
 
+    // Check for pending returns on init
+    setTimeout(() => {
+      this.suggestPendingReturn();
+    }, 3000); // Wait 3 seconds to avoid interrupting initial page load
+
     return this;
   },
 
@@ -167,9 +172,40 @@ const VoiceroReturnHandler = {
           `✅ Your order #${order_id || order_number} has been cancelled successfully! You should receive a confirmation email shortly.`,
         );
       } else {
-        this.notifyUser(
-          `❌ I couldn't cancel your order automatically: ${response.error || "Unknown error"}. Please contact customer support for assistance.`,
-        );
+        if (response.suggest_return) {
+          // Order is fulfilled, suggest return instead
+          const message = `${response.error || "This order has already been fulfilled and cannot be cancelled."} 
+          
+Would you like me to help you initiate a return request once you receive your order?`;
+
+          this.notifyUser(message);
+
+          // Save order details for later if available
+          if (response.order_details) {
+            try {
+              localStorage.setItem(
+                "pendingReturnOrder",
+                JSON.stringify({
+                  order_number: response.order_details.order_number,
+                  email: email,
+                  timestamp: new Date().toISOString(),
+                }),
+              );
+            } catch (e) {
+              console.error("Could not save pending return order details", e);
+            }
+          }
+        } else if (response.suggest_contact) {
+          // Not cancelable for other reasons
+          this.notifyUser(
+            `${response.error || "Unable to cancel this order."} Please contact customer support directly for assistance with this order.`,
+          );
+        } else {
+          // Generic error
+          this.notifyUser(
+            `❌ I couldn't cancel your order automatically: ${response.error || "Unknown error"}. Please contact customer support for assistance.`,
+          );
+        }
       }
     } catch (error) {
       console.error("Order cancellation error:", error);
@@ -611,6 +647,50 @@ const VoiceroReturnHandler = {
 
     return fullUrl;
   },
+
+  /**
+   * Check for any pending returns that were saved from cancelled orders
+   * @returns {Object|null} - Pending return order details if found
+   */
+  checkPendingReturns: function () {
+    try {
+      const pendingReturnJson = localStorage.getItem("pendingReturnOrder");
+      if (!pendingReturnJson) return null;
+
+      const pendingReturn = JSON.parse(pendingReturnJson);
+
+      // Check if the pending return is still relevant (within 30 days)
+      const savedDate = new Date(pendingReturn.timestamp);
+      const now = new Date();
+      const daysDiff = Math.floor((now - savedDate) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff > 30) {
+        // Too old, clear it
+        localStorage.removeItem("pendingReturnOrder");
+        return null;
+      }
+
+      return pendingReturn;
+    } catch (e) {
+      console.error("Error checking pending returns", e);
+      return null;
+    }
+  },
+
+  /**
+   * Suggest a return for a pending order that was previously unfulfilled
+   */
+  suggestPendingReturn: function () {
+    const pendingReturn = this.checkPendingReturns();
+    if (!pendingReturn) return false;
+
+    const message = `I noticed you previously tried to cancel order #${pendingReturn.order_number}. 
+    
+If you've received this order now and would like to return it, I can help you initiate the return process. Would you like to proceed with a return request?`;
+
+    this.notifyUser(message);
+    return true;
+  },
 };
 
 // Export as global
@@ -620,6 +700,35 @@ window.VoiceroReturnHandler = VoiceroReturnHandler;
 document.addEventListener("DOMContentLoaded", function () {
   if (window.VoiceroReturnHandler) {
     window.VoiceroReturnHandler.init();
+
+    // Listen for messages that might be responses to our return suggestions
+    if (window.VoiceroText) {
+      window.VoiceroText.addEventListener("message", function (event) {
+        if (event.detail && event.detail.role === "user") {
+          const message = event.detail.content.toLowerCase();
+          const pendingReturn =
+            window.VoiceroReturnHandler.checkPendingReturns();
+
+          // Check if this might be a response to our return suggestion
+          if (
+            pendingReturn &&
+            (message.includes("yes") ||
+              message.includes("return") ||
+              message.includes("proceed"))
+          ) {
+            // Clear the pending return first
+            localStorage.removeItem("pendingReturnOrder");
+
+            // Start the return process with the saved details
+            window.VoiceroReturnHandler.handleReturn({
+              order_id: pendingReturn.order_number,
+              email: pendingReturn.email,
+              reason: "Failed cancellation - item already fulfilled",
+            });
+          }
+        }
+      });
+    }
   }
 });
 
