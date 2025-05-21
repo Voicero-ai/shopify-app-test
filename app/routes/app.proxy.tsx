@@ -200,12 +200,23 @@ export const action: ActionFunction = async ({ request }) => {
   try {
     // Authenticate the app proxy request
     const { session, admin } = await authenticate.public.appProxy(request);
-        console.log("Granted scopes:", session.scope);
-        // or if using the new session object shape:
-        console.log("Granted scopes:", session.accessTokenScopes);
-        console.log("Session available:", !!session);
 
-        const introspect = `
+    // Always log the full array:
+    console.log("Granted scopes:", session.accessTokenScopes);
+
+    // Or, if you really want it as a single string:
+    console.log(
+      "Granted scopes (joined):",
+      session.accessTokenScopes.join(","),
+    );
+
+    // JSON.stringify will give you the full array
+    console.log("All scopes JSON:", JSON.stringify(session.accessTokenScopes));
+
+    // Or use console.dir with no maxArrayLength limit
+    console.dir(session.accessTokenScopes, { maxArrayLength: null });
+
+    const introspect = `
   {
     __schema {
       mutationType {
@@ -214,11 +225,11 @@ export const action: ActionFunction = async ({ request }) => {
     }
   }
 `;
-        const schemaRes = await admin.graphql(introspect);
-        console.log(
-          "Mutations available:",
-          JSON.stringify(await schemaRes.json(), null, 2),
-        );
+    const schemaRes = await admin.graphql(introspect);
+    console.log(
+      "Mutations available:",
+      JSON.stringify(await schemaRes.json(), null, 2),
+    );
     if (!session || !admin) {
       console.log("⚠️ No session or admin API client available in action");
       return json(
