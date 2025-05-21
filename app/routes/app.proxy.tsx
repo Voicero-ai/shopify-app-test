@@ -201,20 +201,8 @@ export const action: ActionFunction = async ({ request }) => {
     // Authenticate the app proxy request
     const { session, admin } = await authenticate.public.appProxy(request);
 
-    // Always log the full array:
-    console.log("Granted scopes:", session.accessTokenScopes);
+    console.log("Full session object:", session);
 
-    // Or, if you really want it as a single string:
-    console.log(
-      "Granted scopes (joined):",
-      session.accessTokenScopes.join(","),
-    );
-
-    // JSON.stringify will give you the full array
-    console.log("All scopes JSON:", JSON.stringify(session.accessTokenScopes));
-
-    // Or use console.dir with no maxArrayLength limit
-    console.dir(session.accessTokenScopes, { maxArrayLength: null });
 
     const introspect = `
   {
