@@ -734,7 +734,7 @@ export const action: ActionFunction = async ({ request }) => {
           refund:         true
           restock:        true
         ) {
-          job { id status }
+          job { id done }
           orderCancelUserErrors { field message }
         }
       }
