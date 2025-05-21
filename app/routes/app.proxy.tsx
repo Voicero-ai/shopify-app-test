@@ -31,7 +31,26 @@ export const loader: LoaderFunction = async ({ request }) => {
     // Authenticate the app proxy request
     // This gives us access to session, admin, and storefront APIs for the shop
     const { session, admin } = await authenticate.public.appProxy(request);
+    console.log("Granted scopes:", session.scope);
+    // or if using the new session object shape:
+    console.log("Granted scopes:", session.accessTokenScopes);
     console.log("Session available:", !!session);
+
+    const introspect = `
+  {
+    __schema {
+      mutationType {
+        fields { name }
+      }
+    }
+  }
+`;
+    const schemaRes = await admin.graphql(introspect);
+    console.log(
+      "Mutations available:",
+      JSON.stringify(await schemaRes.json(), null, 2),
+    );
+
 
     if (!session || !admin) {
       console.log("⚠️ No session or admin API client available");
