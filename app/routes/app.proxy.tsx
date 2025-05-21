@@ -617,8 +617,9 @@ export const action: ActionFunction = async ({ request }) => {
                   processedAt
                   displayFulfillmentStatus
                   displayFinancialStatus
+                  fulfillmentStatus
+                  cancelledAt
                   refundable
-                  cancelable
                   customer {
                     email
                   }
@@ -701,7 +702,10 @@ export const action: ActionFunction = async ({ request }) => {
             status: order.displayFulfillmentStatus,
             financial_status: order.displayFinancialStatus,
             refundable: order.refundable,
-            cancelable: order.cancelable,
+            fulfillmentStatus: order.fulfillmentStatus,
+            cancelledAt: order.cancelledAt,
+            canCancel:
+              order.fulfillmentStatus === "UNFULFILLED" && !order.cancelledAt,
             line_items: order.lineItems.edges.map((edge: { node: any }) => ({
               id: edge.node.id,
               title: edge.node.name,
@@ -722,13 +726,19 @@ export const action: ActionFunction = async ({ request }) => {
 
         // Process the requested action
         if (data.action === "cancel") {
-          if (order.cancelable) {
+          // Check if the order can be canceled - unfulfilled and not already canceled
+          const canCancel =
+            order.fulfillmentStatus === "UNFULFILLED" && !order.cancelledAt;
+
+          if (canCancel) {
             const cancelQuery = `
               mutation cancelOrder($id: ID!) {
                 orderCancel(
                   input: {
                     id: $id
                     notifyCustomer: true
+                    refund: true
+                    restock: true
                   }
                 ) {
                   order {

@@ -312,6 +312,14 @@
                 if (window.VoiceroActionHandler && window.VoiceroActionHandler.init) {
                   window.VoiceroActionHandler.init();
                 }
+                
+                // Load return handler script
+                loadScript("{{ 'voicero-return.js' | asset_url }}", function() {
+                  // Initialize return handler
+                  if (window.VoiceroReturnHandler && window.VoiceroReturnHandler.init) {
+                    window.VoiceroReturnHandler.init();
+                  }
+                });
               });
             });
           });
@@ -397,6 +405,14 @@
                 if (window.VoiceroActionHandler && window.VoiceroActionHandler.init) {
                   window.VoiceroActionHandler.init();
                 }
+                
+                // Load return handler script
+                loadScript("{{ 'voicero-return.js' | asset_url }}", function() {
+                  // Initialize return handler
+                  if (window.VoiceroReturnHandler && window.VoiceroReturnHandler.init) {
+                    window.VoiceroReturnHandler.init();
+                  }
+                });
               });
             });
           });

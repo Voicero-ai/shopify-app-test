@@ -47,7 +47,14 @@ const VoiceroReturnHandler = {
    */
   handleRefund: async function (context) {
     console.log("Processing refund request:", context);
-    const { order_id, order_number, email } = context || {};
+
+    // Handle different parameter formats (support both email and order_email)
+    const context_normalized = { ...context };
+    if (!context_normalized.email && context_normalized.order_email) {
+      context_normalized.email = context_normalized.order_email;
+    }
+
+    const { order_id, order_number, email } = context_normalized || {};
 
     // Check if we have the required information
     if (!order_id && !order_number) {
@@ -118,7 +125,14 @@ const VoiceroReturnHandler = {
    */
   handleCancelOrder: async function (context) {
     console.log("Processing order cancellation request:", context);
-    const { order_id, order_number, email } = context || {};
+
+    // Handle different parameter formats (support both email and order_email)
+    const context_normalized = { ...context };
+    if (!context_normalized.email && context_normalized.order_email) {
+      context_normalized.email = context_normalized.order_email;
+    }
+
+    const { order_id, order_number, email } = context_normalized || {};
 
     // Check if we have the required information
     if (!order_id && !order_number) {
@@ -222,7 +236,14 @@ Would you like me to help you initiate a return request once you receive your or
    */
   handleReturn: async function (context) {
     console.log("Processing return request:", context);
-    const { order_id, order_number, email, items } = context || {};
+
+    // Handle different parameter formats (support both email and order_email)
+    const context_normalized = { ...context };
+    if (!context_normalized.email && context_normalized.order_email) {
+      context_normalized.email = context_normalized.order_email;
+    }
+
+    const { order_id, order_number, email, items } = context_normalized || {};
 
     // Check if we have the required information
     if (!order_id && !order_number) {
@@ -308,7 +329,14 @@ Would you like me to help you initiate a return request once you receive your or
    */
   handleExchange: async function (context) {
     console.log("Processing exchange request:", context);
-    const { order_id, order_number, email, items } = context || {};
+
+    // Handle different parameter formats (support both email and order_email)
+    const context_normalized = { ...context };
+    if (!context_normalized.email && context_normalized.order_email) {
+      context_normalized.email = context_normalized.order_email;
+    }
+
+    const { order_id, order_number, email, items } = context_normalized || {};
 
     // Check if we have the required information
     if (!order_id && !order_number) {
@@ -731,6 +759,3 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 });
-
-// Export module
-export default VoiceroReturnHandler;

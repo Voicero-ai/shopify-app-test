@@ -31,15 +31,15 @@ scopes = "read_content,read_products,read_discounts,write_content,read_metaobjec
 
 [auth]
 redirect_urls = [
-  "https://shopify-app-is117a-nj.vercel.app//auth/callback",
-  "https://shopify-app-is117a-nj.vercel.app//auth/shopify/callback",
-  "https://shopify-app-is117a-nj.vercel.app//api/auth/callback"
+  "https://shopify-app-is117a-nj.vercel.app/auth/callback",
+  "https://shopify-app-is117a-nj.vercel.app/auth/shopify/callback",
+  "https://shopify-app-is117a-nj.vercel.app/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://shopify-app-is117a-nj.vercel.app//app/proxy"
+url = "https://shopify-app-is117a-nj.vercel.app/app/proxy"
 subpath = "proxy"
 prefix = "apps"

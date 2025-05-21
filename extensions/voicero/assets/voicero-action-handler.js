@@ -138,6 +138,7 @@ const VoiceroActionHandler = {
       console.log(
         "VoiceroActionHandler: Return action detected, delegating to VoiceroReturnHandler",
       );
+      console.log("Return action_context:", action_context);
       if (
         window.VoiceroReturnHandler &&
         typeof window.VoiceroReturnHandler.handleReturn === "function"
@@ -152,6 +153,7 @@ const VoiceroActionHandler = {
       console.log(
         "VoiceroActionHandler: Refund action detected, delegating to VoiceroReturnHandler",
       );
+      console.log("Refund action_context:", action_context);
       if (
         window.VoiceroReturnHandler &&
         typeof window.VoiceroReturnHandler.handleRefund === "function"
@@ -166,6 +168,7 @@ const VoiceroActionHandler = {
       console.log(
         "VoiceroActionHandler: Exchange action detected, delegating to VoiceroReturnHandler",
       );
+      console.log("Exchange action_context:", action_context);
       if (
         window.VoiceroReturnHandler &&
         typeof window.VoiceroReturnHandler.handleExchange === "function"
@@ -180,6 +183,7 @@ const VoiceroActionHandler = {
       console.log(
         "VoiceroActionHandler: Cancel order action detected, delegating to VoiceroReturnHandler",
       );
+      console.log("Cancel action_context:", action_context);
       if (
         window.VoiceroReturnHandler &&
         typeof window.VoiceroReturnHandler.handleCancelOrder === "function"
