@@ -615,10 +615,9 @@ export const action: ActionFunction = async ({ request }) => {
                   id
                   name
                   processedAt
+                  cancelledAt
                   displayFulfillmentStatus
                   displayFinancialStatus
-                  fulfillmentStatus
-                  cancelledAt
                   refundable
                   customer {
                     email
@@ -630,12 +629,6 @@ export const action: ActionFunction = async ({ request }) => {
                         name
                         quantity
                         refundableQuantity
-                        variant {
-                          id
-                          title
-                          price
-                        }
-                        currentQuantity
                       }
                     }
                   }
@@ -726,40 +719,32 @@ export const action: ActionFunction = async ({ request }) => {
 
         // Process the requested action
         if (data.action === "cancel") {
-          // Check if the order can be canceled - unfulfilled and not already canceled
+          // Check if the order can be canceled: unfulfilled and not already canceled
           const canCancel =
-            order.fulfillmentStatus === "UNFULFILLED" && !order.cancelledAt;
+            order.displayFulfillmentStatus === "UNFULFILLED" &&
+            !order.cancelledAt;
 
           if (canCancel) {
             const cancelQuery = `
-              mutation cancelOrder($id: ID!) {
-                orderCancel(
-                  input: {
-                    id: $id
-                    notifyCustomer: true
-                    refund: true
-                    restock: true
-                  }
-                ) {
-                  order {
-                    id
-                    displayFulfillmentStatus
-                  }
-                  userErrors {
-                    field
-                    message
-                  }
-                }
-              }
-            `;
+      mutation cancelOrder($orderId: ID!) {
+        orderCancel(
+          notifyCustomer: true
+          orderId:        $orderId
+          reason:         CUSTOMER
+          refund:         true
+          restock:        true
+        ) {
+          job { id status }
+          orderCancelUserErrors { field message }
+        }
+      }
+    `;
 
-            const cancelResponse = await admin.graphql(cancelQuery, {
-              variables: {
-                id: order.id,
-              },
+            const cancelResp = await admin.graphql(cancelQuery, {
+              variables: { orderId: order.id },
             });
 
-            const cancelData = await cancelResponse.json();
+            const cancelData = await cancelResp.json();
             console.log("Cancel result:", cancelData);
 
             if (cancelData.data.orderCancel.userErrors.length > 0) {
