@@ -1,4 +1,5 @@
 import { json } from "@remix-run/node";
+import urls from "../config/urls";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function action({ request }) {
 
   try {
     // Forward the request to the external Next.js API
-    const response = await fetch(`http://localhost:3000/api/aiHistory`, {
+    const response = await fetch(`${urls.voiceroApi}/api/aiHistory`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -110,7 +111,7 @@ export async function loader({ request }) {
   try {
     // Forward the request to the external Next.js API
     const response = await fetch(
-      `http://localhost:3000/api/aiHistory?websiteId=${websiteId}`,
+      `${urls.voiceroApi}/api/aiHistory?websiteId=${websiteId}`,
       {
         method: "GET",
         headers: {

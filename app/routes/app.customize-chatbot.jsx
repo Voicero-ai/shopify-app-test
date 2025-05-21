@@ -557,11 +557,9 @@ export default function CustomizeChatbotPage() {
       console.log("Saving chatbot settings:", updateData);
 
       // Make API call to save settings
-      const response = await fetch(
-        "http://localhost:3000/api/saveBotSettings",
-        {
-          method: "POST",
-          headers: {
+      const response = await fetch(`${urls.voiceroApi}/api/saveBotSettings`, {
+        method: "POST",
+        headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
             Authorization: `Bearer ${accessKey}`,

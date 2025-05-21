@@ -85,14 +85,31 @@ export const loader = async ({ request }) => {
     // Extract analysis from response if available - check all possible locations
     console.log("Checking for analysis in data response:", Object.keys(data));
 
-    // Get the analysis from the appropriate location in the response
-    // The server logs show a large markdown-formatted analysis string
-    let analysis = data.analysis || null;
+    // Improved analysis extraction - check multiple possible locations
+    let analysis = null;
+
+    if (data.analysis) {
+      // Direct analysis property
+      analysis = data.analysis;
+      console.log("Found analysis in direct 'analysis' property");
+    } else if (data.website.analysis) {
+      // Analysis nested in website object
+      analysis = data.website.analysis;
+      console.log("Found analysis in 'website.analysis' property");
+    } else if (data.aiAnalysis) {
+      // Alternative property name
+      analysis = data.aiAnalysis;
+      console.log("Found analysis in 'aiAnalysis' property");
+    } else if (data.insights) {
+      // Another alternative property name
+      analysis = data.insights;
+      console.log("Found analysis in 'insights' property");
+    }
 
     // If analysis is still null, try looking for it in another location or use a default
     if (!analysis) {
       console.log(
-        "Analysis not found in expected location. Looking elsewhere...",
+        "Analysis not found in expected locations. Looking elsewhere...",
       );
       // The raw data might be directly in the response
       if (typeof data === "object" && Object.keys(data).length > 0) {
@@ -114,6 +131,7 @@ export const loader = async ({ request }) => {
     console.log(
       "Final analysis value to use:",
       analysis ? "Found" : "Not found",
+      typeof analysis === "string" ? `(${analysis.substring(0, 50)}...)` : "",
     );
 
     // Return the connect API data immediately without waiting for AI history
@@ -206,8 +224,19 @@ export default function AIOverviewPage() {
           // Check the shape of the historyData response
           console.log("History data has keys:", Object.keys(historyData));
 
-          // Extract analysis from the aiHistory response if available
-          const analysisFromHistory = historyData.analysis;
+          // Improved extraction of analysis from AI history response
+          let analysisFromHistory = null;
+
+          if (historyData.analysis) {
+            analysisFromHistory = historyData.analysis;
+            console.log("Found analysis in history 'analysis' property");
+          } else if (historyData.insights) {
+            analysisFromHistory = historyData.insights;
+            console.log("Found analysis in history 'insights' property");
+          } else if (historyData.summary) {
+            analysisFromHistory = historyData.summary;
+            console.log("Found analysis in history 'summary' property");
+          }
 
           // Check if we have data in the expected format
           const formattedHistoryData = Array.isArray(historyData)
@@ -216,8 +245,8 @@ export default function AIOverviewPage() {
 
           setAiHistoryData(formattedHistoryData);
 
-          // If we found analysis in the history response, use that
-          if (analysisFromHistory) {
+          // If we found analysis in the history response and we don't already have analysis, use that
+          if (analysisFromHistory && !updatedAnalysis) {
             // Make sure it's a string before assigning
             if (typeof analysisFromHistory === "string") {
               setUpdatedAnalysis(analysisFromHistory);
@@ -228,7 +257,8 @@ export default function AIOverviewPage() {
               );
             } else if (typeof analysisFromHistory === "object") {
               // If it's an object, stringify it
-              setUpdatedAnalysis(JSON.stringify(analysisFromHistory));
+              const analysisText = JSON.stringify(analysisFromHistory, null, 2);
+              setUpdatedAnalysis(analysisText);
               console.log("Analysis was an object, stringified it");
             }
           }
@@ -248,7 +278,7 @@ export default function AIOverviewPage() {
     }
 
     fetchAiHistory();
-  }, [websiteData, accessKey]);
+  }, [websiteData, accessKey, updatedAnalysis]);
 
   // Helper function to format markdown text with bold, italics, etc.
   const formatMarkdownText = (text) => {
