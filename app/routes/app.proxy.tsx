@@ -747,11 +747,16 @@ export const action: ActionFunction = async ({ request }) => {
             const cancelData = await cancelResp.json();
             console.log("Cancel result:", cancelData);
 
-            if (cancelData.data.orderCancel.userErrors.length > 0) {
+            if (
+              cancelData.data.orderCancel.orderCancelUserErrors &&
+              cancelData.data.orderCancel.orderCancelUserErrors.length > 0
+            ) {
               return json(
                 {
                   success: false,
-                  error: cancelData.data.orderCancel.userErrors[0].message,
+                  error:
+                    cancelData.data.orderCancel.orderCancelUserErrors[0]
+                      .message,
                 },
                 addCorsHeaders(),
               );
@@ -793,65 +798,6 @@ export const action: ActionFunction = async ({ request }) => {
               );
             }
           }
-        }
-
-        if (data.action === "refund" && order.refundable) {
-          // For a full refund, we need to get all line items
-          const refundLineItems = order.lineItems.edges.map(
-            (edge: { node: any }) => ({
-              lineItemId: edge.node.id,
-              quantity: edge.node.refundableQuantity,
-            }),
-          );
-
-          const refundQuery = `
-            mutation refundOrder($orderId: ID!, $refundLineItems: [RefundLineItemInput!]!) {
-              refundCreate(
-                input: {
-                  orderId: $orderId
-                  refundLineItems: $refundLineItems
-                  notify: true
-                }
-              ) {
-                refund {
-                  id
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `;
-
-          const refundResponse = await admin.graphql(refundQuery, {
-            variables: {
-              orderId: order.id,
-              refundLineItems: refundLineItems,
-            },
-          });
-
-          const refundData = await refundResponse.json();
-          console.log("Refund result:", refundData);
-
-          if (refundData.data.refundCreate.userErrors.length > 0) {
-            return json(
-              {
-                success: false,
-                error: refundData.data.refundCreate.userErrors[0].message,
-              },
-              addCorsHeaders(),
-            );
-          }
-
-          return json(
-            {
-              success: true,
-              message: `Order ${order.name} has been refunded successfully`,
-              refundId: refundData.data.refundCreate.refund.id,
-            },
-            addCorsHeaders(),
-          );
         }
 
         // For return and exchange, we would typically create a new return in the system
