@@ -304,35 +304,39 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-              mutation customerAddressUpdate($customerId: ID!, $addressId: ID!, $address: MailingAddressInput!, $setAsDefault: Boolean) {
-                customerAddressUpdate(input: {
-                  customerId: $customerId,
-                  addressId: $addressId,
-                  setAsDefault: $setAsDefault,
-                  address: $address
-                }) {
-                  customer {
-                    id
-                    defaultAddress {
-                      id
-                      address1
-                      address2
-                      city
-                      province
-                      provinceCode
-                      country
-                      countryCode
-                      zip
-                      phone
-                      formatted
+                mutation customerAddressUpdate(
+                    $customerId:  ID!, 
+                    $addressId:   ID!, 
+                    $address:     MailingAddressInput!, 
+                    $setAsDefault: Boolean
+                        ) {
+                    customerAddressUpdate(
+                        customerId:   $customerId,
+                        addressId:    $addressId,
+                        address:      $address,
+                        setAsDefault: $setAsDefault
+                    ) {
+                        customer {
+                        id
+                        defaultAddress {
+                            id
+                            address1
+                            address2
+                            city
+                            province
+                            provinceCode
+                            country
+                            countryCode
+                            zip
+                            phone
+                            formatted
+                        }
+                        }
+                        userErrors {
+                        field
+                        message
+                        }
                     }
-                  }
-                  userErrors {
-                    field
-                    message
-                  }
-                }
-              }
             `;
 
             const updateResponse = await admin.graphql(updateAddressMutation, {
