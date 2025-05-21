@@ -664,6 +664,16 @@ export const action: ActionFunction = async ({ request }) => {
 
         const order = orderData.data.orders.edges[0].node;
 
+        // Add detailed logging about the order state
+        console.log("Order details:", {
+          id: order.id,
+          name: order.name,
+          status: order.displayFulfillmentStatus,
+          cancelledAt: order.cancelledAt,
+          financial_status: order.displayFinancialStatus,
+          refundable: order.refundable,
+        });
+
         // Verify the email matches
         if (
           order.customer &&
@@ -723,6 +733,13 @@ export const action: ActionFunction = async ({ request }) => {
           const canCancel =
             order.displayFulfillmentStatus === "UNFULFILLED" &&
             !order.cancelledAt;
+
+          console.log("Can cancel order?", {
+            canCancel,
+            status: order.displayFulfillmentStatus,
+            cancelledAt: order.cancelledAt,
+            financial_status: order.displayFinancialStatus,
+          });
 
           if (canCancel) {
             const cancelQuery = `
@@ -786,16 +803,70 @@ export const action: ActionFunction = async ({ request }) => {
                 addCorsHeaders(),
               );
             } else {
-              // Not cancelable for other reasons
-              return json(
-                {
-                  success: false,
-                  error:
-                    "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
-                  suggest_contact: true,
-                },
-                addCorsHeaders(),
+              // Let's try to cancel anyway as a fallback
+              console.log(
+                "Order doesn't appear cancellable, but attempting cancellation anyway as a fallback",
               );
+
+              const cancelQuery = `
+        mutation cancelOrder($orderId: ID!) {
+          orderCancel(
+            notifyCustomer: true
+            orderId:        $orderId
+            reason:         CUSTOMER
+            refund:         true
+            restock:        true
+          ) {
+            job { id done }
+            orderCancelUserErrors { field message }
+          }
+        }
+      `;
+
+              try {
+                const cancelResp = await admin.graphql(cancelQuery, {
+                  variables: { orderId: order.id },
+                });
+
+                const cancelData = await cancelResp.json();
+                console.log("Fallback cancel result:", cancelData);
+
+                if (
+                  cancelData.data.orderCancel.orderCancelUserErrors &&
+                  cancelData.data.orderCancel.orderCancelUserErrors.length > 0
+                ) {
+                  // Real cancellation error
+                  return json(
+                    {
+                      success: false,
+                      error:
+                        "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
+                      suggest_contact: true,
+                    },
+                    addCorsHeaders(),
+                  );
+                }
+
+                // If we get here, the cancellation actually succeeded despite our checks
+                return json(
+                  {
+                    success: true,
+                    message: `Order ${order.name} has been cancelled successfully`,
+                  },
+                  addCorsHeaders(),
+                );
+              } catch (cancelError) {
+                console.error("Error in fallback cancellation:", cancelError);
+                return json(
+                  {
+                    success: false,
+                    error:
+                      "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
+                    suggest_contact: true,
+                  },
+                  addCorsHeaders(),
+                );
+              }
             }
           }
         }
