@@ -44,6 +44,7 @@ export default function App() {
           <Link to="/app/website">Website</Link>
           <Link to="/app/settings">Settings</Link>
           <Link to="/app/ai-overview">AI Overview</Link>
+          <Link to="/app/customize-chatbot">Customize Chatbot</Link>
         </NavMenu>
         <Outlet />
       </PolarisAppProvider>

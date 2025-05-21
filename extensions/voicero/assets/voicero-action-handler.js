@@ -129,6 +129,67 @@ const VoiceroActionHandler = {
       return;
     }
 
+    // Special handling for return, refund, exchange, or cancel order actions
+    if (
+      action === "return" ||
+      action === "return_order" ||
+      action === "process_return"
+    ) {
+      console.log(
+        "VoiceroActionHandler: Return action detected, delegating to VoiceroReturnHandler",
+      );
+      if (
+        window.VoiceroReturnHandler &&
+        typeof window.VoiceroReturnHandler.handleReturn === "function"
+      ) {
+        window.VoiceroReturnHandler.handleReturn(action_context || {});
+        return;
+      }
+      // Fall through to default handling if VoiceroReturnHandler is not available
+    }
+
+    if (action === "refund" || action === "process_refund") {
+      console.log(
+        "VoiceroActionHandler: Refund action detected, delegating to VoiceroReturnHandler",
+      );
+      if (
+        window.VoiceroReturnHandler &&
+        typeof window.VoiceroReturnHandler.handleRefund === "function"
+      ) {
+        window.VoiceroReturnHandler.handleRefund(action_context || {});
+        return;
+      }
+      // Fall through to default handling if VoiceroReturnHandler is not available
+    }
+
+    if (action === "exchange" || action === "process_exchange") {
+      console.log(
+        "VoiceroActionHandler: Exchange action detected, delegating to VoiceroReturnHandler",
+      );
+      if (
+        window.VoiceroReturnHandler &&
+        typeof window.VoiceroReturnHandler.handleExchange === "function"
+      ) {
+        window.VoiceroReturnHandler.handleExchange(action_context || {});
+        return;
+      }
+      // Fall through to default handling if VoiceroReturnHandler is not available
+    }
+
+    if (action === "cancel_order" || action === "cancel") {
+      console.log(
+        "VoiceroActionHandler: Cancel order action detected, delegating to VoiceroReturnHandler",
+      );
+      if (
+        window.VoiceroReturnHandler &&
+        typeof window.VoiceroReturnHandler.handleCancelOrder === "function"
+      ) {
+        window.VoiceroReturnHandler.handleCancelOrder(action_context || {});
+        return;
+      }
+      // Fall through to default handling if VoiceroReturnHandler is not available
+    }
+
     let targets = [];
     if (Array.isArray(action_context)) {
       targets = action_context;

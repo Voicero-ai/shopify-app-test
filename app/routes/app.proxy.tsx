@@ -573,6 +573,303 @@ export const action: ActionFunction = async ({ request }) => {
       }
     }
 
+    // Handle order management actions
+    if (
+      [
+        "refund",
+        "cancel",
+        "return",
+        "exchange",
+        "verify_order",
+        "order_details",
+      ].includes(data.action)
+    ) {
+      console.log(`Processing ${data.action} request:`, data);
+
+      // Get the order_id or number
+      const orderIdentifier = data.order_id;
+      const email = data.email;
+
+      if (!orderIdentifier) {
+        return json(
+          { success: false, error: "Missing order identifier" },
+          addCorsHeaders(),
+        );
+      }
+
+      if (!email) {
+        return json(
+          { success: false, error: "Missing email address" },
+          addCorsHeaders(),
+        );
+      }
+
+      // First verify the order exists and belongs to this customer
+      try {
+        // Query to find the order
+        const orderQuery = `
+          query getOrderByNumber($query: String!) {
+            orders(first: 1, query: $query) {
+              edges {
+                node {
+                  id
+                  name
+                  processedAt
+                  displayFulfillmentStatus
+                  displayFinancialStatus
+                  refundable
+                  cancelable
+                  customer {
+                    email
+                  }
+                  lineItems(first: 10) {
+                    edges {
+                      node {
+                        id
+                        name
+                        quantity
+                        refundableQuantity
+                        variant {
+                          id
+                          title
+                          price
+                        }
+                        currentQuantity
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+
+        // Build the query condition - try to match by order number and email
+        const queryCondition = `name:${orderIdentifier} AND customer_email:${email}`;
+
+        const orderResponse = await admin.graphql(orderQuery, {
+          variables: {
+            query: queryCondition,
+          },
+        });
+
+        const orderData = await orderResponse.json();
+        console.log("Order lookup result:", orderData);
+
+        // Check if we found the order
+        if (!orderData.data.orders.edges.length) {
+          return json(
+            {
+              success: false,
+              error: "Order not found or does not match the provided email",
+              verified: false,
+            },
+            addCorsHeaders(),
+          );
+        }
+
+        const order = orderData.data.orders.edges[0].node;
+
+        // Verify the email matches
+        if (
+          order.customer &&
+          order.customer.email.toLowerCase() !== email.toLowerCase()
+        ) {
+          return json(
+            {
+              success: false,
+              error: "The email address does not match the one on the order",
+              verified: false,
+            },
+            addCorsHeaders(),
+          );
+        }
+
+        // If this is just a verification request, return success
+        if (data.action === "verify_order") {
+          return json({ success: true, verified: true }, addCorsHeaders());
+        }
+
+        // If this is an order details request, return the order data
+        if (data.action === "order_details") {
+          // Format the order details in a user-friendly way
+          const formattedOrder = {
+            id: order.id,
+            order_number: order.name.replace("#", ""),
+            name: order.name,
+            processed_at: order.processedAt,
+            status: order.displayFulfillmentStatus,
+            financial_status: order.displayFinancialStatus,
+            refundable: order.refundable,
+            cancelable: order.cancelable,
+            line_items: order.lineItems.edges.map((edge: { node: any }) => ({
+              id: edge.node.id,
+              title: edge.node.name,
+              quantity: edge.node.quantity,
+              refundable_quantity: edge.node.refundableQuantity,
+              current_quantity: edge.node.currentQuantity,
+              price: edge.node.variant ? edge.node.variant.price : null,
+              variant_id: edge.node.variant ? edge.node.variant.id : null,
+              variant_title: edge.node.variant ? edge.node.variant.title : null,
+            })),
+          };
+
+          return json(
+            { success: true, order: formattedOrder },
+            addCorsHeaders(),
+          );
+        }
+
+        // Process the requested action
+        if (data.action === "cancel" && order.cancelable) {
+          const cancelQuery = `
+            mutation cancelOrder($id: ID!) {
+              orderCancel(
+                input: {
+                  id: $id
+                  notifyCustomer: true
+                }
+              ) {
+                order {
+                  id
+                  displayFulfillmentStatus
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+          const cancelResponse = await admin.graphql(cancelQuery, {
+            variables: {
+              id: order.id,
+            },
+          });
+
+          const cancelData = await cancelResponse.json();
+          console.log("Cancel result:", cancelData);
+
+          if (cancelData.data.orderCancel.userErrors.length > 0) {
+            return json(
+              {
+                success: false,
+                error: cancelData.data.orderCancel.userErrors[0].message,
+              },
+              addCorsHeaders(),
+            );
+          }
+
+          return json(
+            {
+              success: true,
+              message: `Order ${order.name} has been cancelled successfully`,
+            },
+            addCorsHeaders(),
+          );
+        }
+
+        if (data.action === "refund" && order.refundable) {
+          // For a full refund, we need to get all line items
+          const refundLineItems = order.lineItems.edges.map(
+            (edge: { node: any }) => ({
+              lineItemId: edge.node.id,
+              quantity: edge.node.refundableQuantity,
+            }),
+          );
+
+          const refundQuery = `
+            mutation refundOrder($orderId: ID!, $refundLineItems: [RefundLineItemInput!]!) {
+              refundCreate(
+                input: {
+                  orderId: $orderId
+                  refundLineItems: $refundLineItems
+                  notify: true
+                }
+              ) {
+                refund {
+                  id
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+          const refundResponse = await admin.graphql(refundQuery, {
+            variables: {
+              orderId: order.id,
+              refundLineItems: refundLineItems,
+            },
+          });
+
+          const refundData = await refundResponse.json();
+          console.log("Refund result:", refundData);
+
+          if (refundData.data.refundCreate.userErrors.length > 0) {
+            return json(
+              {
+                success: false,
+                error: refundData.data.refundCreate.userErrors[0].message,
+              },
+              addCorsHeaders(),
+            );
+          }
+
+          return json(
+            {
+              success: true,
+              message: `Order ${order.name} has been refunded successfully`,
+              refundId: refundData.data.refundCreate.refund.id,
+            },
+            addCorsHeaders(),
+          );
+        }
+
+        // For return and exchange, we would typically create a new return in the system
+        // This is more complex and often requires a return merchandise authorization (RMA) process
+        // For now, we'll acknowledge the request and provide instructions
+        if (data.action === "return" || data.action === "exchange") {
+          // In a real implementation, you would initiate the return/exchange process in your system
+          const actionType = data.action === "return" ? "return" : "exchange";
+
+          return json(
+            {
+              success: true,
+              message: `Your ${actionType} request for order ${order.name} has been received. Our customer service team will contact you shortly with next steps.`,
+              order_number: order.name,
+              status: "pending_approval",
+            },
+            addCorsHeaders(),
+          );
+        }
+
+        // If we reach here, the requested action wasn't supported
+        return json(
+          {
+            success: false,
+            error: `The requested action '${data.action}' is not supported or not available for this order`,
+          },
+          addCorsHeaders(),
+        );
+      } catch (error) {
+        console.error(`Error processing ${data.action} request:`, error);
+        return json(
+          {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "An unknown error occurred",
+          },
+          addCorsHeaders({ status: 500 }),
+        );
+      }
+    }
+
     // Depending on what you want to do with POST requests
     // This is just a placeholder for now
     return json(
