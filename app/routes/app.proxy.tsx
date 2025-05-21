@@ -199,12 +199,16 @@ export const action: ActionFunction = async ({ request }) => {
 
   try {
     // Authenticate the app proxy request
-    const { session, admin } = await authenticate.public.appProxy(request);
+const { session, admin } = await authenticate.public.appProxy(request);
 
-    console.log("Full session object:", session);
+// Turn the comma string into an array
+const granted = session.scope.split(",");
 
-    // 1) JSON.stringify prevents truncation
-    console.log("Granted scopes (full):", JSON.stringify(session.scope));
+// Log the full array, no truncation
+console.dir(granted, { maxArrayLength: null, depth: null });
+
+// Also log its length so you know if something got dropped
+console.log("Number of scopes granted:", granted.length);
 
     const introspect = `
   {
