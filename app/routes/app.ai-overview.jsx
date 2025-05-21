@@ -187,7 +187,7 @@ export default function AIOverviewPage() {
         const baseUrl = window.location.origin;
 
         // Make the API call to get AI history
-        const historyResponse = await fetch(`${baseUrl}/api/aiHistory`, {
+        const historyResponse = await fetch(`/api/aiHistory`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
