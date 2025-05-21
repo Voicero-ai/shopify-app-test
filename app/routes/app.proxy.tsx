@@ -288,8 +288,10 @@ export const action: ActionFunction = async ({ request }) => {
             address2: addressData.address2 || "",
             city: addressData.city,
             province: addressData.province,
+            provinceCode: addressData.provinceCode,
             zip: addressData.zip,
             country: addressData.country,
+            countryCode: addressData.countryCode || addressData.country,
             phone: addressData.phone || "",
           };
 
@@ -302,15 +304,28 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-              mutation updateCustomerAddress($customerId: ID!, $addressId: ID!, $addressInput: MailingAddressInput!) {
-                customerAddressUpdate(
+              mutation customerAddressUpdate($customerId: ID!, $addressId: ID!, $address: MailingAddressInput!, $setAsDefault: Boolean) {
+                customerAddressUpdate(input: {
                   customerId: $customerId,
-                  id: $addressId,
-                  address: $addressInput
-                ) {
-                  customerAddress {
+                  addressId: $addressId,
+                  setAsDefault: $setAsDefault,
+                  address: $address
+                }) {
+                  customer {
                     id
-                    formatted
+                    defaultAddress {
+                      id
+                      address1
+                      address2
+                      city
+                      province
+                      provinceCode
+                      country
+                      countryCode
+                      zip
+                      phone
+                      formatted
+                    }
                   }
                   userErrors {
                     field
@@ -324,7 +339,17 @@ export const action: ActionFunction = async ({ request }) => {
               variables: {
                 customerId: `gid://shopify/Customer/${customerId}`,
                 addressId: defaultAddressId,
-                addressInput: addressInput,
+                address: {
+                  address1: addressInput.address1,
+                  address2: addressInput.address2,
+                  city: addressInput.city,
+                  provinceCode:
+                    addressInput.provinceCode || addressInput.province,
+                  zip: addressInput.zip,
+                  countryCode: addressInput.countryCode || addressInput.country,
+                  phone: addressInput.phone,
+                },
+                setAsDefault: true,
               },
             });
 
