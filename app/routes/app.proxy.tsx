@@ -203,6 +203,8 @@ export const action: ActionFunction = async ({ request }) => {
 
     console.log("Full session object:", session);
 
+    // 1) JSON.stringify prevents truncation
+    console.log("Granted scopes (full):", JSON.stringify(session.scope));
 
     const introspect = `
   {
