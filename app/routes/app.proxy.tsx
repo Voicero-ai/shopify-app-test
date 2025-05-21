@@ -302,17 +302,13 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-              mutation customerAddressUpdate(
-                $address: MailingAddressInput!, 
-                $addressId: ID!, 
-                $customerId: ID!
-              ) {
+              mutation updateCustomerAddress($customerId: ID!, $addressId: ID!, $addressInput: MailingAddressInput!) {
                 customerAddressUpdate(
-                  address: $address, 
-                  addressId: $addressId, 
-                  customerId: $customerId
+                  customerId: $customerId,
+                  id: $addressId,
+                  address: $addressInput
                 ) {
-                  address {
+                  customerAddress {
                     id
                     formatted
                   }
@@ -326,9 +322,9 @@ export const action: ActionFunction = async ({ request }) => {
 
             const updateResponse = await admin.graphql(updateAddressMutation, {
               variables: {
-                address: addressInput,
-                addressId: defaultAddressId,
                 customerId: `gid://shopify/Customer/${customerId}`,
+                addressId: defaultAddressId,
+                addressInput: addressInput,
               },
             });
 
