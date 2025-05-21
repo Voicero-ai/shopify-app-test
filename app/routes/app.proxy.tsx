@@ -337,6 +337,7 @@ export const action: ActionFunction = async ({ request }) => {
                         message
                         }
                     }
+                }
             `;
 
             const updateResponse = await admin.graphql(updateAddressMutation, {
