@@ -199,16 +199,16 @@ export const action: ActionFunction = async ({ request }) => {
 
   try {
     // Authenticate the app proxy request
-const { session, admin } = await authenticate.public.appProxy(request);
+    const { session, admin } = await authenticate.public.appProxy(request);
 
-// Turn the comma string into an array
-const granted = session.scope.split(",");
+    // Turn the comma string into an array
+    const granted = session.scope.split(",");
 
-// Log the full array, no truncation
-console.dir(granted, { maxArrayLength: null, depth: null });
+    // Log the full array, no truncation
+    console.dir(granted, { maxArrayLength: null, depth: null });
 
-// Also log its length so you know if something got dropped
-console.log("Number of scopes granted:", granted.length);
+    // Also log its length so you know if something got dropped
+    console.log("Number of scopes granted:", granted.length);
 
     const introspect = `
   {
@@ -569,6 +569,9 @@ console.log("Number of scopes granted:", granted.length);
       ].includes(data.action)
     ) {
       console.log(`Processing ${data.action} request:`, data);
+      console.log(`API scopes available:`, granted);
+      console.log(`Read returns scope:`, granted.includes("read_returns"));
+      console.log(`Write returns scope:`, granted.includes("write_returns"));
 
       // Get the order_id or number
       const orderIdentifier = data.order_id;
@@ -613,6 +616,37 @@ console.log("Number of scopes granted:", granted.length);
                         name
                         quantity
                         refundableQuantity
+                        fulfillmentStatus
+                        fulfillmentService
+                        variant {
+                          id
+                          title
+                          price
+                          inventoryQuantity
+                        }
+                      }
+                    }
+                  }
+                  fulfillments(first: 10) {
+                    edges {
+                      node {
+                        status
+                        createdAt
+                        trackingInfo {
+                          number
+                          url
+                        }
+                        lineItems(first: 10) {
+                          edges {
+                            node {
+                              lineItem {
+                                id
+                                name
+                              }
+                              quantity
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -692,17 +726,50 @@ console.log("Number of scopes granted:", granted.length);
             fulfillmentStatus: order.fulfillmentStatus,
             cancelledAt: order.cancelledAt,
             canCancel:
-              order.fulfillmentStatus === "UNFULFILLED" && !order.cancelledAt,
+              order.displayFulfillmentStatus === "UNFULFILLED" &&
+              !order.cancelledAt,
+            canReturn:
+              order.displayFulfillmentStatus === "FULFILLED" &&
+              order.lineItems.edges.some(
+                (edge: { node: any }) => edge.node.refundableQuantity > 0,
+              ),
             line_items: order.lineItems.edges.map((edge: { node: any }) => ({
               id: edge.node.id,
               title: edge.node.name,
               quantity: edge.node.quantity,
               refundable_quantity: edge.node.refundableQuantity,
               current_quantity: edge.node.currentQuantity,
+              fulfillment_status: edge.node.fulfillmentStatus,
               price: edge.node.variant ? edge.node.variant.price : null,
               variant_id: edge.node.variant ? edge.node.variant.id : null,
               variant_title: edge.node.variant ? edge.node.variant.title : null,
+              is_returnable: edge.node.refundableQuantity > 0,
             })),
+            fulfillments: order.fulfillments
+              ? order.fulfillments.edges.map((edge: { node: any }) => ({
+                  status: edge.node.status,
+                  created_at: edge.node.createdAt,
+                  tracking_number:
+                    edge.node.trackingInfo && edge.node.trackingInfo.length
+                      ? edge.node.trackingInfo[0].number
+                      : null,
+                  tracking_url:
+                    edge.node.trackingInfo && edge.node.trackingInfo.length
+                      ? edge.node.trackingInfo[0].url
+                      : null,
+                  items: edge.node.lineItems.edges.map(
+                    (lineItem: { node: any }) => ({
+                      line_item_id: lineItem.node.lineItem.id,
+                      title: lineItem.node.lineItem.name,
+                      quantity: lineItem.node.quantity,
+                    }),
+                  ),
+                }))
+              : [],
+            return_policy: {
+              days: 30, // This would come from your store settings
+              condition: "Items must be unused and in original packaging",
+            },
           };
 
           return json(
@@ -859,7 +926,241 @@ console.log("Number of scopes granted:", granted.length);
         // This is more complex and often requires a return merchandise authorization (RMA) process
         // For now, we'll acknowledge the request and provide instructions
         if (data.action === "return" || data.action === "exchange") {
-          // In a real implementation, you would initiate the return/exchange process in your system
+          // First, if this is a return request, let's actually create a return in Shopify
+          if (data.action === "return") {
+            console.log(
+              "Processing actual return request for order:",
+              order.id,
+            );
+
+            // Check if we have items to return
+            if (!data.items || !data.items.length) {
+              return json(
+                {
+                  success: false,
+                  error: "No items specified for return",
+                },
+                addCorsHeaders(),
+              );
+            }
+
+            try {
+              // Step 1: Get returnable fulfillments to find eligible items
+              const returnableFulfillmentsQuery = `
+                query ReturnableItems($orderId: ID!) {
+                  returnableFulfillments(orderId: $orderId) {
+                    fulfillmentLineItems {
+                      edges {
+                        node {
+                          id
+                          quantity
+                          lineItem { 
+                            id 
+                            name 
+                            variant {
+                              id
+                              title
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const fulfillmentsResponse = await admin.graphql(
+                returnableFulfillmentsQuery,
+                {
+                  variables: {
+                    orderId: order.id,
+                  },
+                },
+              );
+
+              const fulfillmentsData = await fulfillmentsResponse.json();
+              console.log("Returnable fulfillments:", fulfillmentsData);
+
+              // Check if we have returnable items
+              if (
+                !fulfillmentsData.data?.returnableFulfillments
+                  ?.fulfillmentLineItems?.edges?.length
+              ) {
+                return json(
+                  {
+                    success: false,
+                    error:
+                      "No eligible items found for return. Items must be fulfilled before they can be returned.",
+                  },
+                  addCorsHeaders(),
+                );
+              }
+
+              // Map requested items to actual fulfillment line items
+              const returnLineItems = [];
+              const returnableFulfillmentItems =
+                fulfillmentsData.data.returnableFulfillments
+                  .fulfillmentLineItems.edges;
+
+              // Process the items to return
+              for (const itemToReturn of data.items) {
+                // Find the corresponding fulfillment line item
+                const fulfillmentItem = returnableFulfillmentItems.find(
+                  (edge: { node: any }) => {
+                    const node = edge.node;
+                    // Match by line item ID if provided
+                    if (itemToReturn.lineItemId) {
+                      return node.lineItem.id === itemToReturn.lineItemId;
+                    }
+
+                    // Match by item index in the original order
+                    if (itemToReturn.index !== undefined) {
+                      // We'd need to match this to the correct item in the order
+                      // This is a simplification, you might need a more robust matching
+                      const orderItemIndex = order.lineItems.edges.findIndex(
+                        (e: { node: any }) => e.node.id === node.lineItem.id,
+                      );
+                      return orderItemIndex === itemToReturn.index;
+                    }
+
+                    return false;
+                  },
+                );
+
+                if (!fulfillmentItem) {
+                  console.log(
+                    `Could not find fulfillment item matching: ${JSON.stringify(itemToReturn)}`,
+                  );
+                  continue;
+                }
+
+                // Create the return line item
+                returnLineItems.push({
+                  fulfillmentLineItemId: fulfillmentItem.node.id,
+                  quantity: itemToReturn.quantity || 1, // Default to 1 if not specified
+                  returnReason: (
+                    itemToReturn.reason ||
+                    data.reason ||
+                    "OTHER"
+                  ).toUpperCase(),
+                  returnReasonNote:
+                    itemToReturn.note ||
+                    data.note ||
+                    "Customer initiated return",
+                });
+              }
+
+              if (returnLineItems.length === 0) {
+                return json(
+                  {
+                    success: false,
+                    error:
+                      "None of the requested items are eligible for return",
+                  },
+                  addCorsHeaders(),
+                );
+              }
+
+              // Step 2: Create the return
+              const createReturnMutation = `
+                mutation CreateReturn($input: ReturnInput!) {
+                  returnCreate(returnInput: $input) {
+                    return {
+                      id
+                      status
+                      returnLineItems(first:10) {
+                        edges { 
+                          node { 
+                            fulfillmentLineItem { 
+                              lineItem { name } 
+                            } 
+                            quantity 
+                          } 
+                        }
+                      }
+                    }
+                    userErrors { field message }
+                  }
+                }
+              `;
+
+              // Format the timestamp as ISO string
+              const now = new Date().toISOString();
+
+              const returnResponse = await admin.graphql(createReturnMutation, {
+                variables: {
+                  input: {
+                    orderId: order.id,
+                    requestedAt: now,
+                    returnLineItems: returnLineItems,
+                  },
+                },
+              });
+
+              const returnResult = await returnResponse.json();
+              console.log("Return creation result:", returnResult);
+
+              // Check for errors
+              if (
+                returnResult.data.returnCreate.userErrors &&
+                returnResult.data.returnCreate.userErrors.length > 0
+              ) {
+                const errors = returnResult.data.returnCreate.userErrors;
+                return json(
+                  {
+                    success: false,
+                    error: errors
+                      .map((e: { message: string }) => e.message)
+                      .join(". "),
+                    details: errors,
+                  },
+                  addCorsHeaders(),
+                );
+              }
+
+              // Return was created successfully
+              const returnData = returnResult.data.returnCreate.return;
+
+              // Format the returned items for the customer
+              const returnedItems = returnData.returnLineItems.edges.map(
+                (edge: {
+                  node: {
+                    fulfillmentLineItem: { lineItem: { name: string } };
+                    quantity: number;
+                  };
+                }) => ({
+                  name: edge.node.fulfillmentLineItem.lineItem.name,
+                  quantity: edge.node.quantity,
+                }),
+              );
+
+              return json(
+                {
+                  success: true,
+                  message: `Your return for order ${order.name} has been created successfully with status ${returnData.status}`,
+                  returnId: returnData.id,
+                  status: returnData.status,
+                  items: returnedItems,
+                },
+                addCorsHeaders(),
+              );
+            } catch (error) {
+              console.error("Error creating return:", error);
+              return json(
+                {
+                  success: false,
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : "An error occurred while creating the return",
+                  stack: error instanceof Error ? error.stack : undefined,
+                },
+                addCorsHeaders({ status: 500 }),
+              );
+            }
+          }
+
+          // For exchange requests or fallback for simple return acknowledgements
           const actionType = data.action === "return" ? "return" : "exchange";
 
           return json(
