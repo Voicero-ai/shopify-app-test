@@ -107,18 +107,6 @@ export const loader: LoaderFunction = async ({ request }) => {
                     }
                   }
                 }
-                fulfillments(first: 10) {
-                  edges {
-                    node {
-                      status
-                      createdAt
-                      trackingInfo {
-                        number
-                        url
-                      }
-                    }
-                  }
-                }
               }
             }
             pageInfo {
