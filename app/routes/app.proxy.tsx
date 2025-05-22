@@ -657,13 +657,16 @@ export const action: ActionFunction = async ({ request }) => {
         `;
 
         // Build the query condition - try to match by order number and email
-        const queryCondition = `name:${orderIdentifier} AND customer_email:${email}`;
+        const queryCondition = `name:"#${orderIdentifier.toString().replace(/^#/, "")}" AND customer_email:"${email}"`;
 
         const orderResponse = await admin.graphql(orderQuery, {
           variables: {
             query: queryCondition,
           },
         });
+
+        // Log the full query for debugging
+        console.log("Order lookup query:", queryCondition);
 
         const orderData = await orderResponse.json();
         console.log("Order lookup result:", orderData);

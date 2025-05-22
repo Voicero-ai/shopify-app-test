@@ -721,8 +721,95 @@ If you've received this order now and would like to return it, I can help you in
   },
 };
 
+// Global message interceptor - will catch ANY formatted messages with return action
+window.addEventListener("message", function (event) {
+  // Check if this is coming from our app
+  if (event.source === window) {
+    try {
+      // Try to parse the data if it's a string
+      const data =
+        typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+
+      // Look for return_order action pattern
+      if (data && data.action === "return_order" && data.action_context) {
+        console.log("Return order postMessage intercepted:", data);
+
+        // Wait for VoiceroReturnHandler to be ready
+        setTimeout(function () {
+          if (window.VoiceroReturnHandler) {
+            window.VoiceroReturnHandler.handleReturn({
+              order_id: data.action_context.order_id,
+              email:
+                data.action_context.order_email || data.action_context.email,
+              reason:
+                data.action_context.reason || data.reason || "Customer request",
+            });
+          }
+        }, 500);
+      }
+
+      // Also look for direct formatted response pattern
+      if (
+        data &&
+        typeof data === "object" &&
+        data.formatted &&
+        data.formatted.action === "return_order"
+      ) {
+        console.log("Formatted return order intercepted:", data.formatted);
+
+        setTimeout(function () {
+          if (window.VoiceroReturnHandler) {
+            window.VoiceroReturnHandler.handleReturn({
+              order_id: data.formatted.action_context.order_id,
+              email:
+                data.formatted.action_context.order_email ||
+                data.formatted.action_context.email,
+              reason: data.formatted.reason || "Customer request",
+            });
+          }
+        }, 500);
+      }
+    } catch (e) {
+      // Ignore parsing errors for non-JSON messages
+    }
+  }
+});
+
 // Export as global
 window.VoiceroReturnHandler = VoiceroReturnHandler;
+
+// Direct action interceptor to catch return_order actions
+// Add this before the DOMContentLoaded event
+if (!window.originalHandleAction && window.handleAction) {
+  // Store the original function
+  window.originalHandleAction = window.handleAction;
+
+  // Replace with our intercepting version
+  window.handleAction = function (action, data) {
+    console.log("Action intercepted:", action, data);
+
+    // Check if this is a return action
+    if (action === "return_order" && data) {
+      console.log("Return order action intercepted:", data);
+
+      // Normalize the data
+      const returnContext = {
+        order_id: data.order_id,
+        email: data.order_email || data.email,
+        reason: data.reason || "Customer request",
+      };
+
+      // Call our handler
+      if (window.VoiceroReturnHandler) {
+        window.VoiceroReturnHandler.handleReturn(returnContext);
+        return true; // Signal that we handled it
+      }
+    }
+
+    // Pass through to original handler
+    return window.originalHandleAction(action, data);
+  };
+}
 
 // Initialize on load
 document.addEventListener("DOMContentLoaded", function () {
@@ -757,5 +844,57 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
     }
+
+    // CRITICAL FIX: Connect AI response to return handler
+    document.addEventListener("ai_response", function (event) {
+      const response = event.detail;
+      console.log("AI response received:", response);
+
+      // Check if this is a return_order action with context
+      if (
+        response &&
+        response.action === "return_order" &&
+        response.action_context
+      ) {
+        console.log(
+          "Return order action detected, context:",
+          response.action_context,
+        );
+
+        // Map action_context to the format expected by handleReturn
+        const returnContext = {
+          order_id: response.action_context.order_id,
+          email:
+            response.action_context.order_email ||
+            response.action_context.email,
+          reason: response.action_context.reason || "Customer request",
+        };
+
+        // Call the return handler
+        window.VoiceroReturnHandler.handleReturn(returnContext);
+      }
+    });
+
+    // Also intercept formatted responses that might come in a different event
+    document.addEventListener("formatted_response", function (event) {
+      const response = event.detail;
+      if (
+        response &&
+        response.action === "return_order" &&
+        response.action_context
+      ) {
+        console.log("Return order action detected from formatted response");
+
+        const returnContext = {
+          order_id: response.action_context.order_id,
+          email:
+            response.action_context.order_email ||
+            response.action_context.email,
+          reason: response.action_context.reason || "Customer request",
+        };
+
+        window.VoiceroReturnHandler.handleReturn(returnContext);
+      }
+    });
   }
 });
