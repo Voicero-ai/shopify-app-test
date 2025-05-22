@@ -603,10 +603,6 @@ export const action: ActionFunction = async ({ request }) => {
                         quantity
                         refundableQuantity
                         fulfillmentStatus
-                        fulfillmentService {
-                          name
-                          handle
-                        }
                         variant {
                           id
                           title
