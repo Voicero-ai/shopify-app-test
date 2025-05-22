@@ -107,6 +107,18 @@ export const loader: LoaderFunction = async ({ request }) => {
                     }
                   }
                 }
+                fulfillments(first: 10) {
+                  edges {
+                    node {
+                      status
+                      createdAt
+                      trackingInfo {
+                        number
+                        url
+                      }
+                    }
+                  }
+                }
               }
             }
             pageInfo {
@@ -620,17 +632,6 @@ export const action: ActionFunction = async ({ request }) => {
                         trackingInfo {
                           number
                           url
-                        }
-                        lineItems(first: 10) {
-                          edges {
-                            node {
-                              lineItem {
-                                id
-                                name
-                              }
-                              quantity
-                            }
-                          }
                         }
                       }
                     }
