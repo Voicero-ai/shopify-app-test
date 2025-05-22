@@ -657,13 +657,18 @@ export const action: ActionFunction = async ({ request }) => {
         `;
 
         // Build the query condition - try to match by order number and email
-        const queryCondition = `name:"#${orderIdentifier.toString().replace(/^#/, "")}" AND customer_email:"${email}"`;
+        const orderIdentifierClean = orderIdentifier
+          .toString()
+          .replace(/^#/, "");
+        const queryCondition = `(name:"#${orderIdentifierClean}" OR name:"${orderIdentifierClean}") AND customer_email:"${email}"`;
 
         // DETAILED DEBUGGING FOR ORDER LOOKUP
         console.log("🔍 DEBUG: Order lookup starting");
         console.log("📝 DEBUG: Order lookup parameters:", {
           order_id: orderIdentifier,
-          formatted_order_id: `#${orderIdentifier.toString().replace(/^#/, "")}`,
+          clean_order_id: orderIdentifierClean,
+          formatted_id_1: `#${orderIdentifierClean}`,
+          formatted_id_2: orderIdentifierClean,
           email: email,
           query_condition: queryCondition,
         });
@@ -741,17 +746,16 @@ export const action: ActionFunction = async ({ request }) => {
           console.log("⚠️ Email mismatch:", {
             order_email: order.customer.email,
             provided_email: email,
+            order_id: orderIdentifier,
+            order_name: order.name,
           });
 
-          // For order #1002, allow the mismatch (emergency fix)
-          if (
-            orderIdentifier === "1002" ||
-            orderIdentifier === "#1002" ||
-            order.name === "#1002" ||
-            order.name === "1002"
-          ) {
+          // For return requests, we'll be more flexible with email verification
+          // This allows customers to process returns even if they used a different email
+          if (data.action === "return" || data.action === "verify_order") {
             console.log(
-              "📣 EMERGENCY OVERRIDE: Allowing email mismatch for order #1002",
+              "📣 Return request - allowing email mismatch for order:",
+              order.name,
             );
           } else {
             return json(

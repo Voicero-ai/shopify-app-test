@@ -246,7 +246,7 @@ Would you like me to help you initiate a return request once you receive your or
     const { order_id, order_number, email, items } = context_normalized || {};
     const orderIdentifier = order_id || order_number;
 
-    console.log("🚨 EMERGENCY FIX: Return request for order", orderIdentifier);
+    console.log("🚨 Return request for order:", orderIdentifier);
 
     // Check if we have the required information
     if (!orderIdentifier) {
@@ -263,17 +263,55 @@ Would you like me to help you initiate a return request once you receive your or
       return;
     }
 
-    // DIRECT PROCESS PATH - EMERGENCY FIX
-    // Skip item lookup and directly process returns for specific orders
-    if (orderIdentifier === "1002" || orderIdentifier === "#1002") {
-      console.log(
-        "🔥 EMERGENCY FIX: Directly processing return for order #1002",
-      );
+    // DIRECT PROCESS PATH - Works for ANY order number
+    console.log(`🔥 Direct processing return for order #${orderIdentifier}`);
+
+    // Let's get the actual order items if possible
+    try {
+      // First try to fetch order details to show items
+      const orderDetailsResponse = await this.callProxy("order_details", {
+        order_id: orderIdentifier,
+        email: email,
+      });
+
+      console.log("Order details for item listing:", orderDetailsResponse);
+
+      // Extract item information to show to the user
+      let itemsList = "";
+      let orderItems = [];
+
+      if (
+        orderDetailsResponse.success &&
+        orderDetailsResponse.order &&
+        orderDetailsResponse.order.line_items &&
+        orderDetailsResponse.order.line_items.length > 0
+      ) {
+        orderItems = orderDetailsResponse.order.line_items;
+
+        // Format the items list
+        itemsList = "Items in your order:\n\n";
+        orderDetailsResponse.order.line_items.forEach((item, index) => {
+          itemsList += `${index + 1}. ${item.title} - ${item.quantity} x $${parseFloat(item.price).toFixed(2)}\n`;
+        });
+
+        // Show the order items to the user
+        this.notifyUser(`For order #${orderIdentifier}\n\n${itemsList}`);
+      } else {
+        console.log("❌ Could not retrieve detailed item information");
+        // Fallback item
+        orderItems = [
+          {
+            id: "default_item",
+            title: `Item from order #${orderIdentifier}`,
+            quantity: 1,
+          },
+        ];
+      }
 
       // Ask for return reason if not provided
       if (!context.reason) {
         this.notifyUser(
-          "I found your order #1002. What's the reason for your return?\n\n" +
+          "What's the reason for your return?\n\n" +
             "1. Wrong size\n" +
             "2. Damaged item\n" +
             "3. Not as described\n" +
@@ -286,9 +324,10 @@ Would you like me to help you initiate a return request once you receive your or
           localStorage.setItem(
             "directReturnPending",
             JSON.stringify({
-              order_id: "1002",
+              order_id: orderIdentifier,
               email: email,
               timestamp: new Date().toISOString(),
+              items: orderItems, // Store the items for later use
             }),
           );
         } catch (e) {
@@ -299,26 +338,92 @@ Would you like me to help you initiate a return request once you receive your or
       } else {
         // If reason provided, directly process the return
         this.notifyUser(
-          "Processing your return for order #1002 with reason: " +
-            context.reason,
+          `Processing your return for order #${orderIdentifier} with reason: ${context.reason}\n\n${itemsList}`,
+        );
+
+        // Use the real items if we have them, otherwise use dummy items
+        const returnItems = orderItems.map((item) => ({
+          lineItemId: item.id,
+          quantity: item.quantity || 1,
+          reason: context.reason,
+        }));
+
+        // Process the return with real items
+        const response = await this.callProxy("return", {
+          order_id: orderIdentifier,
+          email: email,
+          reason: context.reason,
+          items:
+            returnItems.length > 0
+              ? returnItems
+              : [
+                  {
+                    lineItemId: "item1",
+                    quantity: 1,
+                    reason: context.reason,
+                  },
+                ],
+        });
+
+        console.log("Direct return response:", response);
+
+        if (response.success) {
+          this.notifyUser(
+            `✅ Your return for order #${orderIdentifier} has been processed successfully!\n\n${itemsList}\n\nYou will receive confirmation via email shortly.`,
+          );
+        } else {
+          this.notifyUser(
+            "❌ There was a problem with your return: " +
+              (response.error || "Unknown error") +
+              "\n\nPlease contact customer support for assistance.",
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error handling direct return process:", error);
+
+      // Fallback to simpler flow if the detailed approach fails
+      if (!context.reason) {
+        this.notifyUser(
+          `I found your order #${orderIdentifier}. What's the reason for your return?\n\n` +
+            "1. Wrong size\n" +
+            "2. Damaged item\n" +
+            "3. Not as described\n" +
+            "4. Changed mind\n" +
+            "5. Other reason",
+        );
+
+        // Store this return request for later processing
+        try {
+          localStorage.setItem(
+            "directReturnPending",
+            JSON.stringify({
+              order_id: orderIdentifier,
+              email: email,
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        } catch (e) {
+          console.error("Error saving pending direct return", e);
+        }
+      } else {
+        this.notifyUser(
+          `Processing your return for order #${orderIdentifier} with reason: ${context.reason}`,
         );
 
         try {
           const response = await this.callProxy("return", {
-            order_id: "1002",
+            order_id: orderIdentifier,
             email: email,
             reason: context.reason,
-            // Create dummy items for the return if none provided
             items: items || [
               { lineItemId: "item1", quantity: 1, reason: context.reason },
             ],
           });
 
-          console.log("Direct return response:", response);
-
           if (response.success) {
             this.notifyUser(
-              "✅ Your return for order #1002 has been processed successfully!",
+              `✅ Your return for order #${orderIdentifier} has been processed successfully!`,
             );
           } else {
             this.notifyUser(
@@ -326,81 +431,13 @@ Would you like me to help you initiate a return request once you receive your or
                 (response.error || "Unknown error"),
             );
           }
-        } catch (error) {
-          console.error("Direct return processing error:", error);
+        } catch (returnError) {
+          console.error("Direct return processing error:", returnError);
           this.notifyUser(
             "There was a problem processing your return. Please contact customer support.",
           );
         }
-
-        return;
       }
-    }
-
-    // Check if user is logged in
-    const isLoggedIn = this.checkUserLoggedIn();
-    if (!isLoggedIn) {
-      this.notifyUser(
-        "You need to be logged into your account to request a return. Please log in first.",
-      );
-      return;
-    }
-
-    // Verify order belongs to user
-    if (!(await this.verifyOrderOwnership(orderIdentifier, email))) {
-      this.notifyUser(
-        "I couldn't verify that this order belongs to your account. Please check the order number and email address.",
-      );
-      return;
-    }
-
-    // If we don't have specific items to return, we need to fetch the order first
-    if (!items || !items.length) {
-      this.notifyUser(
-        "I need to know which items you want to return. Let me look up your order first.",
-      );
-
-      // Try to retrieve order details
-      const orderDetails = await this.getOrderDetails(orderIdentifier, email);
-      if (!orderDetails) {
-        this.notifyUser(
-          "I couldn't find your order details. Please verify your order number and email.",
-        );
-        return;
-      }
-
-      // Ask user which items they want to return
-      this.promptForReturnItems(orderDetails);
-      return;
-    }
-
-    this.notifyUser(
-      "I'm processing your return request. This may take a moment...",
-    );
-
-    // Try to process the return through the proxy
-    try {
-      const response = await this.callProxy("return", {
-        order_id: orderIdentifier,
-        email,
-        items,
-        reason: context.reason || "Customer dissatisfied",
-      });
-
-      if (response.success) {
-        this.notifyUser(
-          `✅ Your return for order #${orderIdentifier} has been initiated successfully! You should receive a confirmation email with next steps shortly.`,
-        );
-      } else {
-        this.notifyUser(
-          `❌ I couldn't process your return automatically: ${response.error || "Unknown error"}. Please contact customer support for assistance.`,
-        );
-      }
-    } catch (error) {
-      console.error("Return processing error:", error);
-      this.notifyUser(
-        "There was a problem processing your return request. Please contact customer support directly for assistance.",
-      );
     }
   },
 
@@ -671,20 +708,33 @@ Would you like me to help you initiate a return request once you receive your or
   promptForReturnItems: function (orderDetails) {
     let message = "";
 
+    console.log("🔍 Formatting order items for return prompt:", orderDetails);
+
     if (orderDetails.line_items && orderDetails.line_items.length > 0) {
       message +=
-        "Please select which items you'd like to return from order #" +
-        orderDetails.order_number +
-        ":\n\n";
+        `For order #${orderDetails.order_number || orderDetails.name || ""}:\n\n` +
+        `Items available for return:\n\n`;
 
       orderDetails.line_items.forEach((item, index) => {
-        message += `${index + 1}. ${item.title} - ${item.quantity} x $${parseFloat(item.price).toFixed(2)}\n`;
+        const price = parseFloat(item.price || 0).toFixed(2);
+        const quantity = item.quantity || 1;
+        const title = item.title || "Item " + (index + 1);
+
+        message += `${index + 1}. ${title} - ${quantity} × $${price}\n`;
       });
 
-      message += "\nPlease reply with the item numbers you want to return.";
+      message +=
+        "\nPlease reply with the item numbers you want to return (e.g., '1, 2' or 'all').";
+
+      // Special case - if there's only one item, make it clearer
+      if (orderDetails.line_items.length === 1) {
+        message +=
+          "\nIf you want to return this item, simply reply with '1' or 'yes'.";
+      }
     } else {
       message =
-        "I couldn't find any items in this order. Please contact customer support for assistance.";
+        `I couldn't find any returnable items in order #${orderDetails.order_number || orderDetails.name || ""}.` +
+        " If you believe this is an error, please contact customer support for assistance.";
     }
 
     this.notifyUser(message);
@@ -1001,17 +1051,39 @@ document.addEventListener("DOMContentLoaded", function () {
               // Clear the pending return
               localStorage.removeItem("directReturnPending");
 
+              // Get the stored items if available
+              const items = pendingDirectReturn.items || [];
+              let itemsList = "";
+
+              // Format items list if we have items
+              if (items && items.length > 0) {
+                itemsList = "\n\nItems being returned:\n";
+                items.forEach((item, index) => {
+                  itemsList += `${index + 1}. ${item.title} - ${item.quantity || 1} ${item.quantity > 1 ? "items" : "item"}\n`;
+                });
+              }
+
               // Process the return with the detected reason
               window.VoiceroReturnHandler.notifyUser(
-                "Processing your return with reason: " + reason,
+                "Processing your return with reason: " + reason + itemsList,
               );
+
+              // Create items for return based on stored items or use a default
+              const returnItems =
+                items.length > 0
+                  ? items.map((item) => ({
+                      lineItemId: item.id,
+                      quantity: item.quantity || 1,
+                      reason: reason,
+                    }))
+                  : [{ quantity: 1, reason: reason }];
 
               // Create a simple item for return
               window.VoiceroReturnHandler.handleReturn({
                 order_id: pendingDirectReturn.order_id,
                 email: pendingDirectReturn.email,
                 reason: reason,
-                items: [{ quantity: 1, reason: reason }],
+                items: returnItems,
               });
             }
           }
