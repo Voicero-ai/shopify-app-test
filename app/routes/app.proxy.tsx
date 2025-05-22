@@ -210,20 +210,6 @@ export const action: ActionFunction = async ({ request }) => {
     // Also log its length so you know if something got dropped
     console.log("Number of scopes granted:", granted.length);
 
-    const introspect = `
-  {
-    __schema {
-      mutationType {
-        fields { name }
-      }
-    }
-  }
-`;
-    const schemaRes = await admin.graphql(introspect);
-    console.log(
-      "Mutations available:",
-      JSON.stringify(await schemaRes.json(), null, 2),
-    );
     if (!session || !admin) {
       console.log("⚠️ No session or admin API client available in action");
       return json(
@@ -617,7 +603,10 @@ export const action: ActionFunction = async ({ request }) => {
                         quantity
                         refundableQuantity
                         fulfillmentStatus
-                        fulfillmentService
+                        fulfillmentService {
+                          name
+                          handle
+                        }
                         variant {
                           id
                           title

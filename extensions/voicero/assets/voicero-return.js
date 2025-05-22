@@ -944,7 +944,10 @@ window.addEventListener("message", function (event) {
               email:
                 data.formatted.action_context.order_email ||
                 data.formatted.action_context.email,
-              reason: data.formatted.reason || "Customer request",
+              reason:
+                data.formatted.reason ||
+                data.formatted.returnReason ||
+                "Customer request",
             });
           }
         }, 500);
@@ -1134,7 +1137,10 @@ document.addEventListener("DOMContentLoaded", function () {
           email:
             response.action_context.order_email ||
             response.action_context.email,
-          reason: response.action_context.reason || "Customer request",
+          reason:
+            response.action_context.reason ||
+            response.action_context.returnReason ||
+            "Customer request",
         };
 
         // Call the return handler
@@ -1157,7 +1163,10 @@ document.addEventListener("DOMContentLoaded", function () {
           email:
             response.action_context.order_email ||
             response.action_context.email,
-          reason: response.action_context.reason || "Customer request",
+          reason:
+            response.action_context.reason ||
+            response.action_context.returnReason ||
+            "Customer request",
         };
 
         window.VoiceroReturnHandler.handleReturn(returnContext);
