@@ -1,53 +1,10 @@
 import { useState, useEffect } from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Card,
-  BlockStack,
-  Text,
-  Button,
-  Banner,
-  TextField,
-  InlineStack,
-  Icon,
-  Box,
-  Badge,
-  Divider,
-  ProgressBar,
-  Tooltip,
-  EmptyState,
-} from "@shopify/polaris";
-import {
-  KeyIcon,
-  ExitIcon,
-  GlobeIcon,
-  EditIcon,
-  QuestionCircleIcon,
-  ToggleOnIcon,
-  ToggleOffIcon,
-  PlusIcon,
-  DeleteIcon,
-  CreditCardCancelIcon,
-  SaveIcon,
-  SettingsIcon,
-  CalendarIcon,
-  RefreshIcon,
-  CreditCardIcon,
-  InfoIcon,
-  CheckIcon,
-  DataPresentationIcon,
-  ChartVerticalIcon,
-  MobileIcon,
-  DesktopIcon,
-  ChatIcon,
-  XIcon,
-  PersonIcon,
-  EmailIcon,
-} from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import urls from "../config/urls";
+
+export const dynamic = "force-dynamic";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
@@ -211,162 +168,6 @@ export const action = async ({ request }) => {
   }
 };
 
-// Custom Toast component that doesn't depend on Polaris theme
-function CustomToast({ content, tone = "success", onDismiss }) {
-  const backgroundColor =
-    tone === "critical"
-      ? "#fedfe2"
-      : tone === "warning"
-        ? "#fef1d9"
-        : tone === "info"
-          ? "#e0f0ff"
-          : "#e2f5e7";
-
-  const textColor =
-    tone === "critical"
-      ? "#d82c0d"
-      : tone === "warning"
-        ? "#b98900"
-        : tone === "info"
-          ? "#006bdf"
-          : "#008060";
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: "20px",
-        right: "20px",
-        padding: "16px 20px",
-        backgroundColor: backgroundColor,
-        color: textColor,
-        borderRadius: "8px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        maxWidth: "400px",
-      }}
-    >
-      <span>{content}</span>
-      <button
-        onClick={onDismiss}
-        style={{
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          marginLeft: "12px",
-          color: textColor,
-        }}
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
-// Custom Modal component that doesn't depend on Polaris theme
-function CustomModal({
-  open,
-  onClose,
-  title,
-  primaryAction,
-  secondaryActions,
-  children,
-}) {
-  if (!open) return null;
-
-  return (
-    <div>
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.5)",
-          zIndex: 1000,
-        }}
-        onClick={onClose}
-      />
-      <div
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          backgroundColor: "white",
-          borderRadius: "8px",
-          zIndex: 1001,
-          maxWidth: "500px",
-          width: "90%",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <div
-          style={{
-            borderBottom: "1px solid #ddd",
-            padding: "16px 20px",
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "bold" }}>
-            {title}
-          </h2>
-        </div>
-        <div style={{ padding: "20px" }}>{children}</div>
-        <div
-          style={{
-            borderTop: "1px solid #ddd",
-            padding: "16px 20px",
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "12px",
-          }}
-        >
-          {secondaryActions?.map((action, index) => (
-            <button
-              key={index}
-              onClick={action.onAction}
-              style={{
-                backgroundColor: "white",
-                border: "1px solid #ddd",
-                padding: "8px 16px",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "14px",
-              }}
-            >
-              {action.content}
-            </button>
-          ))}
-          {primaryAction && (
-            <button
-              onClick={primaryAction.onAction}
-              style={{
-                backgroundColor: primaryAction.destructive
-                  ? "#d82c0d"
-                  : "#008060",
-                color: "white",
-                border: "none",
-                padding: "8px 16px",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "14px",
-              }}
-            >
-              {primaryAction.content}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const { websiteData, accessKey, error, disconnected } = useLoaderData();
   const fetcher = useFetcher();
@@ -380,7 +181,7 @@ export default function SettingsPage() {
     active: websiteData?.active || false,
   });
 
-  // Replace static user data with state that will be populated from API
+  // User data state
   const [userData, setUserData] = useState({
     name: "",
     username: "",
@@ -394,13 +195,6 @@ export default function SettingsPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
-
-  // Redirect if disconnected
-  useEffect(() => {
-    if (disconnected) {
-      navigate("/app");
-    }
-  }, [disconnected, navigate]);
 
   // Fetch user data from the API
   useEffect(() => {
@@ -430,6 +224,181 @@ export default function SettingsPage() {
         });
     }
   }, [accessKey]);
+
+  // Add CSS styles
+  const styles = {
+    container: {
+      maxWidth: "1200px",
+      margin: "0 auto",
+      padding: "20px",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "20px",
+    },
+    title: {
+      fontSize: "24px",
+      fontWeight: "bold",
+      margin: 0,
+    },
+    backButton: {
+      padding: "8px 16px",
+      backgroundColor: "#f1f1f1",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+    },
+    badge: {
+      padding: "4px 8px",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "bold",
+      color: "white",
+      backgroundColor: websiteData?.active ? "#008060" : "#d82c0d",
+    },
+    card: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      padding: "20px",
+      marginBottom: "20px",
+    },
+    cardHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "15px",
+    },
+    cardTitle: {
+      fontSize: "16px",
+      fontWeight: "bold",
+      margin: 0,
+    },
+    divider: {
+      height: "1px",
+      backgroundColor: "#e1e3e5",
+      margin: "15px 0",
+    },
+    infoRow: {
+      display: "flex",
+      alignItems: "flex-start",
+      marginBottom: "10px",
+    },
+    label: {
+      fontWeight: "bold",
+      marginRight: "8px",
+      width: "100px",
+    },
+    inputField: {
+      width: "100%",
+      padding: "8px 12px",
+      border: "1px solid #c9cccf",
+      borderRadius: "4px",
+      fontSize: "14px",
+    },
+    textArea: {
+      width: "100%",
+      padding: "8px 12px",
+      border: "1px solid #c9cccf",
+      borderRadius: "4px",
+      fontSize: "14px",
+      minHeight: "100px",
+    },
+    button: {
+      padding: "8px 16px",
+      backgroundColor: "#008060",
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      fontSize: "14px",
+    },
+    secondaryButton: {
+      padding: "8px 16px",
+      backgroundColor: "white",
+      border: "1px solid #c9cccf",
+      borderRadius: "4px",
+      cursor: "pointer",
+      fontSize: "14px",
+      marginRight: "8px",
+    },
+    destructiveButton: {
+      padding: "8px 16px",
+      backgroundColor: "#d82c0d",
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      fontSize: "14px",
+    },
+    toast: {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      padding: "16px 20px",
+      backgroundColor: showToast
+        ? toastType === "critical"
+          ? "#fedfe2"
+          : "#e2f5e7"
+        : "transparent",
+      color: toastType === "critical" ? "#d82c0d" : "#008060",
+      borderRadius: "8px",
+      boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+      zIndex: 9999,
+      display: showToast ? "flex" : "none",
+      alignItems: "center",
+      justifyContent: "space-between",
+      maxWidth: "400px",
+    },
+    modal: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      zIndex: 1000,
+      display: showDisconnectModal ? "flex" : "none",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modalContent: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      padding: "20px",
+      maxWidth: "500px",
+      width: "90%",
+    },
+    modalHeader: {
+      fontSize: "18px",
+      fontWeight: "bold",
+      marginBottom: "15px",
+    },
+    modalActions: {
+      display: "flex",
+      justifyContent: "flex-end",
+      marginTop: "20px",
+    },
+    progressBar: {
+      width: "100%",
+      height: "4px",
+      backgroundColor: "#f5f5f5",
+      borderRadius: "2px",
+      overflow: "hidden",
+      position: "relative",
+    },
+    progressBarInner: {
+      position: "absolute",
+      width: "30%",
+      height: "100%",
+      backgroundColor: "#008060",
+      borderRadius: "2px",
+      animation: "loading 1.5s infinite ease-in-out",
+      left: "-30%",
+    },
+  };
 
   const handleSave = () => {
     // Create a copy of formData without including lastSyncedAt
@@ -517,7 +486,16 @@ export default function SettingsPage() {
       });
   };
 
-  // Redirect to home if disconnected
+  const toggleToast = () => setShowToast(!showToast);
+
+  // Redirect if disconnected
+  useEffect(() => {
+    if (disconnected) {
+      navigate("/app");
+    }
+  }, [disconnected, navigate]);
+
+  // Handle form data from action
   useEffect(() => {
     if (fetcher.data?.disconnected) {
       navigate("/app");
@@ -544,396 +522,347 @@ export default function SettingsPage() {
     }
   }, [fetcher.data, navigate]);
 
-  const toggleToast = () => setShowToast(!showToast);
-
   if (disconnected) {
     return null; // Don't render anything while redirecting
   }
 
   if (error) {
     return (
-      <Page>
-        <Banner status="critical">
+      <div style={styles.container}>
+        <div
+          style={{
+            ...styles.card,
+            backgroundColor: "#fedfe2",
+            color: "#d82c0d",
+          }}
+        >
           <p>{error}</p>
-        </Banner>
-      </Page>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Page
-      title="Website Settings"
-      backAction={{
-        content: "Back",
-        onAction: () => navigate("/app"),
-      }}
-      titleMetadata={
-        <Badge status={websiteData?.active ? "success" : "critical"}>
+    <div style={styles.container}>
+      {/* Header */}
+      <div style={styles.header}>
+        <button style={styles.backButton} onClick={() => navigate("/app")}>
+          Back
+        </button>
+        <h1 style={styles.title}>Website Settings</h1>
+        <span style={styles.badge}>
           {websiteData?.active ? "Active" : "Inactive"}
-        </Badge>
-      }
-    >
-      <BlockStack gap="500">
-        <Layout>
-          <Layout.Section>
-            {/* Connection Settings */}
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <InlineStack gap="200">
-                    <Icon source={KeyIcon} color="highlight" />
-                    <Text as="h3" variant="headingMd">
-                      Connection Settings
-                    </Text>
-                  </InlineStack>
-                </InlineStack>
-                <Divider />
-                <BlockStack gap="300">
-                  <InlineStack gap="200" align="start">
-                    <Box width="24px">
-                      <Icon source={KeyIcon} color="highlight" />
-                    </Box>
-                    <BlockStack gap="0">
-                      <InlineStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="bold">
-                          Access Key:
-                        </Text>
-                        <Box
-                          background="bg-surface-secondary"
-                          padding="200"
-                          borderRadius="100"
-                        >
-                          <Text as="p" variant="bodyMd">
-                            {accessKey}
-                          </Text>
-                        </Box>
-                      </InlineStack>
-                    </BlockStack>
-                  </InlineStack>
-                  <InlineStack gap="200">
-                    <Box width="24px" />
-                    <InlineStack gap="200">
-                      <Button
-                        destructive
-                        icon={ExitIcon}
-                        onClick={() => setShowDisconnectModal(true)}
-                      >
-                        Disconnect Website
-                      </Button>
-                      <Button
-                        tone="critical"
-                        icon={DeleteIcon}
-                        onClick={() =>
-                          window.open(
-                            "https://www.voicero.ai/app/settings",
-                            "_blank",
-                          )
-                        }
-                      >
-                        Delete Website
-                      </Button>
-                    </InlineStack>
-                  </InlineStack>
-                </BlockStack>
-              </BlockStack>
-            </Card>
+        </span>
+      </div>
 
-            {/* Website Information */}
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <InlineStack gap="200">
-                    <Icon source={GlobeIcon} color="highlight" />
-                    <Text as="h3" variant="headingMd">
-                      Website Information
-                    </Text>
-                  </InlineStack>
-                  {isEditing ? (
-                    <InlineStack gap="200">
-                      <Button
-                        icon={CreditCardCancelIcon}
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button primary icon={SaveIcon} onClick={handleSave}>
-                        Save Changes
-                      </Button>
-                    </InlineStack>
-                  ) : (
-                    <Button icon={EditIcon} onClick={() => setIsEditing(true)}>
-                      Edit
-                    </Button>
-                  )}
-                </InlineStack>
-                <Divider />
-                <BlockStack gap="300">
-                  <InlineStack gap="200" align="start">
-                    <Box width="24px">
-                      <Icon
-                        source={formData.active ? CheckIcon : XIcon}
-                        color="base"
-                      />
-                    </Box>
-                    <BlockStack gap="0">
-                      <InlineStack gap="200" align="center">
-                        <Text as="p" variant="bodyMd" fontWeight="bold">
-                          Status:
-                        </Text>
-                        <Badge
-                          tone={formData.active ? "success" : "critical"}
-                          icon={formData.active ? CheckIcon : XIcon}
-                        >
-                          {formData.active ? "Active" : "Inactive"}
-                        </Badge>
-                        <Button
-                          size="slim"
-                          icon={formData.active ? ToggleOffIcon : ToggleOnIcon}
-                          onClick={toggleStatus}
-                        >
-                          {formData.active ? "Deactivate" : "Activate"}
-                        </Button>
-                      </InlineStack>
-                    </BlockStack>
-                  </InlineStack>
-                  <TextField
-                    label="Website Name"
-                    value={formData.name}
-                    onChange={(value) =>
-                      setFormData({ ...formData, name: value })
-                    }
-                    disabled={!isEditing}
-                    prefix={<Icon source={GlobeIcon} color="highlight" />}
-                  />
-                  <TextField
-                    label="Website URL"
-                    value={formData.url}
-                    onChange={(value) =>
-                      setFormData({ ...formData, url: value })
-                    }
-                    disabled={!isEditing}
-                    prefix={<Icon source={GlobeIcon} color="highlight" />}
-                  />
-                  <TextField
-                    label="Custom Instructions"
-                    value={formData.customInstructions}
-                    onChange={(value) =>
-                      setFormData({ ...formData, customInstructions: value })
-                    }
-                    multiline={4}
-                    disabled={!isEditing}
-                    helpText="Provide custom instructions for your AI assistant to better serve your customers"
-                  />
-                </BlockStack>
-              </BlockStack>
-            </Card>
+      {/* Connection Settings */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>Connection Settings</h2>
+        </div>
+        <div style={styles.divider}></div>
+        <div style={styles.infoRow}>
+          <span style={styles.label}>Access Key:</span>
+          <span
+            style={{
+              padding: "4px 8px",
+              backgroundColor: "#f6f6f7",
+              borderRadius: "4px",
+            }}
+          >
+            {accessKey}
+          </span>
+        </div>
+        <div style={styles.infoRow}>
+          <span style={{ width: "100px" }}></span>
+          <div>
+            <button
+              style={{ ...styles.destructiveButton, marginRight: "10px" }}
+              onClick={() => setShowDisconnectModal(true)}
+            >
+              Disconnect Website
+            </button>
+            <button
+              style={styles.destructiveButton}
+              onClick={() =>
+                window.open("https://www.voicero.ai/app/settings", "_blank")
+              }
+            >
+              Delete Website
+            </button>
+          </div>
+        </div>
+      </div>
 
-            {/* User Settings */}
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <InlineStack gap="200">
-                    <Icon source={PersonIcon} color="highlight" />
-                    <Text as="h3" variant="headingMd">
-                      User Settings
-                    </Text>
-                  </InlineStack>
-                  {isEditingUser ? (
-                    <InlineStack gap="200">
-                      <Button
-                        icon={CreditCardCancelIcon}
-                        onClick={() => setIsEditingUser(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        primary
-                        icon={SaveIcon}
-                        onClick={() => {
-                          setIsEditingUser(false);
-                          setShowToast(true);
-                          setToastMessage(
-                            "User settings updated successfully!",
-                          );
-                          setToastType("success");
-                        }}
-                      >
-                        Save Changes
-                      </Button>
-                    </InlineStack>
-                  ) : (
-                    <Button
-                      icon={EditIcon}
-                      onClick={() => setIsEditingUser(true)}
-                      disabled={userDataLoading}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </InlineStack>
-                <Divider />
-                <BlockStack gap="300">
-                  {userDataLoading ? (
-                    <ProgressBar progress={75} size="small" />
-                  ) : userDataError ? (
-                    <Banner status="critical">
-                      <p>Failed to load user data: {userDataError}</p>
-                    </Banner>
-                  ) : (
-                    <>
-                      <TextField
-                        label="Name"
-                        value={userData.name}
-                        onChange={(value) =>
-                          setUserData({ ...userData, name: value })
-                        }
-                        disabled={!isEditingUser}
-                        prefix={<Icon source={PersonIcon} color="highlight" />}
-                      />
-                      <TextField
-                        label="Username"
-                        value={userData.username}
-                        onChange={(value) =>
-                          setUserData({ ...userData, username: value })
-                        }
-                        disabled={!isEditingUser}
-                        prefix={<Icon source={PersonIcon} color="highlight" />}
-                      />
-                      <TextField
-                        label="Email"
-                        value={userData.email}
-                        onChange={(value) =>
-                          setUserData({ ...userData, email: value })
-                        }
-                        disabled={!isEditingUser}
-                        type="email"
-                        prefix={<Icon source={EmailIcon} color="highlight" />}
-                      />
-                    </>
-                  )}
-                </BlockStack>
-              </BlockStack>
-            </Card>
+      {/* Website Information */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>Website Information</h2>
+          {isEditing ? (
+            <div>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => setIsEditing(false)}
+              >
+                Cancel
+              </button>
+              <button style={styles.button} onClick={handleSave}>
+                Save Changes
+              </button>
+            </div>
+          ) : (
+            <button
+              style={styles.secondaryButton}
+              onClick={() => setIsEditing(true)}
+            >
+              Edit
+            </button>
+          )}
+        </div>
+        <div style={styles.divider}></div>
+        <div style={styles.infoRow}>
+          <span style={styles.label}>Status:</span>
+          <div>
+            <span
+              style={{
+                padding: "4px 8px",
+                borderRadius: "4px",
+                backgroundColor: formData.active ? "#e2f5e7" : "#fedfe2",
+                color: formData.active ? "#008060" : "#d82c0d",
+                marginRight: "10px",
+              }}
+            >
+              {formData.active ? "Active" : "Inactive"}
+            </span>
+            <button style={styles.secondaryButton} onClick={toggleStatus}>
+              {formData.active ? "Deactivate" : "Activate"}
+            </button>
+          </div>
+        </div>
+        <div style={styles.infoRow}>
+          <label style={styles.label}>Website Name:</label>
+          <input
+            type="text"
+            style={styles.inputField}
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            disabled={!isEditing}
+          />
+        </div>
+        <div style={styles.infoRow}>
+          <label style={styles.label}>Website URL:</label>
+          <input
+            type="text"
+            style={styles.inputField}
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            disabled={!isEditing}
+          />
+        </div>
+        <div style={styles.infoRow}>
+          <label style={styles.label}>Custom Instructions:</label>
+          <textarea
+            style={styles.textArea}
+            value={formData.customInstructions}
+            onChange={(e) =>
+              setFormData({ ...formData, customInstructions: e.target.value })
+            }
+            disabled={!isEditing}
+          />
+        </div>
+      </div>
 
-            {/* Subscription Information */}
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <InlineStack gap="200">
-                    <Icon source={CreditCardIcon} color="base" />
-                    <Text as="h3" variant="headingMd">
-                      Subscription Information
-                    </Text>
-                  </InlineStack>
-                </InlineStack>
-                <Divider />
-                <BlockStack gap="300">
-                  <InlineStack gap="200" align="start">
-                    <Box width="24px">
-                      <Icon source={InfoIcon} color="base" />
-                    </Box>
-                    <BlockStack gap="0">
-                      <InlineStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="bold">
-                          Current Plan:
-                        </Text>
-                        <Badge>{websiteData.plan || "Free"}</Badge>
-                      </InlineStack>
-                    </BlockStack>
-                  </InlineStack>
-                  <InlineStack gap="200" align="start">
-                    <Box width="24px">
-                      <Icon source={CreditCardIcon} color="base" />
-                    </Box>
-                    <BlockStack gap="0">
-                      <InlineStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="bold">
-                          Price:
-                        </Text>
-                        <Text as="p">
-                          {websiteData.plan === "free"
-                            ? "$0/month"
-                            : "$19/month"}
-                        </Text>
-                      </InlineStack>
-                    </BlockStack>
-                  </InlineStack>
-                  <InlineStack gap="200" align="start">
-                    <Box width="24px">
-                      <Icon source={RefreshIcon} color="base" />
-                    </Box>
-                    <BlockStack gap="0">
-                      <InlineStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="bold">
-                          Last Synced:
-                        </Text>
-                        <Text as="p">
-                          {websiteData.lastSyncedAt
-                            ? new Date(
-                                websiteData.lastSyncedAt,
-                              ).toLocaleString()
-                            : "Never"}
-                        </Text>
-                      </InlineStack>
-                    </BlockStack>
-                  </InlineStack>
-                  <InlineStack gap="200">
-                    <Box width="24px" />
-                    <Button
-                      icon={CreditCardIcon}
-                      onClick={() =>
-                        window.open(
-                          `https://www.voicero.ai/app/websites/website?id=${websiteData.id}`,
-                          "_blank",
-                        )
-                      }
-                    >
-                      Update Subscription
-                    </Button>
-                  </InlineStack>
-                </BlockStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </BlockStack>
+      {/* User Settings */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>User Settings</h2>
+          {isEditingUser ? (
+            <div>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => setIsEditingUser(false)}
+              >
+                Cancel
+              </button>
+              <button
+                style={styles.button}
+                onClick={() => {
+                  setIsEditingUser(false);
+                  setShowToast(true);
+                  setToastMessage("User settings updated successfully!");
+                  setToastType("success");
+                }}
+              >
+                Save Changes
+              </button>
+            </div>
+          ) : (
+            <button
+              style={styles.secondaryButton}
+              onClick={() => setIsEditingUser(true)}
+              disabled={userDataLoading}
+            >
+              Edit
+            </button>
+          )}
+        </div>
+        <div style={styles.divider}></div>
 
-      {/* Use custom Toast component */}
-      {showToast && (
-        <CustomToast
-          content={toastMessage}
-          tone={toastType}
-          onDismiss={toggleToast}
-        />
+        {userDataLoading ? (
+          <div style={styles.progressBar}>
+            <div style={styles.progressBarInner}></div>
+            <style>{`
+              @keyframes loading {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(433%); }
+              }
+            `}</style>
+          </div>
+        ) : userDataError ? (
+          <div
+            style={{
+              padding: "10px",
+              backgroundColor: "#fedfe2",
+              color: "#d82c0d",
+              borderRadius: "4px",
+            }}
+          >
+            <p>Failed to load user data: {userDataError}</p>
+          </div>
+        ) : (
+          <>
+            <div style={styles.infoRow}>
+              <label style={styles.label}>Name:</label>
+              <input
+                type="text"
+                style={styles.inputField}
+                value={userData.name}
+                onChange={(e) =>
+                  setUserData({ ...userData, name: e.target.value })
+                }
+                disabled={!isEditingUser}
+              />
+            </div>
+            <div style={styles.infoRow}>
+              <label style={styles.label}>Username:</label>
+              <input
+                type="text"
+                style={styles.inputField}
+                value={userData.username}
+                onChange={(e) =>
+                  setUserData({ ...userData, username: e.target.value })
+                }
+                disabled={!isEditingUser}
+              />
+            </div>
+            <div style={styles.infoRow}>
+              <label style={styles.label}>Email:</label>
+              <input
+                type="email"
+                style={styles.inputField}
+                value={userData.email}
+                onChange={(e) =>
+                  setUserData({ ...userData, email: e.target.value })
+                }
+                disabled={!isEditingUser}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Subscription Information */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>Subscription Information</h2>
+        </div>
+        <div style={styles.divider}></div>
+        <div style={styles.infoRow}>
+          <span style={styles.label}>Current Plan:</span>
+          <span
+            style={{
+              padding: "4px 8px",
+              borderRadius: "4px",
+              backgroundColor: "#f6f6f7",
+            }}
+          >
+            {websiteData.plan || "Free"}
+          </span>
+        </div>
+        <div style={styles.infoRow}>
+          <span style={styles.label}>Price:</span>
+          <span>{websiteData.plan === "free" ? "$0/month" : "$19/month"}</span>
+        </div>
+        <div style={styles.infoRow}>
+          <span style={styles.label}>Last Synced:</span>
+          <span>
+            {websiteData.lastSyncedAt
+              ? new Date(websiteData.lastSyncedAt).toLocaleString()
+              : "Never"}
+          </span>
+        </div>
+        <div style={styles.infoRow}>
+          <span style={{ width: "100px" }}></span>
+          <button
+            style={styles.secondaryButton}
+            onClick={() =>
+              window.open(
+                `https://www.voicero.ai/app/websites/website?id=${websiteData.id}`,
+                "_blank",
+              )
+            }
+          >
+            Update Subscription
+          </button>
+        </div>
+      </div>
+
+      {/* Toast Notification */}
+      <div style={styles.toast}>
+        <span>{toastMessage}</span>
+        <button
+          onClick={toggleToast}
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            marginLeft: "12px",
+            color: toastType === "critical" ? "#d82c0d" : "#008060",
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Disconnect Modal */}
+      {showDisconnectModal && (
+        <div style={styles.modal} onClick={() => setShowDisconnectModal(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalHeader}>Disconnect Website</h3>
+            <p>
+              Are you sure you want to disconnect your website from VoiceroAI?
+            </p>
+            <p style={{ color: "#d82c0d" }}>
+              This action cannot be undone. You will need to reconnect your
+              website if you want to use VoiceroAI again.
+            </p>
+            <div style={styles.modalActions}>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => setShowDisconnectModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                style={styles.destructiveButton}
+                onClick={handleDisconnect}
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-
-      {/* Use custom Modal component */}
-      <CustomModal
-        open={showDisconnectModal}
-        onClose={() => setShowDisconnectModal(false)}
-        title="Disconnect Website"
-        primaryAction={{
-          content: "Disconnect",
-          destructive: true,
-          onAction: handleDisconnect,
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: () => setShowDisconnectModal(false),
-          },
-        ]}
-      >
-        <BlockStack gap="400">
-          <Text as="p">
-            Are you sure you want to disconnect your website from VoiceroAI?
-          </Text>
-          <Text as="p" tone="critical">
-            This action cannot be undone. You will need to reconnect your
-            website if you want to use VoiceroAI again.
-          </Text>
-        </BlockStack>
-      </CustomModal>
-    </Page>
+    </div>
   );
 }
