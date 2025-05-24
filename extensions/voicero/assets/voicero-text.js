@@ -652,12 +652,39 @@ const VoiceroText = {
       }
     }
 
-    // Create welcome message with website name
+    // Create welcome message with website name and bot name if available
+    const botName =
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.botName
+        ? window.VoiceroCore.session.botName
+        : window.voiceroBotName || window.VoiceroCore?.botName || "Voicero";
+
+    let welcomeMessageContent = "";
+
+    // Check if there's a custom welcome message from the API
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.customWelcomeMessage
+    ) {
+      welcomeMessageContent = window.VoiceroCore.session.customWelcomeMessage;
+    } else if (
+      window.voiceroCustomWelcomeMessage ||
+      window.VoiceroCore?.customWelcomeMessage
+    ) {
+      welcomeMessageContent =
+        window.voiceroCustomWelcomeMessage ||
+        window.VoiceroCore.customWelcomeMessage;
+    } else {
+      welcomeMessageContent = `I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questions about products, services, or anything else related to ${websiteName}.
+
+Feel free to ask me anything, and I'll do my best to assist you!`;
+    }
+
     const welcomeMessage = `👋 Welcome to ${websiteName}! 
 
-I'm your AI assistant powered by VoiceroAI. I'm here to help answer your questions about products, services, or anything else related to ${websiteName}.
-
-Feel free to ask me anything, and I'll do my best to assist you!
+Hi, I'm ${botName}! ${welcomeMessageContent}
 
 **Start Typing to Chat**
 `;

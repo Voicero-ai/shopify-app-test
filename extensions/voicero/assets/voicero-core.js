@@ -809,6 +809,26 @@
               data.website,
             );
 
+            // Save botName and customWelcomeMessage
+            if (data.website?.botName) {
+              console.log(
+                "VoiceroCore: Got botName from API:",
+                data.website.botName,
+              );
+              this.botName = data.website.botName;
+              window.voiceroBotName = data.website.botName;
+            }
+
+            if (data.website?.customWelcomeMessage) {
+              console.log(
+                "VoiceroCore: Got customWelcomeMessage from API:",
+                data.website.customWelcomeMessage,
+              );
+              this.customWelcomeMessage = data.website.customWelcomeMessage;
+              window.voiceroCustomWelcomeMessage =
+                data.website.customWelcomeMessage;
+            }
+
             // Save icon settings globally
             if (data.website?.iconBot) {
               console.log(
@@ -894,6 +914,37 @@
                     if (data.session) {
                       // Update local session with latest data
                       this.session = data.session;
+
+                      // Make sure botName and customWelcomeMessage are transferred
+                      if (data.website && data.website.botName) {
+                        console.log(
+                          "VoiceroCore: Setting botName in session from website data:",
+                          data.website.botName,
+                        );
+                        this.session.botName = data.website.botName;
+                      } else if (this.botName) {
+                        console.log(
+                          "VoiceroCore: Setting botName in session from core property:",
+                          this.botName,
+                        );
+                        this.session.botName = this.botName;
+                      }
+
+                      if (data.website && data.website.customWelcomeMessage) {
+                        console.log(
+                          "VoiceroCore: Setting customWelcomeMessage in session from website data:",
+                          data.website.customWelcomeMessage,
+                        );
+                        this.session.customWelcomeMessage =
+                          data.website.customWelcomeMessage;
+                      } else if (this.customWelcomeMessage) {
+                        console.log(
+                          "VoiceroCore: Setting customWelcomeMessage in session from core property:",
+                          this.customWelcomeMessage,
+                        );
+                        this.session.customWelcomeMessage =
+                          this.customWelcomeMessage;
+                      }
 
                       // Make sure removeHighlight setting is transferred from website data to session
                       if (
@@ -1448,6 +1499,18 @@
             // Store session and thread data
             if (data.session) {
               this.session = data.session;
+
+              // Transfer global properties to session if not already set in API response
+              if (this.botName && !data.session.botName) {
+                this.session.botName = this.botName;
+              }
+              if (
+                this.customWelcomeMessage &&
+                !data.session.customWelcomeMessage
+              ) {
+                this.session.customWelcomeMessage = this.customWelcomeMessage;
+              }
+
               console.log("VoiceroCore: Session stored:", this.session);
 
               // Store session ID in localStorage
