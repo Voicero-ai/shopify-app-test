@@ -15,6 +15,7 @@ import {
   Box,
   Divider,
   Spinner,
+  Tabs,
 } from "@shopify/polaris";
 import {
   KeyIcon,
@@ -1125,11 +1126,41 @@ export default function Index() {
     collections: [],
     discounts: [],
   });
+  const [extendedWebsiteData, setExtendedWebsiteData] = useState(null);
+  const [isLoadingExtendedData, setIsLoadingExtendedData] = useState(false);
+  const [selectedContentTab, setSelectedContentTab] = useState(0);
 
   // State for UI and data
   const fetcher = useFetcher();
   const app = useAppBridge();
   const isLoading = fetcher.state === "submitting";
+
+  // Add function to fetch extended website data
+  const fetchExtendedWebsiteData = async () => {
+    try {
+      setIsLoadingExtendedData(true);
+      const response = await fetch("/api/website/get");
+      const data = await response.json();
+      console.log(data);
+
+      if (data.success && data.websiteData) {
+        setExtendedWebsiteData(data.websiteData);
+      } else {
+        console.error("Failed to fetch extended website data:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching extended website data:", error);
+    } finally {
+      setIsLoadingExtendedData(false);
+    }
+  };
+
+  // Use effect to fetch extended data when we have an access key and valid website data
+  useEffect(() => {
+    if (accessKey && fetcher.data?.success && fetcher.data.websiteData) {
+      fetchExtendedWebsiteData();
+    }
+  }, [accessKey, fetcher.data?.success]);
 
   // Helper to get training progress
   const getTrainingProgress = useCallback(() => {
@@ -2301,6 +2332,308 @@ export default function Index() {
                       </div>
                     </BlockStack>
                   </div>
+
+                  {/* NEW: Extended Analytics Card */}
+                  {accessKey && fetcher.data?.success && (
+                    <div
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: "12px",
+                        padding: "24px",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      <BlockStack gap="600">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <BlockStack gap="200">
+                            <Text variant="headingLg" fontWeight="semibold">
+                              Conversation Analytics
+                            </Text>
+                            <Text variant="bodyMd" color="subdued">
+                              Insights into how customers interact with your AI
+                              assistant
+                            </Text>
+                          </BlockStack>
+                          <Button
+                            onClick={fetchExtendedWebsiteData}
+                            loading={isLoadingExtendedData}
+                            icon={RefreshIcon}
+                          >
+                            Refresh Data
+                          </Button>
+                        </InlineStack>
+
+                        {isLoadingExtendedData && !extendedWebsiteData ? (
+                          <div style={{ padding: "32px", textAlign: "center" }}>
+                            <BlockStack gap="400" align="center">
+                              <Spinner size="large" />
+                              <Text variant="bodyMd" color="subdued">
+                                Loading analytics data...
+                              </Text>
+                            </BlockStack>
+                          </div>
+                        ) : extendedWebsiteData ? (
+                          <div
+                            style={{
+                              backgroundColor: "#F9FAFB",
+                              borderRadius: "12px",
+                              padding: "20px",
+                              display: "grid",
+                              gridTemplateColumns: "repeat(4, 1fr)",
+                              gap: "20px",
+                            }}
+                          >
+                            {[
+                              {
+                                icon: DataPresentationIcon,
+                                count:
+                                  extendedWebsiteData.stats?.totalRedirects ||
+                                  0,
+                                label: "Total Redirects",
+                              },
+                              {
+                                icon: CalendarIcon,
+                                count: Math.round(
+                                  extendedWebsiteData.stats?.redirectRate || 0,
+                                ),
+                                label: "Redirect Rate %",
+                                isPercentage: true,
+                              },
+                              {
+                                icon: ChatIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalTextChats || 0,
+                                label: "Text Chats",
+                              },
+                              {
+                                icon: ToggleOnIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalVoiceChats || 0,
+                                label: "Voice Chats",
+                              },
+                            ].map((item, index) => (
+                              <div key={index} style={{ textAlign: "center" }}>
+                                <BlockStack gap="300" align="center">
+                                  <div
+                                    style={{
+                                      width: "48px",
+                                      height: "48px",
+                                      backgroundColor: "white",
+                                      borderRadius: "12px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      margin: "0 auto",
+                                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                    }}
+                                  >
+                                    <Icon source={item.icon} color="base" />
+                                  </div>
+                                  <Text variant="heading2xl" fontWeight="bold">
+                                    {item.count}
+                                    {item.isPercentage ? "%" : ""}
+                                  </Text>
+                                  <Text variant="bodySm" color="subdued">
+                                    {item.label}
+                                  </Text>
+                                </BlockStack>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ padding: "32px", textAlign: "center" }}>
+                            <Text variant="bodyMd" color="subdued">
+                              No analytics data available
+                            </Text>
+                          </div>
+                        )}
+                      </BlockStack>
+                    </div>
+                  )}
+
+                  {/* NEW: Top Content Card */}
+                  {accessKey && fetcher.data?.success && (
+                    <div
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: "12px",
+                        padding: "24px",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      <BlockStack gap="600">
+                        <BlockStack gap="200">
+                          <Text variant="headingLg" fontWeight="semibold">
+                            Top Redirected Content
+                          </Text>
+                          <Text variant="bodyMd" color="subdued">
+                            Most popular pages that customers are directed to by
+                            your AI assistant
+                          </Text>
+                        </BlockStack>
+
+                        {isLoadingExtendedData && !extendedWebsiteData ? (
+                          <div style={{ padding: "32px", textAlign: "center" }}>
+                            <BlockStack gap="400" align="center">
+                              <Spinner size="large" />
+                              <Text variant="bodyMd" color="subdued">
+                                Loading content data...
+                              </Text>
+                            </BlockStack>
+                          </div>
+                        ) : extendedWebsiteData?.content ? (
+                          <div
+                            style={{
+                              backgroundColor: "#F9FAFB",
+                              borderRadius: "12px",
+                              padding: "20px",
+                            }}
+                          >
+                            {/* Rest of the tabs content */}
+                            <Tabs
+                              tabs={[
+                                {
+                                  id: "products",
+                                  content: (
+                                    <span>
+                                      Products <Icon source={ProductIcon} />
+                                    </span>
+                                  ),
+                                },
+                                {
+                                  id: "collections",
+                                  content: (
+                                    <span>
+                                      Collections{" "}
+                                      <Icon source={CollectionIcon} />
+                                    </span>
+                                  ),
+                                },
+                                {
+                                  id: "blogPosts",
+                                  content: (
+                                    <span>
+                                      Blog Posts <Icon source={BlogIcon} />
+                                    </span>
+                                  ),
+                                },
+                                {
+                                  id: "pages",
+                                  content: (
+                                    <span>
+                                      Pages <Icon source={PageIcon} />
+                                    </span>
+                                  ),
+                                },
+                              ]}
+                              selected={selectedContentTab}
+                              onSelect={setSelectedContentTab}
+                            >
+                              {(selected) => {
+                                const contentType = [
+                                  "products",
+                                  "collections",
+                                  "blogPosts",
+                                  "pages",
+                                ][selected];
+                                const contentItems =
+                                  extendedWebsiteData.content[contentType] ||
+                                  [];
+
+                                // Sort by redirect count (highest first)
+                                const sortedItems = [...contentItems]
+                                  .sort(
+                                    (a, b) =>
+                                      (b.aiRedirects || 0) -
+                                      (a.aiRedirects || 0),
+                                  )
+                                  .slice(0, 5); // Top 5 items
+
+                                if (sortedItems.length === 0) {
+                                  return (
+                                    <div
+                                      style={{
+                                        padding: "16px",
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      <Text variant="bodyMd" color="subdued">
+                                        No {contentType} data available
+                                      </Text>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div style={{ marginTop: "16px" }}>
+                                    {sortedItems.map((item, index) => (
+                                      <div
+                                        key={index}
+                                        style={{
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          alignItems: "center",
+                                          padding: "12px",
+                                          borderBottom:
+                                            index < sortedItems.length - 1
+                                              ? "1px solid #E4E5E7"
+                                              : "none",
+                                        }}
+                                      >
+                                        <BlockStack gap="100">
+                                          <Text
+                                            variant="bodyMd"
+                                            fontWeight="semibold"
+                                          >
+                                            {item.title}
+                                          </Text>
+                                          <Link
+                                            url={`https://${fetcher.data.websiteData.url}${item.url}`}
+                                            external
+                                            monochrome
+                                          >
+                                            <Text
+                                              variant="bodySm"
+                                              color="subdued"
+                                            >
+                                              {item.url}
+                                            </Text>
+                                          </Link>
+                                        </BlockStack>
+                                        <div
+                                          style={{
+                                            backgroundColor: "#E3F5E1",
+                                            padding: "6px 12px",
+                                            borderRadius: "20px",
+                                          }}
+                                        >
+                                          <Text
+                                            variant="bodySm"
+                                            fontWeight="semibold"
+                                            tone="success"
+                                          >
+                                            {item.aiRedirects || 0} redirects
+                                          </Text>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              }}
+                            </Tabs>
+                          </div>
+                        ) : (
+                          <div style={{ padding: "32px", textAlign: "center" }}>
+                            <Text variant="bodyMd" color="subdued">
+                              No content data available
+                            </Text>
+                          </div>
+                        )}
+                      </BlockStack>
+                    </div>
+                  )}
 
                   {/* AI Assistant Settings Card */}
                   <div
