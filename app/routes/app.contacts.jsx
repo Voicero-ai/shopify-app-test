@@ -55,27 +55,21 @@ export const loader = async ({ request }) => {
       });
     }
 
-    // Fetch contacts data from the Voicero API with websiteId
-    const response = await fetch(`${urls.voiceroApi}/api/contacts`, {
-      method: "POST", // Using POST as per the NextJS API
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${accessKey}`,
-      },
-      body: JSON.stringify({ websiteId }),
-    });
+    // Use our internal API endpoint to fetch contacts
+    const url = new URL(request.url);
+    const baseUrl = url.origin;
+    const response = await fetch(`${baseUrl}/api/contacts`);
 
     if (!response.ok) {
+      const errorData = await response.json();
       return json({
-        error: "Failed to fetch contacts",
+        error: errorData.error || "Failed to fetch contacts",
       });
     }
 
-    const contacts = await response.json();
+    const contactsData = await response.json();
     return json({
-      contacts,
-      accessKey,
+      contacts: contactsData.contacts,
       websiteId,
     });
   } catch (error) {
@@ -86,90 +80,34 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const action = formData.get("action");
   const contactId = formData.get("contactId");
-  const email = formData.get("email");
-  const message = formData.get("message");
-
-  // Get access key from metafields
-  const metafieldResponse = await admin.graphql(`
-    query {
-      shop {
-        metafield(namespace: "voicero", key: "access_key") {
-          value
-        }
-      }
-    }
-  `);
-
-  const metafieldData = await metafieldResponse.json();
-  const accessKey = metafieldData.data.shop.metafield?.value;
-  const websiteId = formData.get("websiteId");
-
-  if (!accessKey || !websiteId) {
-    return json({
-      success: false,
-      error: "Access key or Website ID not found",
-    });
-  }
 
   try {
-    if (action === "markAsRead") {
-      const response = await fetch(`${urls.voiceroApi}/api/contacts/status`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${accessKey}`,
-        },
-        body: JSON.stringify({
-          contactId,
-          websiteId,
-          read: true,
-        }),
-      });
+    // Use the URL origin to create a path to our API
+    const url = new URL(request.url);
+    const baseUrl = url.origin;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update contact status");
-      }
-
-      const data = await response.json();
-      return json({
-        success: true,
-        data,
-        message: "Contact marked as read",
-      });
-    } else if (action === "sendReply") {
-      const response = await fetch(`${urls.voiceroApi}/api/contacts/reply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${accessKey}`,
-        },
-        body: JSON.stringify({
-          contactId,
-          websiteId,
-          email,
-          message,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send reply");
-      }
-
-      const data = await response.json();
-      return json({
-        success: true,
-        data,
-        message: "Reply sent successfully",
-      });
+    // Create a new FormData object to pass to our API endpoint
+    const apiFormData = new FormData();
+    for (const [key, value] of formData.entries()) {
+      apiFormData.append(key, value);
     }
+
+    // Call our API endpoint for the action
+    const response = await fetch(`${baseUrl}/api/contacts`, {
+      method: "POST",
+      body: apiFormData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to process action");
+    }
+
+    const data = await response.json();
+    return json(data);
   } catch (error) {
     return json({
       success: false,
@@ -179,8 +117,7 @@ export const action = async ({ request }) => {
 };
 
 export default function ContactsPage() {
-  const { contacts, accessKey, websiteId, error, disconnected } =
-    useLoaderData();
+  const { contacts, websiteId, error, disconnected } = useLoaderData();
   const fetcher = useFetcher();
   const navigate = useNavigate();
   const [showReplyModal, setShowReplyModal] = useState(false);
@@ -415,6 +352,9 @@ export default function ContactsPage() {
         fetcher.data.message || "Operation completed successfully",
       );
       setToastType("success");
+
+      // Refresh the page to show updated data
+      window.location.reload();
     }
   }, [fetcher.data]);
 
