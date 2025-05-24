@@ -41,10 +41,10 @@ export default function App() {
           <Link to="/app" rel="home">
             Home
           </Link>
-          <Link to="/app/website">Website</Link>
-          <Link to="/app/settings">Settings</Link>
           <Link to="/app/ai-overview">AI Overview</Link>
           <Link to="/app/customize-chatbot">Customize Chatbot</Link>
+          <Link to="/app/contacts">Contacts</Link>
+          <Link to="/app/settings">Settings</Link>
         </NavMenu>
         <Outlet />
       </PolarisAppProvider>

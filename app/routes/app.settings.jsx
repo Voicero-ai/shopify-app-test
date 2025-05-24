@@ -46,6 +46,8 @@ import {
   DesktopIcon,
   ChatIcon,
   XIcon,
+  PersonIcon,
+  EmailIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import urls from "../config/urls";
@@ -113,9 +115,6 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
   const action = formData.get("action");
 
-  // Log received form data
-  
-
   // Get access key from metafields
   const metafieldResponse = await admin.graphql(`
     query {
@@ -142,24 +141,18 @@ export const action = async ({ request }) => {
   try {
     if (action === "update") {
       // Parse the form data
-      const popUpQuestions = JSON.parse(formData.get("popUpQuestions") || "[]");
       const active = formData.get("active") === "true";
       const name = formData.get("name");
       const url = formData.get("url");
       const customInstructions = formData.get("customInstructions");
-      const color = formData.get("color");
-
 
       // Prepare the update payload
       const updates = {
         name,
         url,
         customInstructions,
-        popUpQuestions,
         active,
-        color,
       };
-
 
       // Call the editInfoFromShopify API
       const response = await fetch(
@@ -226,17 +219,24 @@ export default function SettingsPage() {
   const fetcher = useFetcher();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingUser, setIsEditingUser] = useState(false);
   const [formData, setFormData] = useState({
     name: websiteData?.name || "",
     url: websiteData?.url || "",
     customInstructions: websiteData?.customInstructions || "",
-    popUpQuestions: websiteData?.popUpQuestions || [],
     active: websiteData?.active || false,
-    color: websiteData?.color || "#000000",
   });
 
-  const [isEditingQuestions, setIsEditingQuestions] = useState(false);
-  const [questions, setQuestions] = useState(websiteData?.popUpQuestions || []);
+  // Replace static user data with state that will be populated from API
+  const [userData, setUserData] = useState({
+    name: "",
+    username: "",
+    email: "",
+  });
+
+  const [userDataLoading, setUserDataLoading] = useState(true);
+  const [userDataError, setUserDataError] = useState(null);
+
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
@@ -249,6 +249,35 @@ export default function SettingsPage() {
     }
   }, [disconnected, navigate]);
 
+  // Fetch user data from the API
+  useEffect(() => {
+    if (accessKey) {
+      setUserDataLoading(true);
+      fetch("/api/user/me")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to fetch user data");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          if (data.user) {
+            setUserData({
+              name: data.user.name || "",
+              username: data.user.username || "",
+              email: data.user.email || "",
+            });
+          }
+          setUserDataLoading(false);
+        })
+        .catch((err) => {
+          console.error("Error fetching user data:", err);
+          setUserDataError(err.message);
+          setUserDataLoading(false);
+        });
+    }
+  }, [accessKey]);
+
   const handleSave = () => {
     // Create a copy of formData without including lastSyncedAt
     const dataToSubmit = {
@@ -256,16 +285,11 @@ export default function SettingsPage() {
       name: formData.name,
       url: formData.url,
       customInstructions: formData.customInstructions,
-      popUpQuestions: JSON.stringify(formData.popUpQuestions),
       active: formData.active.toString(),
-      color: formData.color,
-      // Explicitly exclude lastSyncedAt to preserve its value on the server
     };
-
 
     fetcher.submit(dataToSubmit, { method: "POST" });
     setIsEditing(false);
-    setIsEditingQuestions(false);
     setShowToast(true);
     setToastMessage("Settings updated successfully!");
     setToastType("success");
@@ -355,11 +379,8 @@ export default function SettingsPage() {
           name: fetcher.data.data.name || "",
           url: fetcher.data.data.url || "",
           customInstructions: fetcher.data.data.customInstructions || "",
-          popUpQuestions: fetcher.data.data.popUpQuestions || [],
           active: fetcher.data.data.active || false,
-          color: fetcher.data.data.color || "#000000",
         });
-        setQuestions(fetcher.data.data.popUpQuestions || []);
       }
 
       setShowToast(true);
@@ -439,13 +460,27 @@ export default function SettingsPage() {
                     </InlineStack>
                     <InlineStack gap="200">
                       <Box width="24px" />
-                      <Button
-                        destructive
-                        icon={ExitIcon}
-                        onClick={() => setShowDisconnectModal(true)}
-                      >
-                        Disconnect Website
-                      </Button>
+                      <InlineStack gap="200">
+                        <Button
+                          destructive
+                          icon={ExitIcon}
+                          onClick={() => setShowDisconnectModal(true)}
+                        >
+                          Disconnect Website
+                        </Button>
+                        <Button
+                          tone="critical"
+                          icon={DeleteIcon}
+                          onClick={() =>
+                            window.open(
+                              "https://www.voicero.ai/app/settings",
+                              "_blank",
+                            )
+                          }
+                        >
+                          Delete Website
+                        </Button>
+                      </InlineStack>
                     </InlineStack>
                   </BlockStack>
                 </BlockStack>
@@ -484,6 +519,36 @@ export default function SettingsPage() {
                   </InlineStack>
                   <Divider />
                   <BlockStack gap="300">
+                    <InlineStack gap="200" align="start">
+                      <Box width="24px">
+                        <Icon
+                          source={formData.active ? CheckIcon : XIcon}
+                          color="base"
+                        />
+                      </Box>
+                      <BlockStack gap="0">
+                        <InlineStack gap="200" align="center">
+                          <Text as="p" variant="bodyMd" fontWeight="bold">
+                            Status:
+                          </Text>
+                          <Badge
+                            tone={formData.active ? "success" : "critical"}
+                            icon={formData.active ? CheckIcon : XIcon}
+                          >
+                            {formData.active ? "Active" : "Inactive"}
+                          </Badge>
+                          <Button
+                            size="slim"
+                            icon={
+                              formData.active ? ToggleOffIcon : ToggleOnIcon
+                            }
+                            onClick={toggleStatus}
+                          >
+                            {formData.active ? "Deactivate" : "Activate"}
+                          </Button>
+                        </InlineStack>
+                      </BlockStack>
+                    </InlineStack>
                     <TextField
                       label="Website Name"
                       value={formData.name}
@@ -512,212 +577,97 @@ export default function SettingsPage() {
                       disabled={!isEditing}
                       helpText="Provide custom instructions for your AI assistant to better serve your customers"
                     />
-                    <TextField
-                      label="Assistant Color"
-                      value={formData.color}
-                      onChange={(value) =>
-                        setFormData({ ...formData, color: value })
-                      }
-                      disabled={!isEditing}
-                      type="color"
-                      helpText="Choose a color for your AI assistant"
-                    />
                   </BlockStack>
                 </BlockStack>
               </Card>
 
-              {/* AI Assistant Configuration */}
+              {/* User Settings */}
               <Card>
                 <BlockStack gap="400">
                   <InlineStack align="space-between">
                     <InlineStack gap="200">
-                      <Icon source={SettingsIcon} color="highlight" />
+                      <Icon source={PersonIcon} color="highlight" />
                       <Text as="h3" variant="headingMd">
-                        AI Assistant Configuration
+                        User Settings
                       </Text>
                     </InlineStack>
-                    <InlineStack gap="200">
-                      <Button
-                        icon={formData.active ? ToggleOffIcon : ToggleOnIcon}
-                        onClick={toggleStatus}
-                        primary
-                      >
-                        {formData.active ? "Deactivate" : "Activate"}
-                      </Button>
-                      {isEditingQuestions ? (
-                        <InlineStack gap="200">
-                          <Button
-                            icon={XIcon}
-                            onClick={() => {
-                              setIsEditingQuestions(false);
-                              setQuestions(websiteData?.popUpQuestions || []);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            primary
-                            icon={SaveIcon}
-                            onClick={() => {
-                              const updatedFormData = {
-                                ...formData,
-                                popUpQuestions: questions,
-                              };
-                              setFormData(updatedFormData);
-                              setIsEditingQuestions(false);
-
-                              // Submit the updated form data
-                              fetcher.submit(
-                                {
-                                  action: "update",
-                                  ...updatedFormData,
-                                  popUpQuestions: JSON.stringify(questions),
-                                  active: updatedFormData.active.toString(),
-                                },
-                                { method: "POST" },
-                              );
-
-                              setShowToast(true);
-                              setToastMessage(
-                                "Questions updated successfully!",
-                              );
-                              setToastType("success");
-                            }}
-                          >
-                            Save Questions
-                          </Button>
-                        </InlineStack>
-                      ) : (
+                    {isEditingUser ? (
+                      <InlineStack gap="200">
                         <Button
-                          icon={EditIcon}
-                          onClick={() => setIsEditingQuestions(true)}
-                          primary
+                          icon={CreditCardCancelIcon}
+                          onClick={() => setIsEditingUser(false)}
                         >
-                          Edit Questions
+                          Cancel
                         </Button>
-                      )}
-                    </InlineStack>
+                        <Button
+                          primary
+                          icon={SaveIcon}
+                          onClick={() => {
+                            setIsEditingUser(false);
+                            setShowToast(true);
+                            setToastMessage(
+                              "User settings updated successfully!",
+                            );
+                            setToastType("success");
+                          }}
+                        >
+                          Save Changes
+                        </Button>
+                      </InlineStack>
+                    ) : (
+                      <Button
+                        icon={EditIcon}
+                        onClick={() => setIsEditingUser(true)}
+                        disabled={userDataLoading}
+                      >
+                        Edit
+                      </Button>
+                    )}
                   </InlineStack>
                   <Divider />
-
                   <BlockStack gap="300">
-                    <InlineStack gap="200" align="start">
-                      <Box width="24px">
-                        <Icon
-                          source={formData.active ? CheckIcon : XIcon}
-                          color="base"
+                    {userDataLoading ? (
+                      <ProgressBar progress={75} size="small" />
+                    ) : userDataError ? (
+                      <Banner status="critical">
+                        <p>Failed to load user data: {userDataError}</p>
+                      </Banner>
+                    ) : (
+                      <>
+                        <TextField
+                          label="Name"
+                          value={userData.name}
+                          onChange={(value) =>
+                            setUserData({ ...userData, name: value })
+                          }
+                          disabled={!isEditingUser}
+                          prefix={
+                            <Icon source={PersonIcon} color="highlight" />
+                          }
                         />
-                      </Box>
-                      <BlockStack gap="0">
-                        <InlineStack gap="200">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Status:
-                          </Text>
-                          <Badge
-                            tone={formData.active ? "success" : "critical"}
-                            icon={formData.active ? CheckIcon : XIcon}
-                          >
-                            {formData.active ? "Active" : "Inactive"}
-                          </Badge>
-                        </InlineStack>
-                      </BlockStack>
-                    </InlineStack>
-
-                    <BlockStack gap="200">
-                      <InlineStack gap="200" align="start">
-                        <Box width="24px">
-                          <Icon source={QuestionCircleIcon} color="base" />
-                        </Box>
-                        <BlockStack gap="200" width="100%">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Pop-up Questions:
-                          </Text>
-                          {isEditingQuestions ? (
-                            <BlockStack gap="300">
-                              {questions.map((question, index) => (
-                                <InlineStack
-                                  key={index}
-                                  align="space-between"
-                                  gap="200"
-                                >
-                                  <TextField
-                                    label={`Question ${index + 1}`}
-                                    value={question.question}
-                                    onChange={(value) => {
-                                      const newQuestions = [...questions];
-                                      newQuestions[index] = {
-                                        ...question,
-                                        question: value,
-                                      };
-                                      setQuestions(newQuestions);
-                                    }}
-                                    labelHidden
-                                    prefix={
-                                      <Text variant="bodyMd">{index + 1}.</Text>
-                                    }
-                                  />
-                                  <Button
-                                    tone="critical"
-                                    icon={DeleteIcon}
-                                    onClick={() => {
-                                      const newQuestions = questions.filter(
-                                        (_, i) => i !== index,
-                                      );
-                                      setQuestions(newQuestions);
-                                    }}
-                                  >
-                                    Remove
-                                  </Button>
-                                </InlineStack>
-                              ))}
-                              <Button
-                                icon={PlusIcon}
-                                onClick={() => {
-                                  setQuestions([
-                                    ...questions,
-                                    { question: "" },
-                                  ]);
-                                }}
-                              >
-                                Add Question
-                              </Button>
-                            </BlockStack>
-                          ) : (
-                            <BlockStack gap="200">
-                              {formData.popUpQuestions.length > 0 ? (
-                                formData.popUpQuestions.map(
-                                  (question, index) => (
-                                    <Box
-                                      key={index}
-                                      background="bg-surface-secondary"
-                                      padding="300"
-                                      borderRadius="200"
-                                    >
-                                      <InlineStack gap="200">
-                                        <Text as="span" fontWeight="bold">
-                                          {index + 1}.
-                                        </Text>
-                                        <Text as="p">{question.question}</Text>
-                                      </InlineStack>
-                                    </Box>
-                                  ),
-                                )
-                              ) : (
-                                <Box
-                                  background="bg-surface-secondary"
-                                  padding="300"
-                                  borderRadius="200"
-                                >
-                                  <Text as="p" alignment="center">
-                                    No pop-up questions configured
-                                  </Text>
-                                </Box>
-                              )}
-                            </BlockStack>
-                          )}
-                        </BlockStack>
-                      </InlineStack>
-                    </BlockStack>
+                        <TextField
+                          label="Username"
+                          value={userData.username}
+                          onChange={(value) =>
+                            setUserData({ ...userData, username: value })
+                          }
+                          disabled={!isEditingUser}
+                          prefix={
+                            <Icon source={PersonIcon} color="highlight" />
+                          }
+                        />
+                        <TextField
+                          label="Email"
+                          value={userData.email}
+                          onChange={(value) =>
+                            setUserData({ ...userData, email: value })
+                          }
+                          disabled={!isEditingUser}
+                          type="email"
+                          prefix={<Icon source={EmailIcon} color="highlight" />}
+                        />
+                      </>
+                    )}
                   </BlockStack>
                 </BlockStack>
               </Card>
@@ -744,25 +694,23 @@ export default function SettingsPage() {
                           <Text as="p" variant="bodyMd" fontWeight="bold">
                             Current Plan:
                           </Text>
-                          <Badge>{websiteData.plan || "Basic"}</Badge>
+                          <Badge>{websiteData.plan || "Free"}</Badge>
                         </InlineStack>
                       </BlockStack>
                     </InlineStack>
                     <InlineStack gap="200" align="start">
                       <Box width="24px">
-                        <Icon source={CalendarIcon} color="base" />
+                        <Icon source={CreditCardIcon} color="base" />
                       </Box>
                       <BlockStack gap="0">
                         <InlineStack gap="200">
                           <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Renews On:
+                            Price:
                           </Text>
                           <Text as="p">
-                            {websiteData.renewsOn
-                              ? new Date(
-                                  websiteData.renewsOn,
-                                ).toLocaleDateString()
-                              : "N/A"}
+                            {websiteData.plan === "free"
+                              ? "$0/month"
+                              : "$19/month"}
                           </Text>
                         </InlineStack>
                       </BlockStack>
@@ -790,9 +738,14 @@ export default function SettingsPage() {
                       <Box width="24px" />
                       <Button
                         icon={CreditCardIcon}
-                        onClick={() => navigate("/app/pricing")}
+                        onClick={() =>
+                          window.open(
+                            `https://www.voicero.ai/app/websites/website?id=${websiteData.id}`,
+                            "_blank",
+                          )
+                        }
                       >
-                        Manage Subscription
+                        Update Subscription
                       </Button>
                     </InlineStack>
                   </BlockStack>
