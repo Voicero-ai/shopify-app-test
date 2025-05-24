@@ -17,7 +17,6 @@ import {
   Badge,
   Divider,
   Toast,
-  Frame,
   ProgressBar,
   Tooltip,
   EmptyState,
@@ -408,390 +407,379 @@ export default function SettingsPage() {
   }
 
   return (
-    <Frame>
-      <Page
-        title="Website Settings"
-        backAction={{
-          content: "Back",
-          onAction: () => navigate("/app"),
-        }}
-        titleMetadata={
-          <Badge status={websiteData?.active ? "success" : "critical"}>
-            {websiteData?.active ? "Active" : "Inactive"}
-          </Badge>
-        }
-      >
-        <BlockStack gap="500">
-          <Layout>
-            <Layout.Section>
-              {/* Connection Settings */}
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between">
-                    <InlineStack gap="200">
+    <Page
+      title="Website Settings"
+      backAction={{
+        content: "Back",
+        onAction: () => navigate("/app"),
+      }}
+      titleMetadata={
+        <Badge status={websiteData?.active ? "success" : "critical"}>
+          {websiteData?.active ? "Active" : "Inactive"}
+        </Badge>
+      }
+    >
+      <BlockStack gap="500">
+        <Layout>
+          <Layout.Section>
+            {/* Connection Settings */}
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <InlineStack gap="200">
+                    <Icon source={KeyIcon} color="highlight" />
+                    <Text as="h3" variant="headingMd">
+                      Connection Settings
+                    </Text>
+                  </InlineStack>
+                </InlineStack>
+                <Divider />
+                <BlockStack gap="300">
+                  <InlineStack gap="200" align="start">
+                    <Box width="24px">
                       <Icon source={KeyIcon} color="highlight" />
-                      <Text as="h3" variant="headingMd">
-                        Connection Settings
-                      </Text>
-                    </InlineStack>
-                  </InlineStack>
-                  <Divider />
-                  <BlockStack gap="300">
-                    <InlineStack gap="200" align="start">
-                      <Box width="24px">
-                        <Icon source={KeyIcon} color="highlight" />
-                      </Box>
-                      <BlockStack gap="0">
-                        <InlineStack gap="200">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Access Key:
+                    </Box>
+                    <BlockStack gap="0">
+                      <InlineStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="bold">
+                          Access Key:
+                        </Text>
+                        <Box
+                          background="bg-surface-secondary"
+                          padding="200"
+                          borderRadius="100"
+                        >
+                          <Text as="p" variant="bodyMd">
+                            {accessKey}
                           </Text>
-                          <Box
-                            background="bg-surface-secondary"
-                            padding="200"
-                            borderRadius="100"
-                          >
-                            <Text as="p" variant="bodyMd">
-                              {accessKey}
-                            </Text>
-                          </Box>
-                        </InlineStack>
-                      </BlockStack>
-                    </InlineStack>
-                    <InlineStack gap="200">
-                      <Box width="24px" />
-                      <InlineStack gap="200">
-                        <Button
-                          destructive
-                          icon={ExitIcon}
-                          onClick={() => setShowDisconnectModal(true)}
-                        >
-                          Disconnect Website
-                        </Button>
-                        <Button
-                          tone="critical"
-                          icon={DeleteIcon}
-                          onClick={() =>
-                            window.open(
-                              "https://www.voicero.ai/app/settings",
-                              "_blank",
-                            )
-                          }
-                        >
-                          Delete Website
-                        </Button>
+                        </Box>
                       </InlineStack>
-                    </InlineStack>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-
-              {/* Website Information */}
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between">
+                    </BlockStack>
+                  </InlineStack>
+                  <InlineStack gap="200">
+                    <Box width="24px" />
                     <InlineStack gap="200">
-                      <Icon source={GlobeIcon} color="highlight" />
-                      <Text as="h3" variant="headingMd">
-                        Website Information
-                      </Text>
-                    </InlineStack>
-                    {isEditing ? (
-                      <InlineStack gap="200">
-                        <Button
-                          icon={CreditCardCancelIcon}
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button primary icon={SaveIcon} onClick={handleSave}>
-                          Save Changes
-                        </Button>
-                      </InlineStack>
-                    ) : (
                       <Button
-                        icon={EditIcon}
-                        onClick={() => setIsEditing(true)}
+                        destructive
+                        icon={ExitIcon}
+                        onClick={() => setShowDisconnectModal(true)}
                       >
-                        Edit
+                        Disconnect Website
                       </Button>
-                    )}
-                  </InlineStack>
-                  <Divider />
-                  <BlockStack gap="300">
-                    <InlineStack gap="200" align="start">
-                      <Box width="24px">
-                        <Icon
-                          source={formData.active ? CheckIcon : XIcon}
-                          color="base"
-                        />
-                      </Box>
-                      <BlockStack gap="0">
-                        <InlineStack gap="200" align="center">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Status:
-                          </Text>
-                          <Badge
-                            tone={formData.active ? "success" : "critical"}
-                            icon={formData.active ? CheckIcon : XIcon}
-                          >
-                            {formData.active ? "Active" : "Inactive"}
-                          </Badge>
-                          <Button
-                            size="slim"
-                            icon={
-                              formData.active ? ToggleOffIcon : ToggleOnIcon
-                            }
-                            onClick={toggleStatus}
-                          >
-                            {formData.active ? "Deactivate" : "Activate"}
-                          </Button>
-                        </InlineStack>
-                      </BlockStack>
-                    </InlineStack>
-                    <TextField
-                      label="Website Name"
-                      value={formData.name}
-                      onChange={(value) =>
-                        setFormData({ ...formData, name: value })
-                      }
-                      disabled={!isEditing}
-                      prefix={<Icon source={GlobeIcon} color="highlight" />}
-                    />
-                    <TextField
-                      label="Website URL"
-                      value={formData.url}
-                      onChange={(value) =>
-                        setFormData({ ...formData, url: value })
-                      }
-                      disabled={!isEditing}
-                      prefix={<Icon source={GlobeIcon} color="highlight" />}
-                    />
-                    <TextField
-                      label="Custom Instructions"
-                      value={formData.customInstructions}
-                      onChange={(value) =>
-                        setFormData({ ...formData, customInstructions: value })
-                      }
-                      multiline={4}
-                      disabled={!isEditing}
-                      helpText="Provide custom instructions for your AI assistant to better serve your customers"
-                    />
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-
-              {/* User Settings */}
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between">
-                    <InlineStack gap="200">
-                      <Icon source={PersonIcon} color="highlight" />
-                      <Text as="h3" variant="headingMd">
-                        User Settings
-                      </Text>
-                    </InlineStack>
-                    {isEditingUser ? (
-                      <InlineStack gap="200">
-                        <Button
-                          icon={CreditCardCancelIcon}
-                          onClick={() => setIsEditingUser(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          primary
-                          icon={SaveIcon}
-                          onClick={() => {
-                            setIsEditingUser(false);
-                            setShowToast(true);
-                            setToastMessage(
-                              "User settings updated successfully!",
-                            );
-                            setToastType("success");
-                          }}
-                        >
-                          Save Changes
-                        </Button>
-                      </InlineStack>
-                    ) : (
                       <Button
-                        icon={EditIcon}
-                        onClick={() => setIsEditingUser(true)}
-                        disabled={userDataLoading}
-                      >
-                        Edit
-                      </Button>
-                    )}
-                  </InlineStack>
-                  <Divider />
-                  <BlockStack gap="300">
-                    {userDataLoading ? (
-                      <ProgressBar progress={75} size="small" />
-                    ) : userDataError ? (
-                      <Banner status="critical">
-                        <p>Failed to load user data: {userDataError}</p>
-                      </Banner>
-                    ) : (
-                      <>
-                        <TextField
-                          label="Name"
-                          value={userData.name}
-                          onChange={(value) =>
-                            setUserData({ ...userData, name: value })
-                          }
-                          disabled={!isEditingUser}
-                          prefix={
-                            <Icon source={PersonIcon} color="highlight" />
-                          }
-                        />
-                        <TextField
-                          label="Username"
-                          value={userData.username}
-                          onChange={(value) =>
-                            setUserData({ ...userData, username: value })
-                          }
-                          disabled={!isEditingUser}
-                          prefix={
-                            <Icon source={PersonIcon} color="highlight" />
-                          }
-                        />
-                        <TextField
-                          label="Email"
-                          value={userData.email}
-                          onChange={(value) =>
-                            setUserData({ ...userData, email: value })
-                          }
-                          disabled={!isEditingUser}
-                          type="email"
-                          prefix={<Icon source={EmailIcon} color="highlight" />}
-                        />
-                      </>
-                    )}
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-
-              {/* Subscription Information */}
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between">
-                    <InlineStack gap="200">
-                      <Icon source={CreditCardIcon} color="base" />
-                      <Text as="h3" variant="headingMd">
-                        Subscription Information
-                      </Text>
-                    </InlineStack>
-                  </InlineStack>
-                  <Divider />
-                  <BlockStack gap="300">
-                    <InlineStack gap="200" align="start">
-                      <Box width="24px">
-                        <Icon source={InfoIcon} color="base" />
-                      </Box>
-                      <BlockStack gap="0">
-                        <InlineStack gap="200">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Current Plan:
-                          </Text>
-                          <Badge>{websiteData.plan || "Free"}</Badge>
-                        </InlineStack>
-                      </BlockStack>
-                    </InlineStack>
-                    <InlineStack gap="200" align="start">
-                      <Box width="24px">
-                        <Icon source={CreditCardIcon} color="base" />
-                      </Box>
-                      <BlockStack gap="0">
-                        <InlineStack gap="200">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Price:
-                          </Text>
-                          <Text as="p">
-                            {websiteData.plan === "free"
-                              ? "$0/month"
-                              : "$19/month"}
-                          </Text>
-                        </InlineStack>
-                      </BlockStack>
-                    </InlineStack>
-                    <InlineStack gap="200" align="start">
-                      <Box width="24px">
-                        <Icon source={RefreshIcon} color="base" />
-                      </Box>
-                      <BlockStack gap="0">
-                        <InlineStack gap="200">
-                          <Text as="p" variant="bodyMd" fontWeight="bold">
-                            Last Synced:
-                          </Text>
-                          <Text as="p">
-                            {websiteData.lastSyncedAt
-                              ? new Date(
-                                  websiteData.lastSyncedAt,
-                                ).toLocaleString()
-                              : "Never"}
-                          </Text>
-                        </InlineStack>
-                      </BlockStack>
-                    </InlineStack>
-                    <InlineStack gap="200">
-                      <Box width="24px" />
-                      <Button
-                        icon={CreditCardIcon}
+                        tone="critical"
+                        icon={DeleteIcon}
                         onClick={() =>
                           window.open(
-                            `https://www.voicero.ai/app/websites/website?id=${websiteData.id}`,
+                            "https://www.voicero.ai/app/settings",
                             "_blank",
                           )
                         }
                       >
-                        Update Subscription
+                        Delete Website
                       </Button>
                     </InlineStack>
-                  </BlockStack>
+                  </InlineStack>
                 </BlockStack>
-              </Card>
-            </Layout.Section>
-          </Layout>
-        </BlockStack>
+              </BlockStack>
+            </Card>
 
-        {showToast && (
-          <Toast
-            content={toastMessage}
-            tone={toastType}
-            onDismiss={toggleToast}
-          />
-        )}
+            {/* Website Information */}
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <InlineStack gap="200">
+                    <Icon source={GlobeIcon} color="highlight" />
+                    <Text as="h3" variant="headingMd">
+                      Website Information
+                    </Text>
+                  </InlineStack>
+                  {isEditing ? (
+                    <InlineStack gap="200">
+                      <Button
+                        icon={CreditCardCancelIcon}
+                        onClick={() => setIsEditing(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button primary icon={SaveIcon} onClick={handleSave}>
+                        Save Changes
+                      </Button>
+                    </InlineStack>
+                  ) : (
+                    <Button icon={EditIcon} onClick={() => setIsEditing(true)}>
+                      Edit
+                    </Button>
+                  )}
+                </InlineStack>
+                <Divider />
+                <BlockStack gap="300">
+                  <InlineStack gap="200" align="start">
+                    <Box width="24px">
+                      <Icon
+                        source={formData.active ? CheckIcon : XIcon}
+                        color="base"
+                      />
+                    </Box>
+                    <BlockStack gap="0">
+                      <InlineStack gap="200" align="center">
+                        <Text as="p" variant="bodyMd" fontWeight="bold">
+                          Status:
+                        </Text>
+                        <Badge
+                          tone={formData.active ? "success" : "critical"}
+                          icon={formData.active ? CheckIcon : XIcon}
+                        >
+                          {formData.active ? "Active" : "Inactive"}
+                        </Badge>
+                        <Button
+                          size="slim"
+                          icon={formData.active ? ToggleOffIcon : ToggleOnIcon}
+                          onClick={toggleStatus}
+                        >
+                          {formData.active ? "Deactivate" : "Activate"}
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
+                  </InlineStack>
+                  <TextField
+                    label="Website Name"
+                    value={formData.name}
+                    onChange={(value) =>
+                      setFormData({ ...formData, name: value })
+                    }
+                    disabled={!isEditing}
+                    prefix={<Icon source={GlobeIcon} color="highlight" />}
+                  />
+                  <TextField
+                    label="Website URL"
+                    value={formData.url}
+                    onChange={(value) =>
+                      setFormData({ ...formData, url: value })
+                    }
+                    disabled={!isEditing}
+                    prefix={<Icon source={GlobeIcon} color="highlight" />}
+                  />
+                  <TextField
+                    label="Custom Instructions"
+                    value={formData.customInstructions}
+                    onChange={(value) =>
+                      setFormData({ ...formData, customInstructions: value })
+                    }
+                    multiline={4}
+                    disabled={!isEditing}
+                    helpText="Provide custom instructions for your AI assistant to better serve your customers"
+                  />
+                </BlockStack>
+              </BlockStack>
+            </Card>
 
-        <Modal
-          open={showDisconnectModal}
-          onClose={() => setShowDisconnectModal(false)}
-          title="Disconnect Website"
-          primaryAction={{
-            content: "Disconnect",
-            destructive: true,
-            onAction: handleDisconnect,
-          }}
-          secondaryActions={[
-            {
-              content: "Cancel",
-              onAction: () => setShowDisconnectModal(false),
-            },
-          ]}
-        >
-          <Modal.Section>
-            <BlockStack gap="400">
-              <Text as="p">
-                Are you sure you want to disconnect your website from VoiceroAI?
-              </Text>
-              <Text as="p" tone="critical">
-                This action cannot be undone. You will need to reconnect your
-                website if you want to use VoiceroAI again.
-              </Text>
-            </BlockStack>
-          </Modal.Section>
-        </Modal>
-      </Page>
-    </Frame>
+            {/* User Settings */}
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <InlineStack gap="200">
+                    <Icon source={PersonIcon} color="highlight" />
+                    <Text as="h3" variant="headingMd">
+                      User Settings
+                    </Text>
+                  </InlineStack>
+                  {isEditingUser ? (
+                    <InlineStack gap="200">
+                      <Button
+                        icon={CreditCardCancelIcon}
+                        onClick={() => setIsEditingUser(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        primary
+                        icon={SaveIcon}
+                        onClick={() => {
+                          setIsEditingUser(false);
+                          setShowToast(true);
+                          setToastMessage(
+                            "User settings updated successfully!",
+                          );
+                          setToastType("success");
+                        }}
+                      >
+                        Save Changes
+                      </Button>
+                    </InlineStack>
+                  ) : (
+                    <Button
+                      icon={EditIcon}
+                      onClick={() => setIsEditingUser(true)}
+                      disabled={userDataLoading}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </InlineStack>
+                <Divider />
+                <BlockStack gap="300">
+                  {userDataLoading ? (
+                    <ProgressBar progress={75} size="small" />
+                  ) : userDataError ? (
+                    <Banner status="critical">
+                      <p>Failed to load user data: {userDataError}</p>
+                    </Banner>
+                  ) : (
+                    <>
+                      <TextField
+                        label="Name"
+                        value={userData.name}
+                        onChange={(value) =>
+                          setUserData({ ...userData, name: value })
+                        }
+                        disabled={!isEditingUser}
+                        prefix={<Icon source={PersonIcon} color="highlight" />}
+                      />
+                      <TextField
+                        label="Username"
+                        value={userData.username}
+                        onChange={(value) =>
+                          setUserData({ ...userData, username: value })
+                        }
+                        disabled={!isEditingUser}
+                        prefix={<Icon source={PersonIcon} color="highlight" />}
+                      />
+                      <TextField
+                        label="Email"
+                        value={userData.email}
+                        onChange={(value) =>
+                          setUserData({ ...userData, email: value })
+                        }
+                        disabled={!isEditingUser}
+                        type="email"
+                        prefix={<Icon source={EmailIcon} color="highlight" />}
+                      />
+                    </>
+                  )}
+                </BlockStack>
+              </BlockStack>
+            </Card>
+
+            {/* Subscription Information */}
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <InlineStack gap="200">
+                    <Icon source={CreditCardIcon} color="base" />
+                    <Text as="h3" variant="headingMd">
+                      Subscription Information
+                    </Text>
+                  </InlineStack>
+                </InlineStack>
+                <Divider />
+                <BlockStack gap="300">
+                  <InlineStack gap="200" align="start">
+                    <Box width="24px">
+                      <Icon source={InfoIcon} color="base" />
+                    </Box>
+                    <BlockStack gap="0">
+                      <InlineStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="bold">
+                          Current Plan:
+                        </Text>
+                        <Badge>{websiteData.plan || "Free"}</Badge>
+                      </InlineStack>
+                    </BlockStack>
+                  </InlineStack>
+                  <InlineStack gap="200" align="start">
+                    <Box width="24px">
+                      <Icon source={CreditCardIcon} color="base" />
+                    </Box>
+                    <BlockStack gap="0">
+                      <InlineStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="bold">
+                          Price:
+                        </Text>
+                        <Text as="p">
+                          {websiteData.plan === "free"
+                            ? "$0/month"
+                            : "$19/month"}
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </InlineStack>
+                  <InlineStack gap="200" align="start">
+                    <Box width="24px">
+                      <Icon source={RefreshIcon} color="base" />
+                    </Box>
+                    <BlockStack gap="0">
+                      <InlineStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="bold">
+                          Last Synced:
+                        </Text>
+                        <Text as="p">
+                          {websiteData.lastSyncedAt
+                            ? new Date(
+                                websiteData.lastSyncedAt,
+                              ).toLocaleString()
+                            : "Never"}
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </InlineStack>
+                  <InlineStack gap="200">
+                    <Box width="24px" />
+                    <Button
+                      icon={CreditCardIcon}
+                      onClick={() =>
+                        window.open(
+                          `https://www.voicero.ai/app/websites/website?id=${websiteData.id}`,
+                          "_blank",
+                        )
+                      }
+                    >
+                      Update Subscription
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </BlockStack>
+
+      {showToast && (
+        <Toast
+          content={toastMessage}
+          tone={toastType}
+          onDismiss={toggleToast}
+        />
+      )}
+
+      <Modal
+        open={showDisconnectModal}
+        onClose={() => setShowDisconnectModal(false)}
+        title="Disconnect Website"
+        primaryAction={{
+          content: "Disconnect",
+          destructive: true,
+          onAction: handleDisconnect,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: () => setShowDisconnectModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Text as="p">
+              Are you sure you want to disconnect your website from VoiceroAI?
+            </Text>
+            <Text as="p" tone="critical">
+              This action cannot be undone. You will need to reconnect your
+              website if you want to use VoiceroAI again.
+            </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+    </Page>
   );
 }
