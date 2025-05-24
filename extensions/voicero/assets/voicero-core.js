@@ -242,12 +242,38 @@
           left: auto !important;
         `;
 
-          // Add the main button first
+          // Get the iconBot value from session if available
+          const iconBot =
+            this.session && this.session.iconBot
+              ? this.session.iconBot
+              : "message";
+          let iconSvg = "";
+
+          // Choose the appropriate SVG based on iconBot value
+          if (iconBot === "bot") {
+            iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="24" height="24" fill="currentColor">
+              <rect x="12" y="16" width="40" height="32" rx="10" ry="10" stroke="white" stroke-width="2" fill="currentColor"/>
+              <circle cx="22" cy="32" r="4" fill="white"/>
+              <circle cx="42" cy="32" r="4" fill="white"/>
+              <path d="M24 42c4 4 12 4 16 0" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <line x1="32" y1="8" x2="32" y2="16" stroke="white" stroke-width="2"/>
+              <circle cx="32" cy="6" r="2" fill="white"/>
+            </svg>`;
+          } else if (iconBot === "voice") {
+            iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M5 9v6h4l5 5V4L9 9H5zm13.54.12a1 1 0 1 0-1.41 1.42 3 3 0 0 1 0 4.24 1 1 0 1 0 1.41 1.41 5 5 0 0 0 0-7.07z"/>
+            </svg>`;
+          } else {
+            // Default to message icon
+            iconSvg = `<svg viewBox="0 0 24 24" width="24" height="24">
+              <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>`;
+          }
+
+          // Add the main button with the chosen icon
           buttonContainer.innerHTML = `
           <button id="chat-website-button" class="visible" style="background-color: ${themeColor}; animation: pulse 2s infinite; position: relative;">
-            <svg class="chat-icon" viewBox="0 0 24 24" width="24" height="24">
-              <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+            ${iconSvg}
           </button>
         `;
 
@@ -652,6 +678,9 @@
         }
       } else {
       }
+
+      // Update the button icon based on current session
+      this.updateButtonIcon();
     },
 
     // Create text chat interface (basic container elements)
@@ -774,6 +803,59 @@
               this.updateThemeColor(this.websiteColor);
             }
 
+            // Save ALL icon settings from API
+            console.log(
+              "VoiceroCore: Got ALL settings from API:",
+              data.website,
+            );
+
+            // Save icon settings globally
+            if (data.website?.iconBot) {
+              console.log(
+                "VoiceroCore: Got iconBot from API:",
+                data.website.iconBot,
+              );
+              this.iconBot = data.website.iconBot;
+              window.voiceroIconBot = data.website.iconBot;
+            }
+
+            if (data.website?.iconMessage) {
+              console.log(
+                "VoiceroCore: Got iconMessage from API:",
+                data.website.iconMessage,
+              );
+              this.iconMessage = data.website.iconMessage;
+              window.voiceroIconMessage = data.website.iconMessage;
+            }
+
+            if (data.website?.iconVoice) {
+              console.log(
+                "VoiceroCore: Got iconVoice from API:",
+                data.website.iconVoice,
+              );
+              this.iconVoice = data.website.iconVoice;
+              window.voiceroIconVoice = data.website.iconVoice;
+            }
+
+            // Save removeHighlight setting if provided by API
+            if (data.website?.removeHighlight !== undefined) {
+              console.log(
+                "VoiceroCore: Got removeHighlight from API:",
+                data.website.removeHighlight,
+              );
+              this.removeHighlight = data.website.removeHighlight;
+              window.voiceroRemoveHighlight = data.website.removeHighlight;
+
+              // Also update it directly in the session if it exists
+              if (this.session) {
+                this.session.removeHighlight = data.website.removeHighlight;
+                console.log(
+                  "VoiceroCore: Updated removeHighlight in session:",
+                  this.session.removeHighlight,
+                );
+              }
+            }
+
             console.log("VoiceroCore: Website ID:", this.websiteId);
 
             // Create the button now that we have API connection
@@ -812,6 +894,26 @@
                     if (data.session) {
                       // Update local session with latest data
                       this.session = data.session;
+
+                      // Make sure removeHighlight setting is transferred from website data to session
+                      if (
+                        data.website &&
+                        data.website.removeHighlight !== undefined
+                      ) {
+                        console.log(
+                          "VoiceroCore: Setting removeHighlight in session from website data:",
+                          data.website.removeHighlight,
+                        );
+                        this.session.removeHighlight =
+                          data.website.removeHighlight;
+                      } else if (this.removeHighlight !== undefined) {
+                        console.log(
+                          "VoiceroCore: Setting removeHighlight in session from core property:",
+                          this.removeHighlight,
+                        );
+                        this.session.removeHighlight = this.removeHighlight;
+                      }
+
                       localStorage.setItem(
                         "voicero_session",
                         JSON.stringify(data.session),
@@ -1064,7 +1166,7 @@
           const active = this.session.threads.find(
             (t) => t.threadId === this.session.threadId,
           );
-          // If session.threadId hasn’t been set yet, fall back to the first one
+          // If session.threadId hasn't been set yet, fall back to the first one
           this.thread = active || this.session.threads[0];
 
           // Log detailed session info
@@ -1096,6 +1198,9 @@
 
           // Restore interface state based on session flags
           this.restoreInterfaceState();
+
+          // Update the button icon based on loaded session
+          this.updateButtonIcon();
 
           // Mark session as initialized and no longer initializing
           this.sessionInitialized = true;
@@ -1631,6 +1736,9 @@
 
       // Apply button animation
       this.applyButtonAnimation();
+
+      // Update the button icon
+      this.updateButtonIcon();
     },
 
     // Add control buttons to interface
@@ -1722,6 +1830,25 @@
             }, 500);
           }
 
+          // Check if iconBot was updated and update the button icon
+          if (windowState.iconBot) {
+            console.log(
+              "VoiceroCore: iconBot changed to:",
+              windowState.iconBot,
+            );
+            this.updateButtonIcon();
+          }
+
+          // Check if removeHighlight was updated
+          if (windowState.removeHighlight !== undefined) {
+            console.log(
+              "VoiceroCore: removeHighlight changed to:",
+              windowState.removeHighlight,
+            );
+            // Update the local property too for redundancy
+            this.removeHighlight = windowState.removeHighlight;
+          }
+
           // Propagate the immediate updates to other modules
           if (window.VoiceroText) {
             window.VoiceroText.session = this.session;
@@ -1748,6 +1875,22 @@
               this.session.suppressChooser = false;
             }
           }, 500);
+        }
+
+        // Check if iconBot was updated and update the button icon
+        if (windowState.iconBot) {
+          console.log("VoiceroCore: iconBot changed to:", windowState.iconBot);
+          this.updateButtonIcon();
+        }
+
+        // Check if removeHighlight was updated
+        if (windowState.removeHighlight !== undefined) {
+          console.log(
+            "VoiceroCore: removeHighlight changed to:",
+            windowState.removeHighlight,
+          );
+          // Update the local property too for redundancy
+          this.removeHighlight = windowState.removeHighlight;
         }
 
         // Propagate the immediate updates to other modules
@@ -2045,12 +2188,38 @@
       if (!chatButton && buttonContainer) {
         const themeColor = this.websiteColor || "#882be6";
 
+        // Get the iconBot value from session if available
+        const iconBot =
+          this.session && this.session.iconBot
+            ? this.session.iconBot
+            : "message";
+        let iconSvg = "";
+
+        // Choose the appropriate SVG based on iconBot value
+        if (iconBot === "bot") {
+          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="24" height="24" fill="currentColor">
+            <rect x="12" y="16" width="40" height="32" rx="10" ry="10" stroke="white" stroke-width="2" fill="currentColor"/>
+            <circle cx="22" cy="32" r="4" fill="white"/>
+            <circle cx="42" cy="32" r="4" fill="white"/>
+            <path d="M24 42c4 4 12 4 16 0" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <line x1="32" y1="8" x2="32" y2="16" stroke="white" stroke-width="2"/>
+            <circle cx="32" cy="6" r="2" fill="white"/>
+          </svg>`;
+        } else if (iconBot === "voice") {
+          iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M5 9v6h4l5 5V4L9 9H5zm13.54.12a1 1 0 1 0-1.41 1.42 3 3 0 0 1 0 4.24 1 1 0 1 0 1.41 1.41 5 5 0 0 0 0-7.07z"/>
+          </svg>`;
+        } else {
+          // Default to message icon
+          iconSvg = `<svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>`;
+        }
+
         buttonContainer.insertAdjacentHTML(
           "beforeend",
           `<button id="chat-website-button" class="visible" style="background-color:${themeColor};display:flex!important;visibility:visible!important;opacity:1!important;width:50px!important;height:50px!important;border-radius:50%!important;justify-content:center!important;align-items:center!important;color:white!important;box-shadow:0 4px 15px rgba(0,0,0,0.2)!important;border:none!important;cursor:pointer!important;transition:all 0.2s ease!important;padding:0!important;margin:0!important;position:relative!important;z-index:2147483647!important;animation:pulse 2s infinite!important;">
-            <svg class="chat-icon" viewBox="0 0 24 24" width="24" height="24">
-              <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+            ${iconSvg}
           </button>`,
         );
       }
@@ -2598,6 +2767,44 @@
 
       // Also make sure main button is visible
       this.ensureMainButtonVisible();
+    },
+
+    // Update the main button icon based on iconBot
+    updateButtonIcon: function () {
+      // Get button element
+      const button = document.getElementById("chat-website-button");
+      if (!button) return;
+
+      // Get the iconBot value
+      const iconBot =
+        this.session && this.session.iconBot
+          ? this.session.iconBot
+          : this.iconBot || "message";
+      let iconSvg = "";
+
+      // Choose the appropriate SVG based on iconBot value
+      if (iconBot === "bot") {
+        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="24" height="24" fill="currentColor">
+          <rect x="12" y="16" width="40" height="32" rx="10" ry="10" stroke="white" stroke-width="2" fill="currentColor"/>
+          <circle cx="22" cy="32" r="4" fill="white"/>
+          <circle cx="42" cy="32" r="4" fill="white"/>
+          <path d="M24 42c4 4 12 4 16 0" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <line x1="32" y1="8" x2="32" y2="16" stroke="white" stroke-width="2"/>
+          <circle cx="32" cy="6" r="2" fill="white"/>
+        </svg>`;
+      } else if (iconBot === "voice") {
+        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M5 9v6h4l5 5V4L9 9H5zm13.54.12a1 1 0 1 0-1.41 1.42 3 3 0 0 1 0 4.24 1 1 0 1 0 1.41 1.41 5 5 0 0 0 0-7.07z"/>
+        </svg>`;
+      } else {
+        // Default to message icon
+        iconSvg = `<svg viewBox="0 0 24 24" width="24" height="24">
+          <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>`;
+      }
+
+      // Update the button's inner HTML
+      button.innerHTML = iconSvg;
     },
   };
 

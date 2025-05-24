@@ -24,6 +24,153 @@
 
   const VoiceroChooser = {
     /**
+     * Get the current removeHighlight setting from multiple sources
+     */
+    getRemoveHighlightSetting: function () {
+      console.log(
+        "VoiceroChooser: Getting removeHighlight setting from all available sources",
+      );
+
+      const core = window.VoiceroCore;
+      if (!core) {
+        console.log(
+          "VoiceroChooser: VoiceroCore not available, defaulting to false",
+        );
+        return false;
+      }
+
+      // First try to get from session
+      if (core.session && core.session.removeHighlight !== undefined) {
+        console.log(
+          "VoiceroChooser: Found removeHighlight in session:",
+          core.session.removeHighlight,
+        );
+        return core.session.removeHighlight === true;
+      }
+
+      // Try to get from core directly
+      if (core.removeHighlight !== undefined) {
+        console.log(
+          "VoiceroChooser: Found removeHighlight in core:",
+          core.removeHighlight,
+        );
+        return core.removeHighlight === true;
+      }
+
+      // Try to get from website data if available
+      if (core.websiteData && core.websiteData.removeHighlight !== undefined) {
+        console.log(
+          "VoiceroChooser: Found removeHighlight in websiteData:",
+          core.websiteData.removeHighlight,
+        );
+        return core.websiteData.removeHighlight === true;
+      }
+
+      console.log(
+        "VoiceroChooser: No removeHighlight setting found, defaulting to false",
+      );
+      return false;
+    },
+
+    /**
+     * Get the appropriate SVG icon based on type and icon choice
+     */
+    getIconSvg: function (type) {
+      // Direct approach - check global variables first
+      let iconChoice = "";
+
+      // For voice button, check global voiceroIconVoice variable
+      if (type === "voice") {
+        // Check for global values first
+        if (window.voiceroIconVoice) {
+          iconChoice = window.voiceroIconVoice;
+          console.log(
+            `VoiceroChooser: Using global voiceroIconVoice: ${iconChoice}`,
+          );
+        }
+        // Fallback to VoiceroCore property
+        else if (window.VoiceroCore && window.VoiceroCore.iconVoice) {
+          iconChoice = window.VoiceroCore.iconVoice;
+          console.log(
+            `VoiceroChooser: Using VoiceroCore.iconVoice: ${iconChoice}`,
+          );
+        }
+        // Last resort default
+        else {
+          iconChoice = "microphone";
+          console.log(
+            `VoiceroChooser: No voice icon setting found, using default: ${iconChoice}`,
+          );
+        }
+
+        // Voice icons
+        if (iconChoice === "waveform") {
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" style="display:block">
+            <rect x="3" y="10" width="2" height="4" fill="black"/>
+            <rect x="7" y="8" width="2" height="8" fill="black"/>
+            <rect x="11" y="2" width="2" height="20" fill="black"/>
+            <rect x="15" y="8" width="2" height="8" fill="black"/>
+            <rect x="19" y="10" width="2" height="4" fill="black"/>
+          </svg>`;
+        } else if (iconChoice === "speaker") {
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" style="display:block">
+            <path d="M5,9v6h4l5,5V4L9,9H5z" fill="black"/>
+            <path d="M18.54,9.12c1.56,1.56,1.56,4.1,0,5.66l-1.41-1.41c0.78-0.78,0.78-2.05,0-2.83L18.54,9.12z" fill="black"/>
+          </svg>`;
+        } else {
+          // Default microphone
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" style="display:block">
+            <path d="M12,14c1.66,0,3-1.34,3-3V5c0-1.66-1.34-3-3-3S9,3.34,9,5v6C9,12.66,10.34,14,12,14z" fill="black"/>
+            <path d="M17,11c0,2.76-2.24,5-5,5s-5-2.24-5-5H5c0,3.53,2.61,6.43,6,6.92V21h2v-3.08c3.39-0.49,6-3.39,6-6.92H17z" fill="black"/>
+          </svg>`;
+        }
+      }
+      // For message button, check global voiceroIconMessage variable
+      else {
+        // Check for global values first
+        if (window.voiceroIconMessage) {
+          iconChoice = window.voiceroIconMessage;
+          console.log(
+            `VoiceroChooser: Using global voiceroIconMessage: ${iconChoice}`,
+          );
+        }
+        // Fallback to VoiceroCore property
+        else if (window.VoiceroCore && window.VoiceroCore.iconMessage) {
+          iconChoice = window.VoiceroCore.iconMessage;
+          console.log(
+            `VoiceroChooser: Using VoiceroCore.iconMessage: ${iconChoice}`,
+          );
+        }
+        // Last resort default
+        else {
+          iconChoice = "message";
+          console.log(
+            `VoiceroChooser: No message icon setting found, using default: ${iconChoice}`,
+          );
+        }
+
+        // Message icons
+        if (iconChoice === "document") {
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" style="display:block">
+            <rect x="4" y="4" width="16" height="2" fill="black"/>
+            <rect x="4" y="8" width="16" height="2" fill="black"/>
+            <rect x="4" y="12" width="10" height="2" fill="black"/>
+            <rect x="4" y="16" width="16" height="2" fill="black"/>
+          </svg>`;
+        } else if (iconChoice === "cursor") {
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" style="display:block">
+            <rect x="11" y="2" width="2" height="20" fill="black"/>
+          </svg>`;
+        } else {
+          // Default message
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" style="display:block">
+            <path d="M20,4H4C2.9,4,2,4.9,2,6v12c0,1.1,0.9,2,2,2h14l4,4V6C22,4.9,21.1,4,20,4z M20,18H4V6h16V18z" fill="black"/>
+          </svg>`;
+        }
+      }
+    },
+
+    /**
      * Show the chooser interface
      */
     showChooser: function () {
@@ -85,6 +232,19 @@
       if (chooser) {
         console.log("VoiceroChooser: Setting chooser to visible");
 
+        // Check if removeHighlight is set in the session
+        const removeHighlight = this.getRemoveHighlightSetting();
+        console.log(
+          "VoiceroChooser: removeHighlight setting:",
+          removeHighlight,
+        );
+
+        // Determine box shadow based on removeHighlight setting
+        const boxShadow = removeHighlight
+          ? "none !important"
+          : "6px 6px 0 " + (core.websiteColor || "#882be6") + " !important";
+        console.log("VoiceroChooser: Using box shadow:", boxShadow);
+
         // FORCE VISIBILITY WITH DIRECT ATTRIBUTE SETTING
         chooser.setAttribute(
           "style",
@@ -94,9 +254,9 @@
             "z-index: 10001 !important;" +
             "background-color: #c8c8c8 !important;" +
             "border-radius: 12px !important;" +
-            "box-shadow: 6px 6px 0 " +
-            (core.websiteColor || "#882be6") +
-            " !important;" +
+            "box-shadow: " +
+            boxShadow +
+            ";" +
             "padding: 15px !important;" +
             "width: 280px !important;" +
             "border: 1px solid rgb(0, 0, 0) !important;" +
@@ -154,6 +314,61 @@
           );
         }
 
+        // Update the icons directly to ensure they match current settings
+        // Get the icon choices from all possible sources
+        let iconVoice = "microphone"; // Default
+        let iconMessage = "message"; // Default
+
+        // Try to get values from session first
+        if (core.session && core.session.iconVoice) {
+          iconVoice = core.session.iconVoice;
+          console.log("VoiceroChooser: Got iconVoice from session:", iconVoice);
+        }
+        // Try from core directly
+        else if (core.iconVoice) {
+          iconVoice = core.iconVoice;
+          console.log("VoiceroChooser: Got iconVoice from core:", iconVoice);
+        }
+
+        // Try to get values from session first
+        if (core.session && core.session.iconMessage) {
+          iconMessage = core.session.iconMessage;
+          console.log(
+            "VoiceroChooser: Got iconMessage from session:",
+            iconMessage,
+          );
+        }
+        // Try from core directly
+        else if (core.iconMessage) {
+          iconMessage = core.iconMessage;
+          console.log(
+            "VoiceroChooser: Got iconMessage from core:",
+            iconMessage,
+          );
+        }
+
+        // Get the SVG markup for each icon
+        const voiceIconSvg = this.getIconSvg("voice");
+        const messageIconSvg = this.getIconSvg("message");
+
+        // Update the icon containers
+        const voiceIconContainer = document.getElementById(
+          "voice-icon-container",
+        );
+        const messageIconContainer = document.getElementById(
+          "message-icon-container",
+        );
+
+        if (voiceIconContainer) {
+          console.log("VoiceroChooser: Updating voice icon to", iconVoice);
+          voiceIconContainer.innerHTML = voiceIconSvg;
+        }
+
+        if (messageIconContainer) {
+          console.log("VoiceroChooser: Updating message icon to", iconMessage);
+          messageIconContainer.innerHTML = messageIconSvg;
+        }
+
         // Check the final computed style
         const computedStyle = window.getComputedStyle(chooser);
         console.log(
@@ -204,6 +419,49 @@
       const themeColor = core.websiteColor || "#882be6";
       console.log("VoiceroChooser: Using theme color:", themeColor);
 
+      // Check if removeHighlight is set in the session
+      const removeHighlight = this.getRemoveHighlightSetting();
+      console.log("VoiceroChooser: removeHighlight setting:", removeHighlight);
+
+      // Determine box shadow based on removeHighlight setting
+      const boxShadow = removeHighlight
+        ? "none !important"
+        : `6px 6px 0 ${themeColor} !important`;
+      console.log("VoiceroChooser: Using box shadow:", boxShadow);
+
+      // Get the icon choices from all possible sources
+      let iconVoice = "microphone"; // Default
+      let iconMessage = "message"; // Default
+
+      // Try to get values from session first
+      if (core.session && core.session.iconVoice) {
+        iconVoice = core.session.iconVoice;
+        console.log("VoiceroChooser: Got iconVoice from session:", iconVoice);
+      }
+      // Try from core directly
+      else if (core.iconVoice) {
+        iconVoice = core.iconVoice;
+        console.log("VoiceroChooser: Got iconVoice from core:", iconVoice);
+      }
+
+      // Try to get values from session first
+      if (core.session && core.session.iconMessage) {
+        iconMessage = core.session.iconMessage;
+        console.log(
+          "VoiceroChooser: Got iconMessage from session:",
+          iconMessage,
+        );
+      }
+      // Try from core directly
+      else if (core.iconMessage) {
+        iconMessage = core.iconMessage;
+        console.log("VoiceroChooser: Got iconMessage from core:", iconMessage);
+      }
+
+      // Get the SVG markup for each icon
+      const voiceIconSvg = this.getIconSvg("voice");
+      const messageIconSvg = this.getIconSvg("message");
+
       const buttonContainer = document.getElementById("voice-toggle-container");
       if (!buttonContainer) {
         console.log(
@@ -214,7 +472,7 @@
 
       console.log("VoiceroChooser: Creating fresh chooser HTML");
 
-      // Insert the HTML
+      // Insert the HTML with placeholders for the icons
       buttonContainer.insertAdjacentHTML(
         "beforeend",
         `<div
@@ -226,7 +484,7 @@
             z-index: 10001 !important;
             background-color: #c8c8c8 !important;
             border-radius: 12px !important;
-            box-shadow: 6px 6px 0 ${themeColor} !important;
+            box-shadow: ${boxShadow};
             padding: 15px !important;
             width: 280px !important;
             border: 1px solid rgb(0, 0, 0) !important;
@@ -261,12 +519,7 @@
             <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center; white-space: nowrap;">
               Voice Conversation
             </span>
-            <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <path d="M12 19v4"/>
-              <path d="M8 23h8"/>
-            </svg>
+            <div id="voice-icon-container" style="position: absolute; right: -50px; width: 35px; height: 35px;"></div>
           </div>
 
           <div
@@ -290,9 +543,7 @@
             <span style="font-weight: 700; color: rgb(0, 0, 0); font-size: 16px; width: 100%; text-align: center;">
               Message
             </span>
-            <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position: absolute; right: -50px; width: 35px; height: 35px;">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+            <div id="message-icon-container" style="position: absolute; right: -50px; width: 35px; height: 35px;"></div>
           </div>
           
           <div style="
@@ -314,6 +565,39 @@
           </div>
         </div>`,
       );
+
+      // Now insert the icons directly into the containers
+      const voiceIconContainer = document.getElementById(
+        "voice-icon-container",
+      );
+      const messageIconContainer = document.getElementById(
+        "message-icon-container",
+      );
+
+      if (voiceIconContainer) {
+        console.log("VoiceroChooser: Setting voice icon to", iconVoice);
+        voiceIconContainer.innerHTML = voiceIconSvg;
+      }
+
+      if (messageIconContainer) {
+        console.log("VoiceroChooser: Setting message icon to", iconMessage);
+        messageIconContainer.innerHTML = messageIconSvg;
+      }
+
+      // Double-check that icons were properly set
+      if (voiceIconContainer) {
+        console.log(
+          "VoiceroChooser: Final voice icon HTML:",
+          voiceIconContainer.innerHTML,
+        );
+      }
+
+      if (messageIconContainer) {
+        console.log(
+          "VoiceroChooser: Final message icon HTML:",
+          messageIconContainer.innerHTML,
+        );
+      }
 
       // Check that chooser was created
       const newChooser = document.getElementById("interaction-chooser");

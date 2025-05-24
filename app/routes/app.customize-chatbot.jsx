@@ -560,13 +560,12 @@ export default function CustomizeChatbotPage() {
       const response = await fetch(`${urls.voiceroApi}/api/saveBotSettings`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${accessKey}`,
-          },
-          body: JSON.stringify(updateData),
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${accessKey}`,
         },
-      );
+        body: JSON.stringify(updateData),
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
