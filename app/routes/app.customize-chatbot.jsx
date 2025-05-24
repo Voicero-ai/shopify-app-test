@@ -535,9 +535,9 @@ export default function CustomizeChatbotPage() {
       // Convert color from HSB to hex
       const colorHex = hsbToHex(primaryColor);
 
-      // Format popup questions as strings for API
+      // Ensure popup questions are simple strings - this was causing the issue
       const formattedQuestions = popUpQuestions.map((q) =>
-        typeof q === "object" ? q.question : q,
+        typeof q === "object" && q.question ? q.question : String(q),
       );
 
       // Prepare data for API
@@ -555,6 +555,7 @@ export default function CustomizeChatbotPage() {
       };
 
       console.log("Saving chatbot settings:", updateData);
+      console.log("Popup questions being sent:", formattedQuestions);
 
       // Make API call to save settings
       const response = await fetch(`${urls.voiceroApi}/api/saveBotSettings`, {
@@ -576,6 +577,7 @@ export default function CustomizeChatbotPage() {
 
       // Get the response data
       const data = await response.json();
+      console.log("API response:", data);
 
       setToastMessage("Chatbot settings saved successfully!");
       setToastType("success");

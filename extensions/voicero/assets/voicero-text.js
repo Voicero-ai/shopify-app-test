@@ -682,19 +682,113 @@ const VoiceroText = {
 Feel free to ask me anything, and I'll do my best to assist you!`;
     }
 
-    const welcomeMessage = `👋 Welcome to ${websiteName}! 
+    let welcomeMessage = `👋 Welcome to ${websiteName}! 
 
 Hi, I'm ${botName}! ${welcomeMessageContent}
 
 **Start Typing to Chat**
 `;
 
-    // Add the welcome message to the interface
-    this.addMessage(welcomeMessage, "ai");
+    // Check if we have custom pop-up questions to add to the welcome message
+    let customPopUpQuestions = [];
+    let popUpQuestionsSource = "none";
 
-    // NOTE: Welcome back message handling removed from here
-    // We now handle welcome back messages through the continuous check (checkForWelcomeBackMessage)
-    // to avoid duplicates when both modules try to display the message
+    // Try to get questions from website data
+    if (
+      this.websiteData &&
+      this.websiteData.website &&
+      this.websiteData.website.popUpQuestions &&
+      this.websiteData.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = this.websiteData.website.popUpQuestions;
+      popUpQuestionsSource = "websiteData";
+    }
+    // Try to get questions from VoiceroCore session
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.popUpQuestions &&
+      window.VoiceroCore.session.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.session.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.session.popUpQuestions";
+    }
+    // Try to get questions directly from VoiceroCore
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.popUpQuestions &&
+      window.VoiceroCore.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.popUpQuestions";
+    }
+    // Check for website property directly in VoiceroCore
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.website &&
+      window.VoiceroCore.session.website.popUpQuestions &&
+      window.VoiceroCore.session.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.session.website.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.session.website.popUpQuestions";
+    }
+    // Direct access to VoiceroCore's website object
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.website &&
+      window.VoiceroCore.website.popUpQuestions &&
+      window.VoiceroCore.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.website.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.website.popUpQuestions";
+    }
+    // Fallback to window global
+    else if (
+      window.voiceroPopUpQuestions &&
+      window.voiceroPopUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.voiceroPopUpQuestions;
+      popUpQuestionsSource = "window.voiceroPopUpQuestions";
+    }
+
+    console.log(
+      "VoiceroText: Found popup questions from",
+      popUpQuestionsSource,
+      customPopUpQuestions,
+    );
+
+    // Add questions to welcome message if available
+    if (customPopUpQuestions.length > 0) {
+      welcomeMessage += "\n\nHere are some questions you might want to ask:\n";
+
+      customPopUpQuestions.forEach((item, index) => {
+        const questionText = item.question || item;
+        if (questionText && typeof questionText === "string") {
+          welcomeMessage += `\n- <span class="welcome-question" style="text-decoration: underline; color: ${this.websiteColor || "#882be6"}; cursor: pointer;" data-question="${questionText.replace(/"/g, "&quot;")}">${questionText}</span>`;
+        }
+      });
+    }
+
+    // Add the welcome message to the interface
+    const welcomeMessageElement = this.addMessage(welcomeMessage, "ai");
+
+    // Add click handlers to the welcome questions
+    setTimeout(() => {
+      if (this.shadowRoot) {
+        const questionElements =
+          this.shadowRoot.querySelectorAll(".welcome-question");
+        questionElements.forEach((el) => {
+          el.addEventListener("click", (e) => {
+            e.preventDefault();
+            const questionText = e.target.getAttribute("data-question");
+            if (questionText) {
+              this.sendChatMessage(questionText);
+            }
+          });
+        });
+      }
+    }, 100);
 
     // Update state to prevent showing welcome again
     if (window.VoiceroCore && window.VoiceroCore.updateWindowState) {
@@ -779,7 +873,23 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
 
     // Set the content (handle HTML if needed)
     if (role === "ai") {
+      // Make sure any HTML content (especially for welcome questions) is preserved
       messageContent.innerHTML = this.formatContent(text);
+
+      // After setting innerHTML, attach click handlers to welcome-question spans if present
+      const questionSpans =
+        messageContent.querySelectorAll(".welcome-question");
+      if (questionSpans.length > 0) {
+        questionSpans.forEach((span) => {
+          span.addEventListener("click", (e) => {
+            e.preventDefault();
+            const questionText = span.getAttribute("data-question");
+            if (questionText) {
+              this.sendChatMessage(questionText);
+            }
+          });
+        });
+      }
     } else {
       messageContent.textContent = text;
     }
@@ -915,15 +1025,80 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
 
   // Update popup questions in the interface with data from API
   updatePopupQuestions: function () {
+    let customPopUpQuestions = [];
+    let popUpQuestionsSource = "none";
+
+    // Try to get questions from website data
     if (
-      !this.websiteData ||
-      !this.websiteData.website ||
-      !this.websiteData.website.popUpQuestions
+      this.websiteData &&
+      this.websiteData.website &&
+      this.websiteData.website.popUpQuestions &&
+      this.websiteData.website.popUpQuestions.length > 0
     ) {
+      customPopUpQuestions = this.websiteData.website.popUpQuestions;
+      popUpQuestionsSource = "websiteData";
+    }
+    // Try to get questions from VoiceroCore session
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.popUpQuestions &&
+      window.VoiceroCore.session.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.session.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.session.popUpQuestions";
+    }
+    // Try to get questions directly from VoiceroCore
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.popUpQuestions &&
+      window.VoiceroCore.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.popUpQuestions";
+    }
+    // Check for website property directly in VoiceroCore
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.website &&
+      window.VoiceroCore.session.website.popUpQuestions &&
+      window.VoiceroCore.session.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.session.website.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.session.website.popUpQuestions";
+    }
+    // Direct access to VoiceroCore's website object
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.website &&
+      window.VoiceroCore.website.popUpQuestions &&
+      window.VoiceroCore.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.website.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.website.popUpQuestions";
+    }
+    // Fallback to window global
+    else if (
+      window.voiceroPopUpQuestions &&
+      window.voiceroPopUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.voiceroPopUpQuestions;
+      popUpQuestionsSource = "window.voiceroPopUpQuestions";
+    }
+
+    console.log(
+      "VoiceroText: Updating popup questions from",
+      popUpQuestionsSource,
+      customPopUpQuestions,
+    );
+
+    if (!customPopUpQuestions || customPopUpQuestions.length === 0) {
+      console.log("VoiceroText: No popup questions found");
       return;
     }
 
-    const popupQuestions = this.websiteData.website.popUpQuestions;
+    const popupQuestions = customPopUpQuestions;
 
     // Store reference to this for event handlers
     const self = this;
@@ -3479,6 +3654,14 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
   formatContent: function (text) {
     if (!text) return "";
 
+    // Check if text already contains HTML elements (like our welcome-question spans)
+    const containsHtml = /<[a-z][\s\S]*>/i.test(text);
+
+    if (containsHtml) {
+      // If it already has HTML, just return it (our spans are already formatted)
+      return text;
+    }
+
     // Process URLs
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const processedText = text.replace(
@@ -3486,7 +3669,19 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
       '<a href="$1" target="_blank" class="chat-link">$1</a>',
     );
 
-    return processedText;
+    // Process markdown-style bold text
+    let formattedText = processedText.replace(
+      /\*\*(.*?)\*\*/g,
+      "<strong>$1</strong>",
+    );
+
+    // Process markdown-style italic text
+    formattedText = formattedText.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    // Replace line breaks
+    formattedText = formattedText.replace(/\n/g, "<br>");
+
+    return formattedText;
   },
 
   // Show contact form in the chat interface

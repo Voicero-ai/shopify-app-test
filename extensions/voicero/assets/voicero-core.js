@@ -829,6 +829,19 @@
                 data.website.customWelcomeMessage;
             }
 
+            // ADDED: Store popup questions directly on VoiceroCore
+            if (data.website?.popUpQuestions) {
+              console.log(
+                "VoiceroCore: Got popUpQuestions from API:",
+                data.website.popUpQuestions,
+              );
+              this.popUpQuestions = data.website.popUpQuestions;
+              window.voiceroPopUpQuestions = data.website.popUpQuestions;
+            }
+
+            // Save the entire website object
+            this.website = data.website;
+
             // Save icon settings globally
             if (data.website?.iconBot) {
               console.log(

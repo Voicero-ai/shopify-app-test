@@ -128,6 +128,27 @@ const VoiceroVoice = {
 
   // Create voice chat interface (HTML structure)
   createVoiceChatInterface: function () {
+    // Check if the interface already exists
+    if (document.getElementById("voice-chat-interface")) {
+      return;
+    }
+
+    // Create style element for welcome questions and other styles
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
+      .welcome-question {
+        color: #FF0000 !important;
+        text-decoration: underline !important;
+        font-weight: bold !important;
+        cursor: pointer !important;
+      }
+      
+      .welcome-question:hover {
+        opacity: 0.8 !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+
     // Check if interface already exists
     const existingInterface = document.getElementById("voice-chat-interface");
     const existingMessagesContainer = document.getElementById("voice-messages");
@@ -2960,12 +2981,48 @@ const VoiceroVoice = {
 
     // Apply markdown formatting for AI messages (similar to VoiceroText)
     if (role === "ai") {
-      // Format message if needed (check if VoiceroCore.formatMarkdown is available)
-      if (window.VoiceroCore && window.VoiceroCore.formatMarkdown) {
-        messageContent.innerHTML = window.VoiceroCore.formatMarkdown(content);
+      // Check if content contains HTML elements that need to be preserved (like welcome-question spans)
+      const containsHtml = /<[a-z][\s\S]*>/i.test(content);
+
+      if (containsHtml) {
+        // If it has HTML, use innerHTML to preserve the HTML elements
+        messageContent.innerHTML = content;
+
+        // After setting innerHTML, attach click handlers to welcome-question spans if present
+        const questionSpans =
+          messageContent.querySelectorAll(".welcome-question");
+        if (questionSpans.length > 0) {
+          console.log(
+            "VoiceroVoice: Found welcome questions in message, attaching handlers",
+          );
+          questionSpans.forEach((span) => {
+            // Ensure styling is applied directly
+            span.style.color = "#FF0000";
+            span.style.textDecoration = "underline";
+            span.style.fontWeight = "bold";
+            span.style.cursor = "pointer";
+
+            span.addEventListener("click", (e) => {
+              e.preventDefault();
+              const questionText = span.getAttribute("data-question");
+              if (questionText) {
+                console.log(
+                  "VoiceroVoice: Welcome question clicked:",
+                  questionText,
+                );
+                this.processUserText(questionText);
+              }
+            });
+          });
+        }
       } else {
-        // Fallback to basic formatting if VoiceroCore.formatMarkdown is not available
-        messageContent.innerHTML = this.formatContent(content);
+        // Format message if needed (check if VoiceroCore.formatMarkdown is available)
+        if (window.VoiceroCore && window.VoiceroCore.formatMarkdown) {
+          messageContent.innerHTML = window.VoiceroCore.formatMarkdown(content);
+        } else {
+          // Fallback to basic formatting if VoiceroCore.formatMarkdown is not available
+          messageContent.innerHTML = this.formatContent(content);
+        }
       }
     } else {
       messageContent.textContent = content;
@@ -3066,6 +3123,14 @@ const VoiceroVoice = {
   // Format content with potential links (similar to VoiceroText)
   formatContent: function (text) {
     if (!text) return "";
+
+    // Check if text already contains HTML elements (like our welcome-question spans)
+    const containsHtml = /<[a-z][\s\S]*>/i.test(text);
+
+    if (containsHtml) {
+      // If it already has HTML, just return it (our spans are already formatted)
+      return text;
+    }
 
     // Process URLs
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -3554,22 +3619,106 @@ const VoiceroVoice = {
 Feel free to ask me anything, and I'll do my best to assist you!`;
     }
 
-    // Welcome message for voice interface
-    const welcomeMessage = `👋 Welcome to ${websiteName}! 
+    // Create base welcome message
+    let welcomeMessage = `👋 Welcome to ${websiteName}! 
 
 Hi, I'm ${botName}! ${welcomeMessageContent}
 
 **Click the microphone to start talking**
 `;
 
+    // Check if we have custom pop-up questions to add to the welcome message
+    let customPopUpQuestions = [];
+    let popUpQuestionsSource = "none";
+
+    // Try to get questions from multiple possible sources
+    // Try to get questions from VoiceroCore session
+    if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.popUpQuestions &&
+      window.VoiceroCore.session.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.session.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.session.popUpQuestions";
+    }
+    // Try to get questions directly from VoiceroCore
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.popUpQuestions &&
+      window.VoiceroCore.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.popUpQuestions";
+    }
+    // Check for website property directly in VoiceroCore
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.session &&
+      window.VoiceroCore.session.website &&
+      window.VoiceroCore.session.website.popUpQuestions &&
+      window.VoiceroCore.session.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.session.website.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.session.website.popUpQuestions";
+    }
+    // Direct access to VoiceroCore's website object
+    else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.website &&
+      window.VoiceroCore.website.popUpQuestions &&
+      window.VoiceroCore.website.popUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.VoiceroCore.website.popUpQuestions;
+      popUpQuestionsSource = "VoiceroCore.website.popUpQuestions";
+    }
+    // Fallback to window global
+    else if (
+      window.voiceroPopUpQuestions &&
+      window.voiceroPopUpQuestions.length > 0
+    ) {
+      customPopUpQuestions = window.voiceroPopUpQuestions;
+      popUpQuestionsSource = "window.voiceroPopUpQuestions";
+    }
+
+    console.log(
+      "VoiceroVoice: Found popup questions from",
+      popUpQuestionsSource,
+      customPopUpQuestions,
+    );
+
+    // Add questions to welcome message if available
+    if (customPopUpQuestions.length > 0) {
+      welcomeMessage += "\n\nHere are some questions you might want to ask:\n";
+
+      customPopUpQuestions.forEach((item, index) => {
+        const questionText = item.question || item;
+        if (questionText && typeof questionText === "string") {
+          // Create a more robust styling approach that works in the voice interface
+          welcomeMessage += `\n- <span class="welcome-question" style="color: #FF0000; text-decoration: underline; font-weight: bold; cursor: pointer;" data-question="${questionText.replace(/"/g, "&quot;")}">${questionText}</span>`;
+        }
+      });
+    }
+
     console.log("Showing welcome message");
 
     // Add the message
-    this.addMessage(welcomeMessage, "ai");
+    const welcomeMessageElement = this.addMessage(welcomeMessage, "ai");
 
-    // NOTE: Welcome back message handling removed from here
-    // We now handle welcome back messages through the continuous check (checkForWelcomeBackMessage)
-    // to avoid duplicates when both modules try to display the message
+    // Add click handlers to the welcome questions
+    setTimeout(() => {
+      const questionElements = document.querySelectorAll(".welcome-question");
+      questionElements.forEach((el) => {
+        el.addEventListener("click", (e) => {
+          e.preventDefault();
+          const questionText = e.target.getAttribute("data-question");
+          if (questionText) {
+            // Send the question as a user message
+            this.processUserText(questionText);
+          }
+        });
+      });
+    }, 100);
 
     // Scroll to bottom
     if (messagesContainer) {
@@ -3813,6 +3962,163 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
     if (statusElement) {
       statusElement.textContent = status;
     }
+  },
+
+  processUserText: function (text) {
+    console.log("VoiceroVoice: Processing user text:", text);
+
+    // Add the user message to the chat
+    this.addMessage(text, "user");
+
+    // Proceed with the API request
+    this.sendUserTextToAPI(text);
+  },
+
+  // Send text message to the API
+  sendUserTextToAPI: function (text) {
+    console.log("VoiceroVoice: Sending text to API:", text);
+
+    // Show the AI is thinking
+    this.addMessage("Thinking...", "ai", false);
+
+    // Format the request body according to the API's expected structure
+    const requestBody = {
+      message: text,
+      type: "text",
+    };
+
+    // Add thread ID if available
+    if (this.currentThreadId) {
+      requestBody.threadId = this.currentThreadId;
+    } else if (
+      window.VoiceroCore &&
+      window.VoiceroCore.thread &&
+      window.VoiceroCore.thread.threadId
+    ) {
+      requestBody.threadId = window.VoiceroCore.thread.threadId;
+    }
+
+    // Add website ID if available
+    if (window.VoiceroCore && window.VoiceroCore.websiteId) {
+      requestBody.websiteId = window.VoiceroCore.websiteId;
+    }
+
+    // Add current page URL and collect page data
+    requestBody.currentPageUrl = window.location.href;
+    requestBody.pageData = this.collectPageData();
+
+    // Log request body for debugging
+    console.log(
+      "[VOICERO VOICE] Sending to /chat:",
+      JSON.stringify(requestBody, null, 2),
+    );
+
+    // Try localhost first for the /shopify/chat route, then fall back to normal endpoint
+    fetch("http://localhost:3000/api/shopify/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(window.voiceroConfig?.getAuthHeaders
+          ? window.voiceroConfig.getAuthHeaders()
+          : {}),
+      },
+      body: JSON.stringify(requestBody),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Local endpoint failed: ${response.status}`);
+        }
+        console.log("[VOICERO VOICE] Successfully used localhost endpoint");
+        return response;
+      })
+      .catch((error) => {
+        console.log(
+          "[VOICERO VOICE] Localhost failed, falling back to voicero.ai:",
+          error.message,
+        );
+
+        // Fallback to the original endpoint
+        return fetch("https://www.voicero.ai/api/shopify/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(window.voiceroConfig?.getAuthHeaders
+              ? window.voiceroConfig.getAuthHeaders()
+              : {}),
+          },
+          body: JSON.stringify(requestBody),
+        });
+      })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log(
+          "[VOICERO VOICE] Received from /chat:",
+          JSON.stringify(data, null, 2),
+        );
+
+        // Remove the typing indicator
+        const placeholder = document.querySelector(".ai-message.placeholder");
+        if (placeholder) {
+          placeholder.remove();
+        }
+
+        // Get the text response from the data
+        let aiTextResponse = "";
+        let actionType = null;
+        let actionUrl = null;
+
+        // Extract the answer from the API response
+        if (data && data.response && data.response.answer) {
+          aiTextResponse = data.response.answer;
+          actionType = data.response.action || null;
+          actionUrl = data.response.url || null;
+        } else if (data && data.answer) {
+          aiTextResponse = data.answer;
+          actionType = data.action || null;
+          actionUrl = data.url || null;
+        } else if (data && typeof data.response === "string") {
+          aiTextResponse = data.response;
+        } else {
+          aiTextResponse = "I'm sorry, I couldn't process that request.";
+        }
+
+        // Add the AI response to the chat
+        this.addMessage(aiTextResponse, "ai");
+
+        // Store the thread ID if provided
+        if (data.threadId) {
+          this.currentThreadId = data.threadId;
+        }
+
+        // Handle redirect action if needed
+        if (actionType === "redirect" && actionUrl) {
+          setTimeout(() => {
+            window.location.href = actionUrl;
+          }, 1000);
+        }
+      })
+      .catch((error) => {
+        console.error("[VOICERO VOICE] Error sending text to API:", error);
+
+        // Remove the typing indicator
+        const placeholder = document.querySelector(".ai-message.placeholder");
+        if (placeholder) {
+          placeholder.remove();
+        }
+
+        // Add error message
+        this.addMessage(
+          "I'm sorry, there was an error processing your request. Please try again later.",
+          "ai",
+        );
+      });
   },
 };
 
