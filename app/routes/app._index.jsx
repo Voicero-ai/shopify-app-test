@@ -2233,106 +2233,6 @@ export default function Index() {
                     </BlockStack>
                   </div>
 
-                  {/* Content Overview Card */}
-                  <div
-                    style={{
-                      backgroundColor: "white",
-                      borderRadius: "12px",
-                      padding: "24px",
-                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                    }}
-                  >
-                    <BlockStack gap="600">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <BlockStack gap="200">
-                          <Text variant="headingLg" fontWeight="semibold">
-                            Content Overview
-                          </Text>
-                          <Text variant="bodyMd" color="subdued">
-                            Your store's AI-ready content
-                          </Text>
-                        </BlockStack>
-                        <Button
-                          onClick={handleSync}
-                          loading={isSyncing}
-                          icon={RefreshIcon}
-                          primary={
-                            !fetcher.data.websiteData.lastSyncedAt ||
-                            fetcher.data.websiteData.lastSyncedAt === "Never"
-                          }
-                        >
-                          {isSyncing ? "Syncing..." : "Sync Content"}
-                        </Button>
-                      </InlineStack>
-
-                      <div
-                        style={{
-                          backgroundColor: "#F9FAFB",
-                          borderRadius: "12px",
-                          padding: "20px",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(5, 1fr)",
-                          gap: "20px",
-                        }}
-                      >
-                        {[
-                          {
-                            icon: ProductIcon,
-                            count: fetcher.data.websiteData._count.products,
-                            label: "Products",
-                          },
-                          {
-                            icon: PageIcon,
-                            count: fetcher.data.websiteData._count.pages,
-                            label: "Pages",
-                          },
-                          {
-                            icon: BlogIcon,
-                            count: fetcher.data.websiteData._count.posts,
-                            label: "Blog Posts",
-                          },
-                          {
-                            icon: CollectionIcon,
-                            count:
-                              fetcher.data.websiteData._count.collections || 0,
-                            label: "Collections",
-                          },
-                          {
-                            icon: DiscountIcon,
-                            count: fetcher.data.websiteData._count.discounts,
-                            label: "Discounts",
-                          },
-                        ].map((item, index) => (
-                          <div key={index} style={{ textAlign: "center" }}>
-                            <BlockStack gap="300" align="center">
-                              <div
-                                style={{
-                                  width: "48px",
-                                  height: "48px",
-                                  backgroundColor: "white",
-                                  borderRadius: "12px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  margin: "0 auto",
-                                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                }}
-                              >
-                                <Icon source={item.icon} color="base" />
-                              </div>
-                              <Text variant="heading2xl" fontWeight="bold">
-                                {item.count}
-                              </Text>
-                              <Text variant="bodySm" color="subdued">
-                                {item.label}
-                              </Text>
-                            </BlockStack>
-                          </div>
-                        ))}
-                      </div>
-                    </BlockStack>
-                  </div>
-
                   {/* NEW: Extended Analytics Card */}
                   {accessKey && fetcher.data?.success && (
                     <div
@@ -2635,7 +2535,7 @@ export default function Index() {
                     </div>
                   )}
 
-                  {/* AI Assistant Settings Card */}
+                  {/* Content Overview Card */}
                   <div
                     style={{
                       backgroundColor: "white",
@@ -2645,29 +2545,26 @@ export default function Index() {
                     }}
                   >
                     <BlockStack gap="600">
-                      <InlineStack gap="400" blockAlign="center">
-                        <div
-                          style={{
-                            width: "56px",
-                            height: "56px",
-                            borderRadius: "12px",
-                            background:
-                              "linear-gradient(135deg, #5C6AC4 0%, #202E78 100%)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Icon source={ChatIcon} color="base" />
-                        </div>
-                        <BlockStack gap="100">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="200">
                           <Text variant="headingLg" fontWeight="semibold">
-                            AI Shopping Assistant
+                            Content Overview
                           </Text>
                           <Text variant="bodyMd" color="subdued">
-                            Enhance customer experience with AI-powered support
+                            Your store's AI-ready content
                           </Text>
                         </BlockStack>
+                        <Button
+                          onClick={handleSync}
+                          loading={isSyncing}
+                          icon={RefreshIcon}
+                          primary={
+                            !fetcher.data.websiteData.lastSyncedAt ||
+                            fetcher.data.websiteData.lastSyncedAt === "Never"
+                          }
+                        >
+                          {isSyncing ? "Syncing..." : "Sync Content"}
+                        </Button>
                       </InlineStack>
 
                       <div
@@ -2675,62 +2572,66 @@ export default function Index() {
                           backgroundColor: "#F9FAFB",
                           borderRadius: "12px",
                           padding: "20px",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(5, 1fr)",
+                          gap: "20px",
                         }}
                       >
-                        <BlockStack gap="300">
-                          <InlineStack gap="300" wrap={false}>
-                            <Icon source={CheckIcon} color="success" />
-                            <Text variant="bodyMd">
-                              Intelligent product recommendations
-                            </Text>
-                          </InlineStack>
-                          <InlineStack gap="300" wrap={false}>
-                            <Icon source={CheckIcon} color="success" />
-                            <Text variant="bodyMd">
-                              24/7 customer support automation
-                            </Text>
-                          </InlineStack>
-                          <InlineStack gap="300" wrap={false}>
-                            <Icon source={CheckIcon} color="success" />
-                            <Text variant="bodyMd">
-                              Natural language search capabilities
-                            </Text>
-                          </InlineStack>
-                        </BlockStack>
+                        {[
+                          {
+                            icon: ProductIcon,
+                            count: fetcher.data.websiteData._count.products,
+                            label: "Products",
+                          },
+                          {
+                            icon: PageIcon,
+                            count: fetcher.data.websiteData._count.pages,
+                            label: "Pages",
+                          },
+                          {
+                            icon: BlogIcon,
+                            count: fetcher.data.websiteData._count.posts,
+                            label: "Blog Posts",
+                          },
+                          {
+                            icon: CollectionIcon,
+                            count:
+                              fetcher.data.websiteData._count.collections || 0,
+                            label: "Collections",
+                          },
+                          {
+                            icon: DiscountIcon,
+                            count: fetcher.data.websiteData._count.discounts,
+                            label: "Discounts",
+                          },
+                        ].map((item, index) => (
+                          <div key={index} style={{ textAlign: "center" }}>
+                            <BlockStack gap="300" align="center">
+                              <div
+                                style={{
+                                  width: "48px",
+                                  height: "48px",
+                                  backgroundColor: "white",
+                                  borderRadius: "12px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  margin: "0 auto",
+                                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                }}
+                              >
+                                <Icon source={item.icon} color="base" />
+                              </div>
+                              <Text variant="heading2xl" fontWeight="bold">
+                                {item.count}
+                              </Text>
+                              <Text variant="bodySm" color="subdued">
+                                {item.label}
+                              </Text>
+                            </BlockStack>
+                          </div>
+                        ))}
                       </div>
-
-                      <InlineStack gap="300">
-                        <Button
-                          primary
-                          icon={SettingsIcon}
-                          onClick={() => {
-                            window.open(
-                              `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=assistant`,
-                              "_blank",
-                            );
-                          }}
-                        >
-                          Customize Assistant
-                        </Button>
-                        <Button
-                          icon={ExternalIcon}
-                          onClick={() => {
-                            window.open(
-                              `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=preview`,
-                              "_blank",
-                            );
-                          }}
-                        >
-                          Preview Assistant
-                        </Button>
-                        <Button
-                          plain
-                          icon={SettingsIcon}
-                          onClick={() => navigate("/app/settings")}
-                        >
-                          Settings
-                        </Button>
-                      </InlineStack>
                     </BlockStack>
                   </div>
                 </BlockStack>

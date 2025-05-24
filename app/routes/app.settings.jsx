@@ -11,12 +11,10 @@ import {
   Banner,
   TextField,
   InlineStack,
-  Modal,
   Icon,
   Box,
   Badge,
   Divider,
-  Toast,
   ProgressBar,
   Tooltip,
   EmptyState,
@@ -212,6 +210,162 @@ export const action = async ({ request }) => {
     });
   }
 };
+
+// Custom Toast component that doesn't depend on Polaris theme
+function CustomToast({ content, tone = "success", onDismiss }) {
+  const backgroundColor =
+    tone === "critical"
+      ? "#fedfe2"
+      : tone === "warning"
+        ? "#fef1d9"
+        : tone === "info"
+          ? "#e0f0ff"
+          : "#e2f5e7";
+
+  const textColor =
+    tone === "critical"
+      ? "#d82c0d"
+      : tone === "warning"
+        ? "#b98900"
+        : tone === "info"
+          ? "#006bdf"
+          : "#008060";
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        padding: "16px 20px",
+        backgroundColor: backgroundColor,
+        color: textColor,
+        borderRadius: "8px",
+        boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        maxWidth: "400px",
+      }}
+    >
+      <span>{content}</span>
+      <button
+        onClick={onDismiss}
+        style={{
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          marginLeft: "12px",
+          color: textColor,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+// Custom Modal component that doesn't depend on Polaris theme
+function CustomModal({
+  open,
+  onClose,
+  title,
+  primaryAction,
+  secondaryActions,
+  children,
+}) {
+  if (!open) return null;
+
+  return (
+    <div>
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          zIndex: 1000,
+        }}
+        onClick={onClose}
+      />
+      <div
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          backgroundColor: "white",
+          borderRadius: "8px",
+          zIndex: 1001,
+          maxWidth: "500px",
+          width: "90%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          style={{
+            borderBottom: "1px solid #ddd",
+            padding: "16px 20px",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "bold" }}>
+            {title}
+          </h2>
+        </div>
+        <div style={{ padding: "20px" }}>{children}</div>
+        <div
+          style={{
+            borderTop: "1px solid #ddd",
+            padding: "16px 20px",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "12px",
+          }}
+        >
+          {secondaryActions?.map((action, index) => (
+            <button
+              key={index}
+              onClick={action.onAction}
+              style={{
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                padding: "8px 16px",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              {action.content}
+            </button>
+          ))}
+          {primaryAction && (
+            <button
+              onClick={primaryAction.onAction}
+              style={{
+                backgroundColor: primaryAction.destructive
+                  ? "#d82c0d"
+                  : "#008060",
+                color: "white",
+                border: "none",
+                padding: "8px 16px",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              {primaryAction.content}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { websiteData, accessKey, error, disconnected } = useLoaderData();
@@ -744,15 +898,17 @@ export default function SettingsPage() {
         </Layout>
       </BlockStack>
 
+      {/* Use custom Toast component */}
       {showToast && (
-        <Toast
+        <CustomToast
           content={toastMessage}
           tone={toastType}
           onDismiss={toggleToast}
         />
       )}
 
-      <Modal
+      {/* Use custom Modal component */}
+      <CustomModal
         open={showDisconnectModal}
         onClose={() => setShowDisconnectModal(false)}
         title="Disconnect Website"
@@ -768,18 +924,16 @@ export default function SettingsPage() {
           },
         ]}
       >
-        <Modal.Section>
-          <BlockStack gap="400">
-            <Text as="p">
-              Are you sure you want to disconnect your website from VoiceroAI?
-            </Text>
-            <Text as="p" tone="critical">
-              This action cannot be undone. You will need to reconnect your
-              website if you want to use VoiceroAI again.
-            </Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        <BlockStack gap="400">
+          <Text as="p">
+            Are you sure you want to disconnect your website from VoiceroAI?
+          </Text>
+          <Text as="p" tone="critical">
+            This action cannot be undone. You will need to reconnect your
+            website if you want to use VoiceroAI again.
+          </Text>
+        </BlockStack>
+      </CustomModal>
     </Page>
   );
 }
