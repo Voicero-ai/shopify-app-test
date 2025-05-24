@@ -2,6 +2,8 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import urls from "../config/urls";
 
+export const dynamic = "force-dynamic";
+
 export async function loader({ request }) {
   // Get the access key from the session
   const { admin } = await authenticate.admin(request);
@@ -25,14 +27,40 @@ export async function loader({ request }) {
   }
 
   try {
-    // Fetch user data from the Voicero API
-    const response = await fetch(`${urls.voiceroApi}/api/user/me`, {
+    // Get website data to obtain the websiteId
+    const websiteResponse = await fetch(`${urls.voiceroApi}/api/connect`, {
       method: "GET",
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${accessKey}`,
       },
     });
+
+    if (!websiteResponse.ok) {
+      return json(
+        { error: "Failed to fetch website data" },
+        { status: websiteResponse.status },
+      );
+    }
+
+    const websiteData = await websiteResponse.json();
+    const websiteId = websiteData.website?.id;
+
+    if (!websiteId) {
+      return json({ error: "Website ID not found" }, { status: 404 });
+    }
+
+    // Fetch user data from the Voicero API with websiteId
+    const response = await fetch(
+      `${urls.voiceroApi}/api/user/me?websiteId=${websiteId}`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessKey}`,
+        },
+      },
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
