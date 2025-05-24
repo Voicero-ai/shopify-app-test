@@ -201,15 +201,6 @@ export const action: ActionFunction = async ({ request }) => {
     // Authenticate the app proxy request
     const { session, admin } = await authenticate.public.appProxy(request);
 
-    // Turn the comma string into an array
-    const granted = session.scope.split(",");
-
-    // Log the full array, no truncation
-    console.dir(granted, { maxArrayLength: null, depth: null });
-
-    // Also log its length so you know if something got dropped
-    console.log("Number of scopes granted:", granted.length);
-
     if (!session || !admin) {
       console.log("⚠️ No session or admin API client available in action");
       return json(
@@ -269,7 +260,7 @@ export const action: ActionFunction = async ({ request }) => {
 
         // CASE 1: We're updating the customer's address
         if (hasAddressUpdate) {
-          console.log("Checking for existing default address");
+          console.log("Updating customer address");
 
           // Step 1: Check if customer has a default address
           const customerQuery = `
@@ -297,10 +288,8 @@ export const action: ActionFunction = async ({ request }) => {
             address2: addressData.address2 || "",
             city: addressData.city,
             province: addressData.province,
-            provinceCode: addressData.provinceCode,
             zip: addressData.zip,
             country: addressData.country,
-            countryCode: addressData.countryCode || addressData.country,
             phone: addressData.phone || "",
           };
 
@@ -309,60 +298,39 @@ export const action: ActionFunction = async ({ request }) => {
             customerData.data.customer.defaultAddress?.id;
 
           if (defaultAddressId) {
-            // Only update if default address exists
+            // Step 2A: Update existing default address
             console.log("Updating existing default address:", defaultAddressId);
 
             const updateAddressMutation = `
-                mutation customerAddressUpdate(
-                    $customerId:  ID!, 
-                    $addressId:   ID!, 
-                    $address:     MailingAddressInput!, 
-                    $setAsDefault: Boolean
-                        ) {
-                    customerAddressUpdate(
-                        customerId:   $customerId,
-                        addressId:    $addressId,
-                        address:      $address,
-                        setAsDefault: $setAsDefault
-                    ) {
-                        customer {
-                        id
-                        defaultAddress {
-                            id
-                            address1
-                            address2
-                            city
-                            province
-                            provinceCode
-                            country
-                            countryCode
-                            zip
-                            phone
-                            formatted
-                        }
-                        }
-                        userErrors {
-                        field
-                        message
-                        }
-                    }
+              mutation customerAddressUpdate(
+                $address: MailingAddressInput!, 
+                $addressId: ID!, 
+                $customerId: ID!, 
+                $setAsDefault: Boolean
+              ) {
+                customerAddressUpdate(
+                  address: $address, 
+                  addressId: $addressId, 
+                  customerId: $customerId, 
+                  setAsDefault: $setAsDefault
+                ) {
+                  address {
+                    id
+                    formatted
+                  }
+                  userErrors {
+                    field
+                    message
+                  }
                 }
+              }
             `;
 
             const updateResponse = await admin.graphql(updateAddressMutation, {
               variables: {
-                customerId: `gid://shopify/Customer/${customerId}`,
+                address: addressInput,
                 addressId: defaultAddressId,
-                address: {
-                  address1: addressInput.address1,
-                  address2: addressInput.address2,
-                  city: addressInput.city,
-                  provinceCode:
-                    addressInput.provinceCode || addressInput.province,
-                  zip: addressInput.zip,
-                  countryCode: addressInput.countryCode || addressInput.country,
-                  phone: addressInput.phone,
-                },
+                customerId: `gid://shopify/Customer/${customerId}`,
                 setAsDefault: true,
               },
             });
@@ -392,26 +360,127 @@ export const action: ActionFunction = async ({ request }) => {
               );
             }
           } else {
-            // No default address exists, but we're not creating one as per requirements
-            console.log("No default address exists. Skipping address update.");
+            // Step 2B: Create new address
+            console.log("Creating new address for customer");
 
-            // If there are other customer fields to update, we'll continue with those
-            if (Object.keys(customerInput).length === 0) {
+            const createAddressMutation = `
+              mutation customerAddressCreate(
+                $address: MailingAddressInput!, 
+                $customerId: ID!, 
+                $setAsDefault: Boolean
+              ) {
+                customerAddressCreate(
+                  address: $address, 
+                  customerId: $customerId, 
+                  setAsDefault: $setAsDefault
+                ) {
+                  address {
+                    id
+                    formatted
+                  }
+                  userErrors {
+                    field
+                    message
+                  }
+                }
+              }
+            `;
+
+            const createResponse = await admin.graphql(createAddressMutation, {
+              variables: {
+                address: addressInput,
+                customerId: `gid://shopify/Customer/${customerId}`,
+                setAsDefault: true,
+              },
+            });
+
+            const createResult = await createResponse.json();
+            console.log("Address create result:", createResult);
+
+            // Check for errors
+            if (
+              createResult.data.customerAddressCreate.userErrors &&
+              createResult.data.customerAddressCreate.userErrors.length > 0
+            ) {
+              const errors = createResult.data.customerAddressCreate.userErrors;
+              const friendlyErrors = errors.map(
+                (e: { field: string; message: string }) => {
+                  return getFriendlyErrorMessage(e.field, e.message);
+                },
+              );
+
               return json(
                 {
                   success: false,
-                  error:
-                    "Cannot update default address as none exists. Please add an address first via the Shopify account page.",
+                  error: friendlyErrors.join(". "),
+                  details: errors,
                 },
                 addCorsHeaders(),
               );
             }
-          }
-        }
 
-        // Update basic customer information if there are fields to update
-        if (Object.keys(customerInput).length > 0) {
-          console.log("Updating customer details:", customerInput);
+            // Step 3: Get the newly created address ID
+            const newAddressId =
+              createResult.data.customerAddressCreate.address.id;
+            console.log("New address created:", newAddressId);
+
+            // We don't need to set as default separately since we're using setAsDefault: true in the create mutation
+          }
+
+          // Step 4: Get updated customer data
+          const finalQuery = `
+            query getUpdatedCustomer($customerId: ID!) {
+              customer(id: $customerId) {
+                id
+                firstName
+                lastName
+                email
+                phone
+                defaultAddress {
+                  id
+                  address1
+                  address2
+                  city
+                  province
+                  provinceCode
+                  zip
+                  country
+                  countryCode
+                  phone
+                  formatted
+                }
+                addresses(first: 10) {
+                  edges {
+                    node {
+                      id
+                      address1
+                      city
+                      province
+                      zip
+                      country
+                      formatted
+                      default
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const finalResponse = await admin.graphql(finalQuery, {
+            variables: {
+              customerId: `gid://shopify/Customer/${customerId}`,
+            },
+          });
+
+          const finalResult = await finalResponse.json();
+          console.log("Final customer data:", finalResult);
+
+          responseData = finalResult.data.customer;
+        }
+        // CASE 2: Just updating customer details
+        else {
+          console.log("Updating customer details (no address)");
 
           const updateMutation = `
             mutation customerUpdate($input: CustomerInput!) {
@@ -481,45 +550,6 @@ export const action: ActionFunction = async ({ request }) => {
           responseData = result.data.customerUpdate.customer;
         }
 
-        // If we haven't set responseData yet (e.g., only updated address), fetch current customer data
-        if (!responseData) {
-          const finalQuery = `
-            query getUpdatedCustomer($customerId: ID!) {
-              customer(id: $customerId) {
-                id
-                firstName
-                lastName
-                email
-                phone
-                defaultAddress {
-                  id
-                  address1
-                  address2
-                  city
-                  province
-                  provinceCode
-                  zip
-                  country
-                  countryCode
-                  phone
-                  formatted
-                }
-              }
-            }
-          `;
-
-          const finalResponse = await admin.graphql(finalQuery, {
-            variables: {
-              customerId: `gid://shopify/Customer/${customerId}`,
-            },
-          });
-
-          const finalResult = await finalResponse.json();
-          console.log("Final customer data:", finalResult);
-
-          responseData = finalResult.data.customer;
-        }
-
         // Success!
         return json(
           {
@@ -555,9 +585,6 @@ export const action: ActionFunction = async ({ request }) => {
       ].includes(data.action)
     ) {
       console.log(`Processing ${data.action} request:`, data);
-      console.log(`API scopes available:`, granted);
-      console.log(`Read returns scope:`, granted.includes("read_returns"));
-      console.log(`Write returns scope:`, granted.includes("write_returns"));
 
       // Get the order_id or number
       const orderIdentifier = data.order_id;
@@ -602,25 +629,6 @@ export const action: ActionFunction = async ({ request }) => {
                         name
                         quantity
                         refundableQuantity
-                        fulfillmentStatus
-                        variant {
-                          id
-                          title
-                          price
-                          inventoryQuantity
-                        }
-                      }
-                    }
-                  }
-                  fulfillments(first: 10) {
-                    edges {
-                      node {
-                        status
-                        createdAt
-                        trackingInfo {
-                          number
-                          url
-                        }
                       }
                     }
                   }
@@ -631,21 +639,7 @@ export const action: ActionFunction = async ({ request }) => {
         `;
 
         // Build the query condition - try to match by order number and email
-        const orderIdentifierClean = orderIdentifier
-          .toString()
-          .replace(/^#/, "");
-        const queryCondition = `(name:"#${orderIdentifierClean}" OR name:"${orderIdentifierClean}") AND customer_email:"${email}"`;
-
-        // DETAILED DEBUGGING FOR ORDER LOOKUP
-        console.log("🔍 DEBUG: Order lookup starting");
-        console.log("📝 DEBUG: Order lookup parameters:", {
-          order_id: orderIdentifier,
-          clean_order_id: orderIdentifierClean,
-          formatted_id_1: `#${orderIdentifierClean}`,
-          formatted_id_2: orderIdentifierClean,
-          email: email,
-          query_condition: queryCondition,
-        });
+        const queryCondition = `name:${orderIdentifier} AND customer_email:${email}`;
 
         const orderResponse = await admin.graphql(orderQuery, {
           variables: {
@@ -653,94 +647,36 @@ export const action: ActionFunction = async ({ request }) => {
           },
         });
 
-        // Log the full query for debugging
-        console.log("Order lookup query:", queryCondition);
-
         const orderData = await orderResponse.json();
-        console.log(
-          "🔎 DEBUG: Full order lookup response:",
-          JSON.stringify(orderData),
-        );
         console.log("Order lookup result:", orderData);
 
         // Check if we found the order
         if (!orderData.data.orders.edges.length) {
-          console.log(
-            "⚠️ Order not found with strict query, trying alternative lookup",
-          );
-
-          // Try a more relaxed query - just by order number without email constraint
-          const fallbackQueryCondition = `name:"#${orderIdentifier.toString().replace(/^#/, "")}"`;
-          console.log("Fallback query condition:", fallbackQueryCondition);
-
-          const fallbackOrderResponse = await admin.graphql(orderQuery, {
-            variables: {
-              query: fallbackQueryCondition,
+          return json(
+            {
+              success: false,
+              error: "Order not found or does not match the provided email",
+              verified: false,
             },
-          });
-
-          const fallbackOrderData = await fallbackOrderResponse.json();
-          console.log("Fallback order lookup result:", fallbackOrderData);
-
-          // If fallback also fails, return error
-          if (!fallbackOrderData.data.orders.edges.length) {
-            return json(
-              {
-                success: false,
-                error:
-                  "Order not found. Please check your order number and try again.",
-                verified: false,
-              },
-              addCorsHeaders(),
-            );
-          }
-
-          // Use the order found by fallback
-          orderData.data.orders.edges = fallbackOrderData.data.orders.edges;
-          console.log("Using fallback order data instead");
+            addCorsHeaders(),
+          );
         }
 
         const order = orderData.data.orders.edges[0].node;
 
-        // Add detailed logging about the order state
-        console.log("Order details:", {
-          id: order.id,
-          name: order.name,
-          status: order.displayFulfillmentStatus,
-          cancelledAt: order.cancelledAt,
-          financial_status: order.displayFinancialStatus,
-          refundable: order.refundable,
-        });
-
-        // Verify the email matches, but be more permissive in debug mode
+        // Verify the email matches
         if (
           order.customer &&
           order.customer.email.toLowerCase() !== email.toLowerCase()
         ) {
-          console.log("⚠️ Email mismatch:", {
-            order_email: order.customer.email,
-            provided_email: email,
-            order_id: orderIdentifier,
-            order_name: order.name,
-          });
-
-          // For return requests, we'll be more flexible with email verification
-          // This allows customers to process returns even if they used a different email
-          if (data.action === "return" || data.action === "verify_order") {
-            console.log(
-              "📣 Return request - allowing email mismatch for order:",
-              order.name,
-            );
-          } else {
-            return json(
-              {
-                success: false,
-                error: "The email address does not match the one on the order",
-                verified: false,
-              },
-              addCorsHeaders(),
-            );
-          }
+          return json(
+            {
+              success: false,
+              error: "The email address does not match the one on the order",
+              verified: false,
+            },
+            addCorsHeaders(),
+          );
         }
 
         // If this is just a verification request, return success
@@ -762,50 +698,17 @@ export const action: ActionFunction = async ({ request }) => {
             fulfillmentStatus: order.fulfillmentStatus,
             cancelledAt: order.cancelledAt,
             canCancel:
-              order.displayFulfillmentStatus === "UNFULFILLED" &&
-              !order.cancelledAt,
-            canReturn:
-              order.displayFulfillmentStatus === "FULFILLED" &&
-              order.lineItems.edges.some(
-                (edge: { node: any }) => edge.node.refundableQuantity > 0,
-              ),
+              order.fulfillmentStatus === "UNFULFILLED" && !order.cancelledAt,
             line_items: order.lineItems.edges.map((edge: { node: any }) => ({
               id: edge.node.id,
               title: edge.node.name,
               quantity: edge.node.quantity,
               refundable_quantity: edge.node.refundableQuantity,
               current_quantity: edge.node.currentQuantity,
-              fulfillment_status: edge.node.fulfillmentStatus,
               price: edge.node.variant ? edge.node.variant.price : null,
               variant_id: edge.node.variant ? edge.node.variant.id : null,
               variant_title: edge.node.variant ? edge.node.variant.title : null,
-              is_returnable: edge.node.refundableQuantity > 0,
             })),
-            fulfillments: order.fulfillments
-              ? order.fulfillments.edges.map((edge: { node: any }) => ({
-                  status: edge.node.status,
-                  created_at: edge.node.createdAt,
-                  tracking_number:
-                    edge.node.trackingInfo && edge.node.trackingInfo.length
-                      ? edge.node.trackingInfo[0].number
-                      : null,
-                  tracking_url:
-                    edge.node.trackingInfo && edge.node.trackingInfo.length
-                      ? edge.node.trackingInfo[0].url
-                      : null,
-                  items: edge.node.lineItems.edges.map(
-                    (lineItem: { node: any }) => ({
-                      line_item_id: lineItem.node.lineItem.id,
-                      title: lineItem.node.lineItem.name,
-                      quantity: lineItem.node.quantity,
-                    }),
-                  ),
-                }))
-              : [],
-            return_policy: {
-              days: 30, // This would come from your store settings
-              condition: "Items must be unused and in original packaging",
-            },
           };
 
           return json(
@@ -816,17 +719,19 @@ export const action: ActionFunction = async ({ request }) => {
 
         // Process the requested action
         if (data.action === "cancel") {
-          // Check if the order can be canceled: unfulfilled and not already canceled
-          const canCancel =
-            order.displayFulfillmentStatus === "UNFULFILLED" &&
-            !order.cancelledAt;
-
-          console.log("Can cancel order?", {
-            canCancel,
-            status: order.displayFulfillmentStatus,
+          // Log detailed order status information
+          console.log("Order status check:", {
+            id: order.id,
+            name: order.name,
+            fulfillmentStatus: order.displayFulfillmentStatus,
+            financialStatus: order.displayFinancialStatus,
             cancelledAt: order.cancelledAt,
-            financial_status: order.displayFinancialStatus,
+            refundable: order.refundable,
           });
+
+          // Updated condition: orders can be canceled if they're not already canceled
+          // We'll let Shopify's API determine if it's actually cancellable
+          const canCancel = !order.cancelledAt;
 
           if (canCancel) {
             const cancelQuery = `
@@ -890,70 +795,16 @@ export const action: ActionFunction = async ({ request }) => {
                 addCorsHeaders(),
               );
             } else {
-              // Let's try to cancel anyway as a fallback
-              console.log(
-                "Order doesn't appear cancellable, but attempting cancellation anyway as a fallback",
+              // Not cancelable for other reasons
+              return json(
+                {
+                  success: false,
+                  error:
+                    "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
+                  suggest_contact: true,
+                },
+                addCorsHeaders(),
               );
-
-              const cancelQuery = `
-        mutation cancelOrder($orderId: ID!) {
-          orderCancel(
-            notifyCustomer: true
-            orderId:        $orderId
-            reason:         CUSTOMER
-            refund:         true
-            restock:        true
-          ) {
-            job { id done }
-            orderCancelUserErrors { field message }
-          }
-        }
-      `;
-
-              try {
-                const cancelResp = await admin.graphql(cancelQuery, {
-                  variables: { orderId: order.id },
-                });
-
-                const cancelData = await cancelResp.json();
-                console.log("Fallback cancel result:", cancelData);
-
-                if (
-                  cancelData.data.orderCancel.orderCancelUserErrors &&
-                  cancelData.data.orderCancel.orderCancelUserErrors.length > 0
-                ) {
-                  // Real cancellation error
-                  return json(
-                    {
-                      success: false,
-                      error:
-                        "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
-                      suggest_contact: true,
-                    },
-                    addCorsHeaders(),
-                  );
-                }
-
-                // If we get here, the cancellation actually succeeded despite our checks
-                return json(
-                  {
-                    success: true,
-                    message: `Order ${order.name} has been cancelled successfully`,
-                  },
-                  addCorsHeaders(),
-                );
-              } catch (cancelError) {
-                console.error("Error in fallback cancellation:", cancelError);
-                return json(
-                  {
-                    success: false,
-                    error:
-                      "This order cannot be cancelled at this time. This may be because payment processing has already completed.",
-                    suggest_contact: true,
-                  },
-                  addCorsHeaders(),
-                );
-              }
             }
           }
         }
@@ -962,241 +813,7 @@ export const action: ActionFunction = async ({ request }) => {
         // This is more complex and often requires a return merchandise authorization (RMA) process
         // For now, we'll acknowledge the request and provide instructions
         if (data.action === "return" || data.action === "exchange") {
-          // First, if this is a return request, let's actually create a return in Shopify
-          if (data.action === "return") {
-            console.log(
-              "Processing actual return request for order:",
-              order.id,
-            );
-
-            // Check if we have items to return
-            if (!data.items || !data.items.length) {
-              return json(
-                {
-                  success: false,
-                  error: "No items specified for return",
-                },
-                addCorsHeaders(),
-              );
-            }
-
-            try {
-              // Step 1: Get returnable fulfillments to find eligible items
-              const returnableFulfillmentsQuery = `
-                query ReturnableItems($orderId: ID!) {
-                  returnableFulfillments(orderId: $orderId) {
-                    fulfillmentLineItems {
-                      edges {
-                        node {
-                          id
-                          quantity
-                          lineItem { 
-                            id 
-                            name 
-                            variant {
-                              id
-                              title
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-
-              const fulfillmentsResponse = await admin.graphql(
-                returnableFulfillmentsQuery,
-                {
-                  variables: {
-                    orderId: order.id,
-                  },
-                },
-              );
-
-              const fulfillmentsData = await fulfillmentsResponse.json();
-              console.log("Returnable fulfillments:", fulfillmentsData);
-
-              // Check if we have returnable items
-              if (
-                !fulfillmentsData.data?.returnableFulfillments
-                  ?.fulfillmentLineItems?.edges?.length
-              ) {
-                return json(
-                  {
-                    success: false,
-                    error:
-                      "No eligible items found for return. Items must be fulfilled before they can be returned.",
-                  },
-                  addCorsHeaders(),
-                );
-              }
-
-              // Map requested items to actual fulfillment line items
-              const returnLineItems = [];
-              const returnableFulfillmentItems =
-                fulfillmentsData.data.returnableFulfillments
-                  .fulfillmentLineItems.edges;
-
-              // Process the items to return
-              for (const itemToReturn of data.items) {
-                // Find the corresponding fulfillment line item
-                const fulfillmentItem = returnableFulfillmentItems.find(
-                  (edge: { node: any }) => {
-                    const node = edge.node;
-                    // Match by line item ID if provided
-                    if (itemToReturn.lineItemId) {
-                      return node.lineItem.id === itemToReturn.lineItemId;
-                    }
-
-                    // Match by item index in the original order
-                    if (itemToReturn.index !== undefined) {
-                      // We'd need to match this to the correct item in the order
-                      // This is a simplification, you might need a more robust matching
-                      const orderItemIndex = order.lineItems.edges.findIndex(
-                        (e: { node: any }) => e.node.id === node.lineItem.id,
-                      );
-                      return orderItemIndex === itemToReturn.index;
-                    }
-
-                    return false;
-                  },
-                );
-
-                if (!fulfillmentItem) {
-                  console.log(
-                    `Could not find fulfillment item matching: ${JSON.stringify(itemToReturn)}`,
-                  );
-                  continue;
-                }
-
-                // Create the return line item
-                returnLineItems.push({
-                  fulfillmentLineItemId: fulfillmentItem.node.id,
-                  quantity: itemToReturn.quantity || 1, // Default to 1 if not specified
-                  returnReason: (
-                    itemToReturn.reason ||
-                    data.reason ||
-                    "OTHER"
-                  ).toUpperCase(),
-                  returnReasonNote:
-                    itemToReturn.note ||
-                    data.note ||
-                    "Customer initiated return",
-                });
-              }
-
-              if (returnLineItems.length === 0) {
-                return json(
-                  {
-                    success: false,
-                    error:
-                      "None of the requested items are eligible for return",
-                  },
-                  addCorsHeaders(),
-                );
-              }
-
-              // Step 2: Create the return
-              const createReturnMutation = `
-                mutation CreateReturn($input: ReturnInput!) {
-                  returnCreate(returnInput: $input) {
-                    return {
-                      id
-                      status
-                      returnLineItems(first:10) {
-                        edges { 
-                          node { 
-                            fulfillmentLineItem { 
-                              lineItem { name } 
-                            } 
-                            quantity 
-                          } 
-                        }
-                      }
-                    }
-                    userErrors { field message }
-                  }
-                }
-              `;
-
-              // Format the timestamp as ISO string
-              const now = new Date().toISOString();
-
-              const returnResponse = await admin.graphql(createReturnMutation, {
-                variables: {
-                  input: {
-                    orderId: order.id,
-                    requestedAt: now,
-                    returnLineItems: returnLineItems,
-                  },
-                },
-              });
-
-              const returnResult = await returnResponse.json();
-              console.log("Return creation result:", returnResult);
-
-              // Check for errors
-              if (
-                returnResult.data.returnCreate.userErrors &&
-                returnResult.data.returnCreate.userErrors.length > 0
-              ) {
-                const errors = returnResult.data.returnCreate.userErrors;
-                return json(
-                  {
-                    success: false,
-                    error: errors
-                      .map((e: { message: string }) => e.message)
-                      .join(". "),
-                    details: errors,
-                  },
-                  addCorsHeaders(),
-                );
-              }
-
-              // Return was created successfully
-              const returnData = returnResult.data.returnCreate.return;
-
-              // Format the returned items for the customer
-              const returnedItems = returnData.returnLineItems.edges.map(
-                (edge: {
-                  node: {
-                    fulfillmentLineItem: { lineItem: { name: string } };
-                    quantity: number;
-                  };
-                }) => ({
-                  name: edge.node.fulfillmentLineItem.lineItem.name,
-                  quantity: edge.node.quantity,
-                }),
-              );
-
-              return json(
-                {
-                  success: true,
-                  message: `Your return for order ${order.name} has been created successfully with status ${returnData.status}`,
-                  returnId: returnData.id,
-                  status: returnData.status,
-                  items: returnedItems,
-                },
-                addCorsHeaders(),
-              );
-            } catch (error) {
-              console.error("Error creating return:", error);
-              return json(
-                {
-                  success: false,
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : "An error occurred while creating the return",
-                  stack: error instanceof Error ? error.stack : undefined,
-                },
-                addCorsHeaders({ status: 500 }),
-              );
-            }
-          }
-
-          // For exchange requests or fallback for simple return acknowledgements
+          // In a real implementation, you would initiate the return/exchange process in your system
           const actionType = data.action === "return" ? "return" : "exchange";
 
           return json(
