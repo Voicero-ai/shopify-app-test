@@ -3148,6 +3148,9 @@ const VoiceroVoice = {
     // Process markdown-style italic text
     formattedText = formattedText.replace(/\*(.*?)\*/g, "<em>$1</em>");
 
+    // Replace line breaks
+    formattedText = formattedText.replace(/\n/g, "<br>");
+
     return formattedText;
   },
 
