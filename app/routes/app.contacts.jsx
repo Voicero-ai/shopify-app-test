@@ -2,75 +2,47 @@ import { useState, useEffect } from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import urls from "../config/urls";
 
 export const dynamic = "force-dynamic";
 
 export const loader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-
-  // Get the access key from metafields
-  const metafieldResponse = await admin.graphql(`
-    query {
-      shop {
-        metafield(namespace: "voicero", key: "access_key") {
-          value
-        }
-      }
-    }
-  `);
-
-  const metafieldData = await metafieldResponse.json();
-  const accessKey = metafieldData.data.shop.metafield?.value;
-
-  if (!accessKey) {
-    return json({
-      disconnected: true,
-      error: "No access key found",
-    });
-  }
-
   try {
-    // Get website data to obtain the websiteId
-    const websiteResponse = await fetch(`${urls.voiceroApi}/api/connect`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accessKey}`,
-      },
-    });
-
-    if (!websiteResponse.ok) {
-      return json({
-        error: "Failed to fetch website data",
-      });
-    }
-
-    const websiteData = await websiteResponse.json();
-    const websiteId = websiteData.website?.id;
-
-    if (!websiteId) {
-      return json({
-        error: "Website ID not found",
-      });
-    }
-
-    // Use our internal API endpoint to fetch contacts
+    // Simple fetch from our internal API endpoint
     const url = new URL(request.url);
     const baseUrl = url.origin;
     const response = await fetch(`${baseUrl}/api/contacts`);
 
     if (!response.ok) {
-      const errorData = await response.json();
+      throw new Error("Failed to fetch contacts");
+    }
+
+    const data = await response.json();
+
+    // Get the website ID from the admin authentication
+    const { admin } = await authenticate.admin(request);
+    const metafieldResponse = await admin.graphql(`
+      query {
+        shop {
+          metafield(namespace: "voicero", key: "access_key") {
+            value
+          }
+        }
+      }
+    `);
+
+    const metafieldData = await metafieldResponse.json();
+    const accessKey = metafieldData.data.shop.metafield?.value;
+
+    if (!accessKey) {
       return json({
-        error: errorData.error || "Failed to fetch contacts",
+        disconnected: true,
+        error: "No access key found",
       });
     }
 
-    const contactsData = await response.json();
     return json({
-      contacts: contactsData.contacts,
-      websiteId,
+      contacts: data.contacts || [],
+      websiteId: data.websiteId,
     });
   } catch (error) {
     return json({
@@ -81,24 +53,13 @@ export const loader = async ({ request }) => {
 
 export const action = async ({ request }) => {
   const formData = await request.formData();
-  const action = formData.get("action");
-  const contactId = formData.get("contactId");
 
   try {
-    // Use the URL origin to create a path to our API
     const url = new URL(request.url);
     const baseUrl = url.origin;
-
-    // Create a new FormData object to pass to our API endpoint
-    const apiFormData = new FormData();
-    for (const [key, value] of formData.entries()) {
-      apiFormData.append(key, value);
-    }
-
-    // Call our API endpoint for the action
     const response = await fetch(`${baseUrl}/api/contacts`, {
       method: "POST",
-      body: apiFormData,
+      body: formData,
     });
 
     if (!response.ok) {
@@ -106,8 +67,7 @@ export const action = async ({ request }) => {
       throw new Error(errorData.error || "Failed to process action");
     }
 
-    const data = await response.json();
-    return json(data);
+    return json(await response.json());
   } catch (error) {
     return json({
       success: false,
@@ -336,6 +296,7 @@ export default function ContactsPage() {
 
   // Truncate long text
   const truncateText = (text, maxLength = 100) => {
+    if (!text) return "";
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + "...";
   };

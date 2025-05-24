@@ -50,7 +50,7 @@ export async function loader({ request }) {
       return json({ error: "Website ID not found" }, { status: 404 });
     }
 
-    // Fetch contacts data from the Voicero API with websiteId
+    // Fetch contacts data from the Voicero API with websiteId in the body
     const response = await fetch(`${urls.voiceroApi}/api/contacts`, {
       method: "POST",
       headers: {
@@ -69,8 +69,8 @@ export async function loader({ request }) {
       );
     }
 
-    const contactsData = await response.json();
-    return json({ contacts: contactsData });
+    const contacts = await response.json();
+    return json({ contacts, websiteId });
   } catch (error) {
     console.error("Error fetching contacts:", error);
     return json(
@@ -106,95 +106,54 @@ export async function action({ request }) {
     const formData = await request.formData();
     const action = formData.get("action");
     const contactId = formData.get("contactId");
+    const websiteId = formData.get("websiteId");
 
-    // Get website data to obtain the websiteId
-    const websiteResponse = await fetch(`${urls.voiceroApi}/api/connect`, {
-      method: "GET",
+    if (!websiteId) {
+      return json({ error: "Website ID is required" }, { status: 400 });
+    }
+
+    // All actions go through the same /api/contacts endpoint
+    const payload = {
+      websiteId,
+      contactId,
+      action,
+    };
+
+    // Add action-specific fields
+    if (action === "markAsRead") {
+      payload.read = true;
+    } else if (action === "sendReply") {
+      payload.email = formData.get("email");
+      payload.message = formData.get("message");
+    }
+
+    const response = await fetch(`${urls.voiceroApi}/api/contacts`, {
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         Accept: "application/json",
         Authorization: `Bearer ${accessKey}`,
       },
+      body: JSON.stringify(payload),
     });
 
-    if (!websiteResponse.ok) {
+    if (!response.ok) {
+      const errorData = await response.json();
       return json(
-        { error: "Failed to fetch website data" },
-        { status: websiteResponse.status },
+        { error: errorData.error || "Failed to process request" },
+        { status: response.status },
       );
     }
 
-    const websiteData = await websiteResponse.json();
-    const websiteId = websiteData.website?.id;
-
-    if (!websiteId) {
-      return json({ error: "Website ID not found" }, { status: 404 });
-    }
-
-    if (action === "markAsRead") {
-      const response = await fetch(`${urls.voiceroApi}/api/contacts/status`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${accessKey}`,
-        },
-        body: JSON.stringify({
-          contactId,
-          websiteId,
-          read: true,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return json(
-          { error: errorData.error || "Failed to update contact status" },
-          { status: response.status },
-        );
-      }
-
-      const data = await response.json();
-      return json({
-        success: true,
-        data,
-        message: "Contact marked as read",
-      });
-    } else if (action === "sendReply") {
-      const email = formData.get("email");
-      const message = formData.get("message");
-
-      const response = await fetch(`${urls.voiceroApi}/api/contacts/reply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${accessKey}`,
-        },
-        body: JSON.stringify({
-          contactId,
-          websiteId,
-          email,
-          message,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return json(
-          { error: errorData.error || "Failed to send reply" },
-          { status: response.status },
-        );
-      }
-
-      const data = await response.json();
-      return json({
-        success: true,
-        data,
-        message: "Reply sent successfully",
-      });
-    }
-
-    return json({ error: "Invalid action" }, { status: 400 });
+    const data = await response.json();
+    return json({
+      success: true,
+      data,
+      message:
+        action === "sendReply"
+          ? "Reply sent successfully"
+          : "Contact marked as read",
+    });
   } catch (error) {
     console.error("Error processing contacts action:", error);
     return json(
