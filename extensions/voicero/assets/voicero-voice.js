@@ -3553,18 +3553,17 @@ const VoiceroVoice = {
 
   // Helper function to display the welcome message
   showWelcomeMessage: function () {
-    // If we've already shown a welcome message in this session, don't show it again
+    // Check if welcome message already shown
     if (this.hasShownWelcome) {
-      console.log("Welcome message already shown, skipping...");
       return;
     }
 
-    // Set the flag to indicate we've shown the welcome
+    // Set flag to indicate welcome was shown
     this.hasShownWelcome = true;
 
-    // Prevent showing welcome message if an AI message already exists
+    // Get messages container
     const messagesContainer = document.getElementById("voice-messages");
-    if (messagesContainer && messagesContainer.querySelector(".ai-message")) {
+    if (!messagesContainer) {
       return;
     }
 
@@ -3705,8 +3704,41 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
 
     console.log("Showing welcome message");
 
-    // Add the message
-    const welcomeMessageElement = this.addMessage(welcomeMessage, "ai");
+    // Create a message element directly to have more control
+    const messageEl = document.createElement("div");
+    messageEl.className = "ai-message";
+    messageEl.style.cssText = `
+      margin-bottom: 16px;
+      animation: fadeIn 0.3s ease forwards;
+      display: flex;
+      justify-content: flex-start;
+      position: relative;
+      padding-left: 8px;
+    `;
+
+    // Generate a unique message ID
+    const messageId =
+      "msg_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    messageEl.dataset.messageId = messageId;
+
+    // Create message content
+    const messageContent = document.createElement("div");
+    messageContent.className = "message-content voice-message-content";
+
+    // Format the welcome message content with the correct formatting
+    if (window.VoiceroCore && window.VoiceroCore.formatMarkdown) {
+      messageContent.innerHTML =
+        window.VoiceroCore.formatMarkdown(welcomeMessage);
+    } else {
+      // Use our local formatContent function
+      messageContent.innerHTML = this.formatContent(welcomeMessage);
+    }
+
+    // Append content to message
+    messageEl.appendChild(messageContent);
+
+    // Append to messages container
+    messagesContainer.appendChild(messageEl);
 
     // Add click handlers to the welcome questions
     setTimeout(() => {
@@ -3729,6 +3761,8 @@ Hi, I'm ${botName}! ${welcomeMessageContent}
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }, 100);
     }
+
+    return messageEl;
   },
 
   // Stop any ongoing recording

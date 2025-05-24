@@ -1875,7 +1875,14 @@ export default function Index() {
       {/* Training Status Banner */}
       {trainingData && trainingData.status === "processing" && (
         <Box paddingBlockEnd="400">
-          <Banner status="info">
+          <div
+            style={{
+              backgroundColor: "#EBF5FF",
+              borderRadius: "12px",
+              padding: "20px",
+              border: "1px solid #E1E8F0",
+            }}
+          >
             <BlockStack gap="400">
               <InlineStack align="space-between" wrap={false}>
                 <InlineStack align="center" gap="300">
@@ -1884,15 +1891,18 @@ export default function Index() {
                     AI Assistant Training in Progress
                   </Text>
                 </InlineStack>
-                <Box
-                  background="bg-surface-info"
-                  padding="200"
-                  borderRadius="base"
+                <div
+                  style={{
+                    backgroundColor: "#2C5ECF",
+                    color: "white",
+                    padding: "4px 12px",
+                    borderRadius: "20px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                  }}
                 >
-                  <Text variant="bodySm" fontWeight="semibold">
-                    {getTrainingProgress()}% Complete
-                  </Text>
-                </Box>
+                  {getTrainingProgress()}% Complete
+                </div>
               </InlineStack>
 
               <Text variant="bodyMd" color="subdued">
@@ -1900,23 +1910,26 @@ export default function Index() {
               </Text>
 
               {/* Progress Bar */}
-              <Box paddingBlockStart="200" paddingBlockEnd="200">
-                <Box
-                  background="bg-fill-tertiary"
-                  padding="0"
-                  borderRadius="base"
-                >
-                  <div
-                    style={{
-                      width: `${getTrainingProgress()}%`,
-                      height: "8px",
-                      backgroundColor: "#008060",
-                      borderRadius: "4px",
-                      transition: "width 0.5s ease-in-out",
-                    }}
-                  />
-                </Box>
-              </Box>
+              <div
+                style={{
+                  width: "100%",
+                  height: "8px",
+                  backgroundColor: "#E4E5E7",
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${getTrainingProgress()}%`,
+                    height: "100%",
+                    background:
+                      "linear-gradient(90deg, #008060 0%, #00A67E 100%)",
+                    borderRadius: "4px",
+                    transition: "width 0.5s ease-in-out",
+                  }}
+                />
+              </div>
 
               <InlineStack align="space-between">
                 <Text variant="bodySm" color="subdued">
@@ -1927,50 +1940,57 @@ export default function Index() {
                 </Text>
               </InlineStack>
             </BlockStack>
-          </Banner>
+          </div>
         </Box>
       )}
 
       <Layout>
         <Layout.Section>
           {/* Header */}
-          <Box paddingBlockEnd="800">
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="200">
-                  <Text variant="headingXl" as="h1">
-                    Dashboard
-                  </Text>
-                  <Text variant="bodyMd" color="subdued">
-                    Manage your AI-powered shopping assistant
-                  </Text>
-                </BlockStack>
-                {accessKey && fetcher.data?.success && (
-                  <Button
-                    primary
-                    size="large"
-                    icon={ExternalIcon}
-                    onClick={() => {
-                      window.open(
-                        `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}`,
-                        "_blank",
-                      );
-                    }}
-                  >
-                    Open Control Panel
-                  </Button>
-                )}
-              </InlineStack>
-            </BlockStack>
+          <Box paddingBlockEnd="600">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="200">
+                <Text variant="headingXl" as="h1">
+                  Dashboard
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  Manage your AI-powered shopping assistant
+                </Text>
+              </BlockStack>
+              {accessKey && fetcher.data?.success && (
+                <Button
+                  primary
+                  size="large"
+                  icon={ExternalIcon}
+                  onClick={() => {
+                    window.open(
+                      `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}`,
+                      "_blank",
+                    );
+                  }}
+                >
+                  Open Control Panel
+                </Button>
+              )}
+            </InlineStack>
           </Box>
 
           {/* Error Messages */}
           {error && (
             <Box paddingBlockEnd="400">
               {typeof error === "string" ? (
-                <Banner status="critical" onDismiss={() => setError(null)}>
-                  <p>{error}</p>
-                </Banner>
+                <div
+                  style={{
+                    backgroundColor: "#FFF5F5",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    border: "1px solid #FCE9E9",
+                  }}
+                >
+                  <Text variant="bodyMd" tone="critical">
+                    {error}
+                  </Text>
+                </div>
               ) : (
                 error
               )}
@@ -1982,542 +2002,616 @@ export default function Index() {
             {accessKey ? (
               isDataLoading ? (
                 /* Loading State */
-                <Card>
-                  <Box padding="800">
-                    <BlockStack gap="400" align="center">
-                      <Spinner size="large" />
-                      <Text variant="headingMd" alignment="center">
-                        Loading your dashboard...
-                      </Text>
-                      <Text variant="bodyMd" color="subdued" alignment="center">
-                        This may take a few moments
-                      </Text>
-                    </BlockStack>
-                  </Box>
-                </Card>
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "12px",
+                    padding: "80px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    textAlign: "center",
+                  }}
+                >
+                  <BlockStack gap="400" align="center">
+                    <Spinner size="large" />
+                    <Text variant="headingMd" alignment="center">
+                      Loading your dashboard...
+                    </Text>
+                    <Text variant="bodyMd" color="subdued" alignment="center">
+                      This may take a few moments
+                    </Text>
+                  </BlockStack>
+                </div>
               ) : fetcher.data?.success ? (
                 /* Connected State */
                 <BlockStack gap="600">
                   {/* Website Status Card */}
-                  <Card>
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "24px",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    }}
+                  >
                     <BlockStack gap="600">
                       {/* Header Section */}
-                      <Box padding="600" paddingBlockEnd="0">
-                        <InlineStack align="space-between" blockAlign="start">
-                          <InlineStack gap="400" blockAlign="center">
-                            <Box
-                              background={
+                      <InlineStack align="space-between" blockAlign="start">
+                        <InlineStack gap="400" blockAlign="center">
+                          <div
+                            style={{
+                              width: "48px",
+                              height: "48px",
+                              borderRadius: "12px",
+                              backgroundColor: fetcher.data.websiteData.active
+                                ? "#E3F5E1"
+                                : "#FFF4E4",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Icon
+                              source={
                                 fetcher.data.websiteData.active
-                                  ? "bg-fill-success"
-                                  : "bg-fill-warning"
+                                  ? CheckIcon
+                                  : InfoIcon
                               }
-                              padding="400"
-                              borderRadius="base"
-                            >
-                              <Icon
-                                source={
-                                  fetcher.data.websiteData.active
-                                    ? CheckIcon
-                                    : InfoIcon
-                                }
-                                color="base"
-                              />
-                            </Box>
-                            <BlockStack gap="100">
-                              <Text variant="headingLg" fontWeight="semibold">
-                                {fetcher.data.websiteData.name}
-                              </Text>
-                              <Link
-                                url={fetcher.data.websiteData.url}
-                                external
-                                monochrome
-                              >
-                                <Text variant="bodySm" color="subdued">
-                                  {fetcher.data.websiteData.url}
-                                </Text>
-                              </Link>
-                            </BlockStack>
-                          </InlineStack>
-                          <InlineStack gap="300" blockAlign="center">
-                            <Box
-                              background={
+                              color={
                                 fetcher.data.websiteData.active
-                                  ? "bg-fill-success-secondary"
-                                  : "bg-fill-warning-secondary"
+                                  ? "success"
+                                  : "warning"
                               }
-                              padding="100"
-                              paddingInlineStart="300"
-                              paddingInlineEnd="300"
-                              borderRadius="base"
+                            />
+                          </div>
+                          <BlockStack gap="100">
+                            <Text variant="headingLg" fontWeight="semibold">
+                              {fetcher.data.websiteData.name}
+                            </Text>
+                            <Link
+                              url={fetcher.data.websiteData.url}
+                              external
+                              monochrome
                             >
-                              <Text
-                                variant="bodySm"
-                                fontWeight="semibold"
-                                tone={
-                                  fetcher.data.websiteData.active
-                                    ? "success"
-                                    : "caution"
-                                }
-                              >
-                                {fetcher.data.websiteData.active
-                                  ? "Active"
-                                  : "Inactive"}
+                              <Text variant="bodySm" color="subdued">
+                                {fetcher.data.websiteData.url}
                               </Text>
-                            </Box>
-                            <Button
-                              size="slim"
-                              onClick={() => {
-                                fetch("/api/toggle-status", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    accessKey: accessKey.trim(),
-                                  }),
-                                })
-                                  .then((response) => {
-                                    if (!response.ok) {
-                                      throw new Error(
-                                        `HTTP error! status: ${response.status}`,
-                                      );
-                                    }
-                                    fetcher.submit(
-                                      { accessKey, action: "manual_connect" },
-                                      { method: "POST" },
-                                    );
-                                  })
-                                  .catch((error) => {
-                                    console.error(
-                                      "Error toggling status:",
-                                      error,
-                                    );
-                                    setError("Failed to toggle website status");
-                                  });
-                              }}
-                              disabled={
-                                !fetcher.data.websiteData.lastSyncedAt ||
-                                fetcher.data.websiteData.lastSyncedAt ===
-                                  "Never"
+                            </Link>
+                          </BlockStack>
+                        </InlineStack>
+                        <InlineStack gap="300" blockAlign="center">
+                          <div
+                            style={{
+                              backgroundColor: fetcher.data.websiteData.active
+                                ? "#E3F5E1"
+                                : "#FFF4E4",
+                              padding: "6px 16px",
+                              borderRadius: "20px",
+                            }}
+                          >
+                            <Text
+                              variant="bodySm"
+                              fontWeight="semibold"
+                              tone={
+                                fetcher.data.websiteData.active
+                                  ? "success"
+                                  : "caution"
                               }
                             >
                               {fetcher.data.websiteData.active
-                                ? "Deactivate"
-                                : "Activate"}
-                            </Button>
-                          </InlineStack>
-                        </InlineStack>
-                      </Box>
-
-                      <Box padding="600" paddingBlockStart="0">
-                        <Divider />
-                      </Box>
-
-                      {/* Quick Stats Grid */}
-                      <Box padding="600" paddingBlockStart="0">
-                        <BlockStack gap="600">
-                          <InlineStack gap="600" wrap={false}>
-                            <Box minWidth="200px">
-                              <BlockStack gap="200">
-                                <Text variant="bodySm" color="subdued">
-                                  Plan Type
-                                </Text>
-                                <Text variant="headingMd" fontWeight="semibold">
-                                  {fetcher.data.websiteData.plan}
-                                </Text>
-                              </BlockStack>
-                            </Box>
-                            <Box minWidth="200px">
-                              <BlockStack gap="200">
-                                <Text variant="bodySm" color="subdued">
-                                  Monthly Queries
-                                </Text>
-                                <InlineStack gap="200" blockAlign="baseline">
-                                  <Text
-                                    variant="headingMd"
-                                    fontWeight="semibold"
-                                  >
-                                    {fetcher.data.websiteData.monthlyQueries}
-                                  </Text>
-                                  <Text variant="bodySm" color="subdued">
-                                    / {fetcher.data.websiteData.queryLimit}
-                                  </Text>
-                                </InlineStack>
-                              </BlockStack>
-                            </Box>
-                            <Box minWidth="200px">
-                              <BlockStack gap="200">
-                                <Text variant="bodySm" color="subdued">
-                                  Last Synced
-                                </Text>
-                                <Text
-                                  variant="headingMd"
-                                  fontWeight="semibold"
-                                  tone={
-                                    fetcher.data.websiteData.lastSyncedAt &&
-                                    fetcher.data.websiteData.lastSyncedAt !==
-                                      "Never"
-                                      ? "success"
-                                      : "caution"
-                                  }
-                                >
-                                  {fetcher.data.websiteData.lastSyncedAt
-                                    ? fetcher.data.websiteData.lastSyncedAt ===
-                                      "Never"
-                                      ? "Never"
-                                      : new Date(
-                                          fetcher.data.websiteData.lastSyncedAt,
-                                        ).toLocaleDateString()
-                                    : "Never"}
-                                </Text>
-                              </BlockStack>
-                            </Box>
-                          </InlineStack>
-                        </BlockStack>
-                      </Box>
-                    </BlockStack>
-                  </Card>
-
-                  {/* Content Overview Card */}
-                  <Card>
-                    <Box padding="600">
-                      <BlockStack gap="600">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <BlockStack gap="200">
-                            <Text variant="headingLg" fontWeight="semibold">
-                              Content Overview
+                                ? "Active"
+                                : "Inactive"}
                             </Text>
-                            <Text variant="bodyMd" color="subdued">
-                              Your store's AI-ready content
-                            </Text>
-                          </BlockStack>
+                          </div>
                           <Button
-                            onClick={handleSync}
-                            loading={isSyncing}
-                            icon={RefreshIcon}
-                            primary={
+                            size="slim"
+                            onClick={() => {
+                              fetch("/api/toggle-status", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  accessKey: accessKey.trim(),
+                                }),
+                              })
+                                .then((response) => {
+                                  if (!response.ok) {
+                                    throw new Error(
+                                      `HTTP error! status: ${response.status}`,
+                                    );
+                                  }
+                                  fetcher.submit(
+                                    { accessKey, action: "manual_connect" },
+                                    { method: "POST" },
+                                  );
+                                })
+                                .catch((error) => {
+                                  console.error(
+                                    "Error toggling status:",
+                                    error,
+                                  );
+                                  setError("Failed to toggle website status");
+                                });
+                            }}
+                            disabled={
                               !fetcher.data.websiteData.lastSyncedAt ||
                               fetcher.data.websiteData.lastSyncedAt === "Never"
                             }
                           >
-                            {isSyncing ? "Syncing..." : "Sync Content"}
+                            {fetcher.data.websiteData.active
+                              ? "Deactivate"
+                              : "Activate"}
                           </Button>
                         </InlineStack>
+                      </InlineStack>
 
-                        <Box
-                          background="bg-surface-secondary"
-                          padding="600"
-                          borderRadius="base"
-                        >
-                          <InlineStack
-                            gap="600"
-                            align="space-between"
-                            wrap={false}
-                          >
-                            {[
-                              {
-                                icon: ProductIcon,
-                                count: fetcher.data.websiteData._count.products,
-                                label: "Products",
-                              },
-                              {
-                                icon: PageIcon,
-                                count: fetcher.data.websiteData._count.pages,
-                                label: "Pages",
-                              },
-                              {
-                                icon: BlogIcon,
-                                count: fetcher.data.websiteData._count.posts,
-                                label: "Blog Posts",
-                              },
-                              {
-                                icon: CollectionIcon,
-                                count:
-                                  fetcher.data.websiteData._count.collections ||
-                                  0,
-                                label: "Collections",
-                              },
-                              {
-                                icon: DiscountIcon,
-                                count:
-                                  fetcher.data.websiteData._count.discounts,
-                                label: "Discounts",
-                              },
-                            ].map((item, index) => (
-                              <Box key={index} minWidth="0" maxWidth="100%">
-                                <BlockStack gap="300" align="center">
-                                  <Box
-                                    padding="300"
-                                    background="bg-surface"
-                                    borderRadius="base"
-                                  >
-                                    <Icon source={item.icon} color="base" />
-                                  </Box>
-                                  <Text
-                                    variant="heading2xl"
-                                    fontWeight="bold"
-                                    alignment="center"
-                                  >
-                                    {item.count}
-                                  </Text>
-                                  <Text
-                                    variant="bodySm"
-                                    color="subdued"
-                                    alignment="center"
-                                  >
-                                    {item.label}
-                                  </Text>
-                                </BlockStack>
-                              </Box>
-                            ))}
+                      <Divider />
+
+                      {/* Quick Stats Grid */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: "20px",
+                        }}
+                      >
+                        <BlockStack gap="200">
+                          <Text variant="bodySm" color="subdued">
+                            Plan Type
+                          </Text>
+                          <Text variant="headingMd" fontWeight="semibold">
+                            {fetcher.data.websiteData.plan}
+                          </Text>
+                        </BlockStack>
+                        <BlockStack gap="200">
+                          <Text variant="bodySm" color="subdued">
+                            Monthly Queries
+                          </Text>
+                          <InlineStack gap="200" blockAlign="baseline">
+                            <Text variant="headingMd" fontWeight="semibold">
+                              {fetcher.data.websiteData.monthlyQueries}
+                            </Text>
+                            <Text variant="bodySm" color="subdued">
+                              / {fetcher.data.websiteData.queryLimit}
+                            </Text>
                           </InlineStack>
-                        </Box>
-                      </BlockStack>
-                    </Box>
-                  </Card>
+                        </BlockStack>
+                        <BlockStack gap="200">
+                          <Text variant="bodySm" color="subdued">
+                            Last Synced
+                          </Text>
+                          <Text
+                            variant="headingMd"
+                            fontWeight="semibold"
+                            tone={
+                              fetcher.data.websiteData.lastSyncedAt &&
+                              fetcher.data.websiteData.lastSyncedAt !== "Never"
+                                ? "success"
+                                : "caution"
+                            }
+                          >
+                            {fetcher.data.websiteData.lastSyncedAt
+                              ? fetcher.data.websiteData.lastSyncedAt ===
+                                "Never"
+                                ? "Never"
+                                : new Date(
+                                    fetcher.data.websiteData.lastSyncedAt,
+                                  ).toLocaleDateString()
+                              : "Never"}
+                          </Text>
+                        </BlockStack>
+                      </div>
+                    </BlockStack>
+                  </div>
+
+                  {/* Content Overview Card */}
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "24px",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    }}
+                  >
+                    <BlockStack gap="600">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="200">
+                          <Text variant="headingLg" fontWeight="semibold">
+                            Content Overview
+                          </Text>
+                          <Text variant="bodyMd" color="subdued">
+                            Your store's AI-ready content
+                          </Text>
+                        </BlockStack>
+                        <Button
+                          onClick={handleSync}
+                          loading={isSyncing}
+                          icon={RefreshIcon}
+                          primary={
+                            !fetcher.data.websiteData.lastSyncedAt ||
+                            fetcher.data.websiteData.lastSyncedAt === "Never"
+                          }
+                        >
+                          {isSyncing ? "Syncing..." : "Sync Content"}
+                        </Button>
+                      </InlineStack>
+
+                      <div
+                        style={{
+                          backgroundColor: "#F9FAFB",
+                          borderRadius: "12px",
+                          padding: "20px",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(5, 1fr)",
+                          gap: "20px",
+                        }}
+                      >
+                        {[
+                          {
+                            icon: ProductIcon,
+                            count: fetcher.data.websiteData._count.products,
+                            label: "Products",
+                          },
+                          {
+                            icon: PageIcon,
+                            count: fetcher.data.websiteData._count.pages,
+                            label: "Pages",
+                          },
+                          {
+                            icon: BlogIcon,
+                            count: fetcher.data.websiteData._count.posts,
+                            label: "Blog Posts",
+                          },
+                          {
+                            icon: CollectionIcon,
+                            count:
+                              fetcher.data.websiteData._count.collections || 0,
+                            label: "Collections",
+                          },
+                          {
+                            icon: DiscountIcon,
+                            count: fetcher.data.websiteData._count.discounts,
+                            label: "Discounts",
+                          },
+                        ].map((item, index) => (
+                          <div key={index} style={{ textAlign: "center" }}>
+                            <BlockStack gap="300" align="center">
+                              <div
+                                style={{
+                                  width: "48px",
+                                  height: "48px",
+                                  backgroundColor: "white",
+                                  borderRadius: "12px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  margin: "0 auto",
+                                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                }}
+                              >
+                                <Icon source={item.icon} color="base" />
+                              </div>
+                              <Text variant="heading2xl" fontWeight="bold">
+                                {item.count}
+                              </Text>
+                              <Text variant="bodySm" color="subdued">
+                                {item.label}
+                              </Text>
+                            </BlockStack>
+                          </div>
+                        ))}
+                      </div>
+                    </BlockStack>
+                  </div>
 
                   {/* AI Assistant Settings Card */}
-                  <Card>
-                    <Box padding="600">
-                      <BlockStack gap="600">
-                        <InlineStack gap="400" blockAlign="center">
-                          <Box
-                            background="bg-fill-magic"
-                            padding="400"
-                            borderRadius="base"
-                          >
-                            <Icon source={ChatIcon} color="base" />
-                          </Box>
-                          <BlockStack gap="100">
-                            <Text variant="headingLg" fontWeight="semibold">
-                              AI Shopping Assistant
-                            </Text>
-                            <Text variant="bodyMd" color="subdued">
-                              Enhance customer experience with AI-powered
-                              support
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-
-                        <Box
-                          background="bg-surface-secondary"
-                          padding="400"
-                          borderRadius="base"
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "24px",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    }}
+                  >
+                    <BlockStack gap="600">
+                      <InlineStack gap="400" blockAlign="center">
+                        <div
+                          style={{
+                            width: "56px",
+                            height: "56px",
+                            borderRadius: "12px",
+                            background:
+                              "linear-gradient(135deg, #5C6AC4 0%, #202E78 100%)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
                         >
-                          <BlockStack gap="300">
-                            <InlineStack gap="300" wrap={false}>
-                              <Icon source={CheckIcon} color="success" />
-                              <Text variant="bodyMd">
-                                Intelligent product recommendations
-                              </Text>
-                            </InlineStack>
-                            <InlineStack gap="300" wrap={false}>
-                              <Icon source={CheckIcon} color="success" />
-                              <Text variant="bodyMd">
-                                24/7 customer support automation
-                              </Text>
-                            </InlineStack>
-                            <InlineStack gap="300" wrap={false}>
-                              <Icon source={CheckIcon} color="success" />
-                              <Text variant="bodyMd">
-                                Natural language search capabilities
-                              </Text>
-                            </InlineStack>
-                          </BlockStack>
-                        </Box>
+                          <Icon source={ChatIcon} color="base" />
+                        </div>
+                        <BlockStack gap="100">
+                          <Text variant="headingLg" fontWeight="semibold">
+                            AI Shopping Assistant
+                          </Text>
+                          <Text variant="bodyMd" color="subdued">
+                            Enhance customer experience with AI-powered support
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
 
-                        <InlineStack gap="300">
-                          <Button
-                            primary
-                            icon={SettingsIcon}
-                            onClick={() => {
-                              window.open(
-                                `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=assistant`,
-                                "_blank",
-                              );
-                            }}
-                          >
-                            Customize Assistant
-                          </Button>
-                          <Button
-                            icon={ExternalIcon}
-                            onClick={() => {
-                              window.open(
-                                `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=preview`,
-                                "_blank",
-                              );
-                            }}
-                          >
-                            Preview Assistant
-                          </Button>
-                          <Button
-                            plain
-                            icon={SettingsIcon}
-                            onClick={() => navigate("/app/settings")}
-                          >
-                            Settings
-                          </Button>
-                        </InlineStack>
-                      </BlockStack>
-                    </Box>
-                  </Card>
+                      <div
+                        style={{
+                          backgroundColor: "#F9FAFB",
+                          borderRadius: "12px",
+                          padding: "20px",
+                        }}
+                      >
+                        <BlockStack gap="300">
+                          <InlineStack gap="300" wrap={false}>
+                            <Icon source={CheckIcon} color="success" />
+                            <Text variant="bodyMd">
+                              Intelligent product recommendations
+                            </Text>
+                          </InlineStack>
+                          <InlineStack gap="300" wrap={false}>
+                            <Icon source={CheckIcon} color="success" />
+                            <Text variant="bodyMd">
+                              24/7 customer support automation
+                            </Text>
+                          </InlineStack>
+                          <InlineStack gap="300" wrap={false}>
+                            <Icon source={CheckIcon} color="success" />
+                            <Text variant="bodyMd">
+                              Natural language search capabilities
+                            </Text>
+                          </InlineStack>
+                        </BlockStack>
+                      </div>
+
+                      <InlineStack gap="300">
+                        <Button
+                          primary
+                          icon={SettingsIcon}
+                          onClick={() => {
+                            window.open(
+                              `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=assistant`,
+                              "_blank",
+                            );
+                          }}
+                        >
+                          Customize Assistant
+                        </Button>
+                        <Button
+                          icon={ExternalIcon}
+                          onClick={() => {
+                            window.open(
+                              `${urls.voiceroApi}/app/websites/website?id=${fetcher.data.websiteData.id}&tab=preview`,
+                              "_blank",
+                            );
+                          }}
+                        >
+                          Preview Assistant
+                        </Button>
+                        <Button
+                          plain
+                          icon={SettingsIcon}
+                          onClick={() => navigate("/app/settings")}
+                        >
+                          Settings
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
+                  </div>
                 </BlockStack>
               ) : (
                 /* Error State */
-                <Card>
-                  <Box padding="600">
-                    <Banner status="critical">
-                      <p>
-                        Unable to connect:{" "}
-                        {fetcher.data?.error || "Please try again"}
-                      </p>
-                    </Banner>
-                  </Box>
-                </Card>
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "12px",
+                    padding: "24px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                  }}
+                >
+                  <Banner status="critical">
+                    <p>
+                      Unable to connect:{" "}
+                      {fetcher.data?.error || "Please try again"}
+                    </p>
+                  </Banner>
+                </div>
               )
             ) : (
               /* Connection Options */
               <BlockStack gap="600">
                 {/* Welcome Card */}
-                <Card>
-                  <Box padding="800">
-                    <BlockStack gap="600" align="center">
-                      <Box
-                        background="bg-fill-magic"
-                        padding="600"
-                        borderRadius="full"
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "12px",
+                    padding: "48px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    textAlign: "center",
+                  }}
+                >
+                  <BlockStack gap="600" align="center">
+                    <div
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        borderRadius: "50%",
+                        background:
+                          "linear-gradient(135deg, #5C6AC4 0%, #202E78 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        margin: "0 auto",
+                      }}
+                    >
+                      <Icon source={ChatIcon} color="base" />
+                    </div>
+                    <BlockStack gap="200" align="center">
+                      <Text
+                        variant="headingXl"
+                        fontWeight="bold"
+                        alignment="center"
                       >
-                        <Icon source={ChatIcon} color="base" />
-                      </Box>
-                      <BlockStack gap="200" align="center">
-                        <Text
-                          variant="headingXl"
-                          fontWeight="bold"
-                          alignment="center"
-                        >
-                          Connect Your AI Assistant
-                        </Text>
-                        <Text
-                          variant="bodyLg"
-                          color="subdued"
-                          alignment="center"
-                        >
-                          Choose how you'd like to connect your Voicero AI
-                          assistant
-                        </Text>
-                      </BlockStack>
+                        Connect Your AI Assistant
+                      </Text>
+                      <Text variant="bodyLg" color="subdued" alignment="center">
+                        Choose how you'd like to connect your Voicero AI
+                        assistant
+                      </Text>
                     </BlockStack>
-                  </Box>
-                </Card>
+                  </BlockStack>
+                </div>
 
                 {/* Connection Options */}
-                <Layout>
-                  <Layout.Section oneHalf>
-                    <Card>
-                      <Box padding="600">
-                        <BlockStack gap="600">
-                          <InlineStack gap="300" blockAlign="center">
-                            <Box
-                              background="bg-fill-success-secondary"
-                              padding="300"
-                              borderRadius="base"
-                            >
-                              <Icon source={GlobeIcon} color="success" />
-                            </Box>
-                            <BlockStack gap="0">
-                              <Text variant="headingMd" fontWeight="semibold">
-                                Quick Connect
-                              </Text>
-                              <Text variant="bodySm" tone="success">
-                                Recommended
-                              </Text>
-                            </BlockStack>
-                          </InlineStack>
-                          <Text variant="bodyMd">
-                            The fastest way to get started. Connect with a
-                            single click.
-                          </Text>
-                          <Button
-                            primary
-                            fullWidth
-                            size="large"
-                            onClick={handleQuickConnect}
-                            loading={
-                              isLoading &&
-                              fetcher.formData?.get("action") ===
-                                "quick_connect"
-                            }
-                          >
-                            Connect Automatically
-                          </Button>
-                        </BlockStack>
-                      </Box>
-                    </Card>
-                  </Layout.Section>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "20px",
+                  }}
+                >
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "24px",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                      border: "2px solid transparent",
+                      position: "relative",
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "16px",
+                        right: "16px",
+                        backgroundColor: "#E3F5E1",
+                        color: "#108043",
+                        padding: "4px 12px",
+                        borderRadius: "20px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Recommended
+                    </div>
+                    <BlockStack gap="600">
+                      <InlineStack gap="300" blockAlign="center">
+                        <div
+                          style={{
+                            width: "48px",
+                            height: "48px",
+                            borderRadius: "12px",
+                            backgroundColor: "#E3F5E1",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Icon source={GlobeIcon} color="success" />
+                        </div>
+                        <Text variant="headingMd" fontWeight="semibold">
+                          Quick Connect
+                        </Text>
+                      </InlineStack>
+                      <Text variant="bodyMd">
+                        The fastest way to get started. Connect with a single
+                        click.
+                      </Text>
+                      <Button
+                        primary
+                        fullWidth
+                        size="large"
+                        onClick={handleQuickConnect}
+                        loading={
+                          isLoading &&
+                          fetcher.formData?.get("action") === "quick_connect"
+                        }
+                      >
+                        Connect Automatically
+                      </Button>
+                    </BlockStack>
+                  </div>
 
-                  <Layout.Section oneHalf>
-                    <Card>
-                      <Box padding="600">
-                        <BlockStack gap="600">
-                          <InlineStack gap="300" blockAlign="center">
-                            <Box
-                              background="bg-surface-secondary"
-                              padding="300"
-                              borderRadius="base"
-                            >
-                              <Icon source={KeyIcon} color="subdued" />
-                            </Box>
-                            <Text variant="headingMd" fontWeight="semibold">
-                              Manual Setup
-                            </Text>
-                          </InlineStack>
-                          <Text variant="bodyMd">
-                            Have an access key? Enter it manually to connect.
-                          </Text>
-                          <BlockStack gap="300">
-                            <TextField
-                              label="Access Key"
-                              labelHidden
-                              value={accessKey}
-                              onChange={setAccessKey}
-                              autoComplete="off"
-                              placeholder="Enter your access key"
-                              disabled={isConnecting}
-                            />
-                            <Button
-                              fullWidth
-                              size="large"
-                              loading={isConnecting}
-                              onClick={handleManualConnect}
-                              disabled={!accessKey}
-                            >
-                              Connect with Key
-                            </Button>
-                          </BlockStack>
-                        </BlockStack>
-                      </Box>
-                    </Card>
-                  </Layout.Section>
-                </Layout>
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "24px",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    }}
+                  >
+                    <BlockStack gap="600">
+                      <InlineStack gap="300" blockAlign="center">
+                        <div
+                          style={{
+                            width: "48px",
+                            height: "48px",
+                            borderRadius: "12px",
+                            backgroundColor: "#F4F5FA",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Icon source={KeyIcon} color="subdued" />
+                        </div>
+                        <Text variant="headingMd" fontWeight="semibold">
+                          Manual Setup
+                        </Text>
+                      </InlineStack>
+                      <Text variant="bodyMd">
+                        Have an access key? Enter it manually to connect.
+                      </Text>
+                      <BlockStack gap="300">
+                        <TextField
+                          label="Access Key"
+                          labelHidden
+                          value={accessKey}
+                          onChange={setAccessKey}
+                          autoComplete="off"
+                          placeholder="Enter your access key"
+                          disabled={isConnecting}
+                        />
+                        <Button
+                          fullWidth
+                          size="large"
+                          loading={isConnecting}
+                          onClick={handleManualConnect}
+                          disabled={!accessKey}
+                        >
+                          Connect with Key
+                        </Button>
+                      </BlockStack>
+                    </BlockStack>
+                  </div>
+                </div>
 
                 {/* Help Section */}
-                <Card subdued>
-                  <Box padding="400">
-                    <InlineStack align="center" gap="300">
-                      <Icon source={QuestionCircleIcon} color="subdued" />
-                      <Text variant="bodyMd" color="subdued">
-                        Need help? Check out our{" "}
-                        <Link url="https://voicero.com/docs" external>
-                          documentation
-                        </Link>{" "}
-                        or{" "}
-                        <Link url="https://voicero.com/support" external>
-                          contact support
-                        </Link>
-                      </Text>
-                    </InlineStack>
-                  </Box>
-                </Card>
+                <div
+                  style={{
+                    backgroundColor: "#F9FAFB",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    border: "1px solid #E4E5E7",
+                  }}
+                >
+                  <InlineStack align="center" gap="300">
+                    <Icon source={QuestionCircleIcon} color="subdued" />
+                    <Text variant="bodyMd" color="subdued">
+                      Need help? Check out our{" "}
+                      <Link url="https://voicero.com/docs" external>
+                        documentation
+                      </Link>{" "}
+                      or{" "}
+                      <Link url="https://voicero.com/support" external>
+                        contact support
+                      </Link>
+                    </Text>
+                  </InlineStack>
+                </div>
               </BlockStack>
             )}
           </BlockStack>
