@@ -824,16 +824,80 @@ export const action: ActionFunction = async ({ request }) => {
 
           // For return_order action, expect more specific details
           if (data.action === "return_order") {
-            // Extract return reason and note from action_context if available
-            const returnReason =
-              data.returnReason ||
-              (data.action_context && data.action_context.returnReason) ||
-              "CUSTOMER_CHANGE_OF_MIND"; // Default reason
+            console.log("Return order data received:", data);
+            console.log("Action context:", data.action_context);
 
-            const returnReasonNote =
-              data.returnReasonNote ||
-              (data.action_context && data.action_context.returnReasonNote) ||
-              "Customer initiated return";
+            // Check if order is unfulfilled - if so, suggest cancellation instead of return
+            if (order.displayFulfillmentStatus === "UNFULFILLED") {
+              return json(
+                {
+                  success: false,
+                  error: "This order hasn't shipped yet and cannot be returned",
+                  suggest_cancel: true,
+                  message:
+                    "Your order hasn't shipped yet. Instead of a return, you can cancel this order to get a full refund.",
+                  order_details: {
+                    order_number: order.name,
+                    status: order.displayFulfillmentStatus,
+                  },
+                },
+                addCorsHeaders(),
+              );
+            }
+
+            // Extract return reason and note from all possible locations
+            // We prioritize direct properties, then action_context, to ensure we capture the data
+            let returnReason = null;
+            let returnReasonNote = null;
+
+            // Check all possible locations for the return reason
+            if (data.returnReason) {
+              returnReason = data.returnReason;
+            } else if (
+              data.action_context &&
+              data.action_context.returnReason
+            ) {
+              returnReason = data.action_context.returnReason;
+            } else {
+              returnReason = "CUSTOMER_CHANGE_OF_MIND"; // Default reason
+            }
+
+            // Check all possible locations for the return reason note
+            if (data.returnReasonNote) {
+              returnReasonNote = data.returnReasonNote;
+            } else if (
+              data.action_context &&
+              data.action_context.returnReasonNote
+            ) {
+              returnReasonNote = data.action_context.returnReasonNote;
+            } else {
+              returnReasonNote = "Customer initiated return";
+            }
+
+            console.log("Extracted return reason:", returnReason);
+            console.log("Extracted return reason note:", returnReasonNote);
+
+            // If we don't have a specific return reason yet, ask the user to provide one
+            if (!returnReason || returnReason === "CUSTOMER_CHANGE_OF_MIND") {
+              return json(
+                {
+                  success: false,
+                  need_reason: true,
+                  message: "Please provide a reason for your return",
+                  options: [
+                    { code: "DEFECTIVE", label: "Damaged item" },
+                    { code: "SIZE_TOO_SMALL", label: "Wrong size" },
+                    { code: "NOT_AS_DESCRIBED", label: "Not as described" },
+                    { code: "CUSTOMER_CHANGE_OF_MIND", label: "Changed mind" },
+                    { code: "OTHER", label: "Other reason" },
+                  ],
+                  order_details: {
+                    order_number: order.name,
+                  },
+                },
+                addCorsHeaders(),
+              );
+            }
 
             console.log("Processing return request with details:", {
               orderNumber,
@@ -899,6 +963,13 @@ export const action: ActionFunction = async ({ request }) => {
                     success: false,
                     error:
                       "This order doesn't have any fulfilled items that can be returned",
+                    suggest_cancel: true,
+                    message:
+                      "Your order hasn't shipped yet. Instead of a return, you can cancel this order to get a full refund.",
+                    order_details: {
+                      order_number: order.name,
+                      status: order.displayFulfillmentStatus,
+                    },
                   },
                   addCorsHeaders(),
                 );
