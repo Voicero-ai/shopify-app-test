@@ -244,14 +244,24 @@ const fetchContacts = async () => {
     const response = await fetch("/api/contacts");
     const data = await response.json();
 
-    if (data.success) {
-      return data.contactsData || [];
-    } else {
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    if (!data.success) {
       throw new Error(data.error || "Failed to fetch contacts");
     }
-  } catch (error) {
-    console.error("Error fetching contacts:", error);
-    throw error;
+
+    /* 🔑  Guarantee we return an array  */
+    const array =
+      Array.isArray(data.contactsData)
+        ? data.contactsData
+        : Array.isArray(data.contactsData?.contacts)
+          ? data.contactsData.contacts
+          : [];
+    return array;
+  } catch (err) {
+    console.error("Error fetching contacts:", err);
+    throw err;
   }
 };
 

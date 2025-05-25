@@ -889,28 +889,232 @@ export const action: ActionFunction = async ({ request }) => {
 
           // Direct action for return_order with reason
           if (
-            data.action === "return_order" &&
+            (data.action === "return_order" || data.action === "return") &&
             (data.reason || data.returnReason)
           ) {
             console.log(
-              "DIRECT PROCESSING - return_order with reason:",
+              `DIRECT PROCESSING - ${data.action} with reason:`,
               data.reason || data.returnReason,
             );
 
             // Use the reason we have to start the return immediately
-            return json(
-              {
-                success: true,
-                message: `Return for order ${data.order_id || data.order_number} is being processed.`,
-                reason: data.reason || data.returnReason,
-                returnReason: data.returnReason || data.reason,
-                order_id: data.order_id || data.order_number,
-                email: data.email || data.order_email,
-                action: "return",
-                skip_reason_prompt: true,
-              },
-              addCorsHeaders(),
-            );
+            if (data.action === "return") {
+              // Process full return logic instead of simple acknowledgment
+              console.log(
+                "Using full return processing logic for 'return' action",
+              );
+
+              // Normalize data format for consistency
+              let normalizedData = data;
+              const returnReason =
+                normalizedData.returnReason || normalizedData.reason;
+              const returnReasonNote = normalizedData.returnReasonNote;
+
+              console.log("Processing return request with details:", {
+                orderNumber: normalizedData.order_id,
+                email: normalizedData.email,
+                reason: returnReason,
+                returnReason,
+                returnReasonNote,
+              });
+
+              try {
+                // First, get the order details including fulfillment information
+                const getOrderQuery = `
+                  query getOrder($id: ID!) {
+                    order(id: $id) {
+                      id
+                      name
+                      fulfillments(first: 10) {
+                        edges {
+                          node {
+                            id
+                            status
+                            fulfillmentLineItems(first: 20) {
+                              edges {
+                                node {
+                                  id
+                                  lineItem {
+                                    id
+                                    name
+                                    quantity
+                                    fulfillableQuantity
+                                  }
+                                  quantity
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      lineItems(first: 20) {
+                        edges {
+                          node {
+                            id
+                            name
+                            quantity
+                            fulfillableQuantity
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+
+                const orderResponse = await admin.graphql(getOrderQuery, {
+                  variables: { id: order.id },
+                });
+
+                const orderDetails = await orderResponse.json();
+                console.log("Order details for return:", orderDetails);
+
+                // Check if there are fulfillments
+                if (!orderDetails.data.order.fulfillments.edges.length) {
+                  return json(
+                    {
+                      success: false,
+                      error:
+                        "This order doesn't have any fulfilled items that can be returned",
+                      suggest_cancel: true,
+                      message:
+                        "Your order hasn't shipped yet. Instead of a return, you can cancel this order to get a full refund.",
+                      order_details: {
+                        order_number: order.name,
+                        status: order.displayFulfillmentStatus,
+                      },
+                    },
+                    addCorsHeaders(),
+                  );
+                }
+
+                // Get the fulfillment line items
+                const fulfillment =
+                  orderDetails.data.order.fulfillments.edges[0].node;
+                const fulfillmentLineItems =
+                  fulfillment.fulfillmentLineItems.edges.map(
+                    (edge: { node: any }) => edge.node,
+                  );
+
+                // If no fulfillment line items, can't process return
+                if (fulfillmentLineItems.length === 0) {
+                  return json(
+                    {
+                      success: false,
+                      error: "No items available to return in this order",
+                    },
+                    addCorsHeaders(),
+                  );
+                }
+
+                // Create return input with all items in the fulfillment
+                const returnLineItems = fulfillmentLineItems.map(
+                  (item: any) => ({
+                    fulfillmentLineItemId: item.id,
+                    quantity: item.quantity,
+                    returnReason: returnReason,
+                    returnReasonNote: returnReasonNote,
+                  }),
+                );
+
+                // Execute the return create mutation
+                const returnCreateMutation = `
+                  mutation returnCreate($input: ReturnInput!) {
+                    returnCreate(returnInput: $input) {
+                      return {
+                        id
+                        status
+                        returnLineItems(first: 10) {
+                          edges {
+                            node {
+                              id
+                              returnReason
+                              quantity
+                            }
+                          }
+                        }
+                      }
+                      userErrors {
+                        field
+                        message
+                      }
+                    }
+                  }
+                `;
+
+                const returnResponse = await admin.graphql(
+                  returnCreateMutation,
+                  {
+                    variables: {
+                      input: {
+                        orderId: order.id,
+                        returnLineItems: returnLineItems,
+                        notifyCustomer: true,
+                      },
+                    },
+                  },
+                );
+
+                const returnResult = await returnResponse.json();
+                console.log("Return creation result:", returnResult);
+
+                // Check for errors
+                if (returnResult.data?.returnCreate?.userErrors?.length > 0) {
+                  const errors = returnResult.data.returnCreate.userErrors;
+                  return json(
+                    {
+                      success: false,
+                      error: errors[0].message,
+                      details: errors,
+                    },
+                    addCorsHeaders(),
+                  );
+                }
+
+                // Return success with return details
+                return json(
+                  {
+                    success: true,
+                    message: `Return for order ${order.name} has been initiated successfully.`,
+                    return: returnResult.data?.returnCreate?.return,
+                    status: "approved",
+                    reason: returnReason,
+                    returnReason: returnReason,
+                    reason_note: returnReasonNote,
+                    returnReasonNote: returnReasonNote,
+                  },
+                  addCorsHeaders(),
+                );
+              } catch (error) {
+                console.error("Error processing return request:", error);
+                return json(
+                  {
+                    success: false,
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to process return request",
+                    errorStack:
+                      error instanceof Error ? error.stack : undefined,
+                  },
+                  addCorsHeaders({ status: 500 }),
+                );
+              }
+            } else {
+              // Original return_order flow response
+              return json(
+                {
+                  success: true,
+                  message: `Return for order ${data.order_id || data.order_number} is being processed.`,
+                  reason: data.reason || data.returnReason,
+                  returnReason: data.returnReason || data.reason,
+                  order_id: data.order_id || data.order_number,
+                  email: data.email || data.order_email,
+                  action: "return",
+                  skip_reason_prompt: true,
+                },
+                addCorsHeaders(),
+              );
+            }
           }
 
           // Special handling for return_order which is our comprehensive return flow
@@ -1161,14 +1365,12 @@ export const action: ActionFunction = async ({ request }) => {
                 addCorsHeaders({ status: 500 }),
               );
             }
-          } else {
-            // Original code for simple return/exchange acknowledgment
-            const actionType = data.action === "return" ? "return" : "exchange";
-
+          } else if (data.action === "exchange") {
+            // Original code for simple exchange acknowledgment
             return json(
               {
                 success: true,
-                message: `Your ${actionType} request for order ${order.name} has been received. Our customer service team will contact you shortly with next steps.`,
+                message: `Your exchange request for order ${order.name} has been received. Our customer service team will contact you shortly with next steps.`,
                 order_number: order.name,
                 status: "pending_approval",
               },
