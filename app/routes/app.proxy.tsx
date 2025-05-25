@@ -810,7 +810,6 @@ export const action: ActionFunction = async ({ request }) => {
           }
         }
 
-        // For return and exchange, we would typically create a new return in the system
         // This is more complex and often requires a return merchandise authorization (RMA) process
         // For now, we'll acknowledge the request and provide instructions
         if (
@@ -818,14 +817,72 @@ export const action: ActionFunction = async ({ request }) => {
           data.action === "exchange" ||
           data.action === "return_order"
         ) {
-          // Get the return details from the request
-          const orderNumber = data.order_number || data.order_id;
-          const email = data.order_email || data.email;
+          // Special handling for return_order which is our comprehensive return flow
+          let normalizedData = data; // Use a new variable instead of modifying data directly
+
+          if (data.action === "return_order") {
+            console.log("Return order data received:", normalizedData);
+
+            // Create a normalized context that combines all possible input sources
+            const normalizedContext = {
+              order_id:
+                data.order_id ||
+                (data.action_context && data.action_context.order_id) ||
+                data.order_number ||
+                (data.action_context && data.action_context.order_number),
+              email:
+                data.email ||
+                (data.action_context && data.action_context.email) ||
+                data.order_email ||
+                (data.action_context && data.action_context.order_email),
+              reason:
+                data.reason ||
+                (data.action_context && data.action_context.reason) ||
+                data.returnReason ||
+                (data.action_context && data.action_context.returnReason),
+              returnReason:
+                data.returnReason ||
+                (data.action_context && data.action_context.returnReason) ||
+                data.reason ||
+                (data.action_context && data.action_context.reason),
+              returnReasonNote:
+                data.returnReasonNote ||
+                (data.action_context && data.action_context.returnReasonNote) ||
+                "Item was " +
+                  (data.returnReason || data.reason || "").toLowerCase(),
+            };
+
+            // Make sure we're working with normalized data
+            normalizedData = {
+              ...data,
+              action: "return_order",
+              order_id: normalizedContext.order_id,
+              email: normalizedContext.email,
+              reason: normalizedContext.reason,
+              returnReason: normalizedContext.returnReason,
+              returnReasonNote: normalizedContext.returnReasonNote,
+              action_context: {
+                ...data.action_context,
+                order_id: normalizedContext.order_id,
+                email: normalizedContext.email,
+                reason: normalizedContext.reason,
+                returnReason: normalizedContext.returnReason,
+                returnReasonNote: normalizedContext.returnReasonNote,
+              },
+            };
+
+            console.log("Normalized return data:", normalizedData);
+          }
+
+          // Get the return details from the request - use normalized data
+          const orderNumber =
+            normalizedData.order_number || normalizedData.order_id;
+          const email = normalizedData.order_email || normalizedData.email;
 
           // For return_order action, expect more specific details
           if (data.action === "return_order") {
-            console.log("Return order data received:", data);
-            console.log("Action context:", data.action_context);
+            console.log("Return order data received:", normalizedData);
+            console.log("Action context:", normalizedData.action_context);
 
             // Check if order is unfulfilled - if so, suggest cancellation instead of return
             if (order.displayFulfillmentStatus === "UNFULFILLED") {
@@ -845,40 +902,26 @@ export const action: ActionFunction = async ({ request }) => {
               );
             }
 
-            // Extract return reason and note from all possible locations
-            // We prioritize direct properties, then action_context, to ensure we capture the data
-            let returnReason = null;
-            let returnReasonNote = null;
-
-            // Check all possible locations for the return reason
-            if (data.returnReason) {
-              returnReason = data.returnReason;
-            } else if (
-              data.action_context &&
-              data.action_context.returnReason
-            ) {
-              returnReason = data.action_context.returnReason;
-            } else {
-              returnReason = "CUSTOMER_CHANGE_OF_MIND"; // Default reason
-            }
-
-            // Check all possible locations for the return reason note
-            if (data.returnReasonNote) {
-              returnReasonNote = data.returnReasonNote;
-            } else if (
-              data.action_context &&
-              data.action_context.returnReasonNote
-            ) {
-              returnReasonNote = data.action_context.returnReasonNote;
-            } else {
-              returnReasonNote = "Customer initiated return";
-            }
+            // Now we use the normalized data directly
+            const returnReason =
+              normalizedData.returnReason || normalizedData.reason;
+            const returnReasonNote = normalizedData.returnReasonNote;
 
             console.log("Extracted return reason:", returnReason);
             console.log("Extracted return reason note:", returnReasonNote);
 
             // If we don't have a specific return reason yet, ask the user to provide one
-            if (!returnReason || returnReason === "CUSTOMER_CHANGE_OF_MIND") {
+            // Check thoroughly for ANY valid reason in the data
+            const hasValidReason =
+              returnReason ||
+              normalizedData.reason ||
+              normalizedData.returnReason ||
+              (normalizedData.action_context &&
+                normalizedData.action_context.reason) ||
+              (normalizedData.action_context &&
+                normalizedData.action_context.returnReason);
+
+            if (!hasValidReason) {
               return json(
                 {
                   success: false,
@@ -900,8 +943,9 @@ export const action: ActionFunction = async ({ request }) => {
             }
 
             console.log("Processing return request with details:", {
-              orderNumber,
-              email,
+              orderNumber: normalizedData.order_id,
+              email: normalizedData.email,
+              reason: returnReason, // Include 'reason' for client-side compatibility
               returnReason,
               returnReasonNote,
             });
@@ -1053,13 +1097,17 @@ export const action: ActionFunction = async ({ request }) => {
                 );
               }
 
-              // Return success with return details
+              // Return success with return details - include BOTH reason and returnReason to match all client expectations
               return json(
                 {
                   success: true,
                   message: `Return for order ${order.name} has been initiated successfully.`,
                   return: returnResult.data?.returnCreate?.return,
                   status: "approved",
+                  reason: returnReason, // For client compatibility
+                  returnReason: returnReason, // For server compatibility
+                  reason_note: returnReasonNote, // Additional compatibility format
+                  returnReasonNote: returnReasonNote, // Complete all formats
                 },
                 addCorsHeaders(),
               );
