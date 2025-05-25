@@ -238,32 +238,71 @@ export const action = async ({ request }) => {
   }
 };
 
-// Fetch contacts from API
-const fetchContacts = async () => {
-  try {
+  const fetchContacts = async () => {
     const response = await fetch("/api/contacts");
-    const data = await response.json();
+    const data     = await response.json();
+    console.log(data);
 
-    if (!response.ok) {
-      throw new Error(data.error || response.statusText);
-    }
-    if (!data.success) {
-      throw new Error(data.error || "Failed to fetch contacts");
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || response.statusText || "Failed to fetch contacts");
     }
 
-    /* 🔑  Guarantee we return an array  */
-    const array =
-      Array.isArray(data.contactsData)
-        ? data.contactsData
-        : Array.isArray(data.contactsData?.contacts)
-          ? data.contactsData.contacts
+    const raw = Array.isArray(data.contactsData)
+      ? data.contactsData
+      : Array.isArray(data.contactsData?.contacts)
+        ? data.contactsData.contacts
           : [];
-    return array;
-  } catch (err) {
-    console.error("Error fetching contacts:", err);
-    throw err;
-  }
-};
+
+    return raw.map((c) => ({
+      id:        c.id        ?? crypto.randomUUID(),
+      email:     c.email     ?? "",
+      subject:   c.subject   ?? "(no subject)",
+      message:   c.message   ?? "",
+      priority:  (c.priority ?? "low").toLowerCase(),
+      isRead:    Boolean(c.isRead),
+      createdAt: c.createdAt ?? c.timestamp ?? null,
+    }));
+  };
+
+  const loadContacts = async () => {
+    try {
+      setIsLoadingContacts(true);
+      const list = await fetchContacts();
+      setContacts(list);
+      setError(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  /* auto-load after connect */
+  useEffect(() => {
+    if (accessKey && fetcher.data?.success) loadContacts();
+  }, [accessKey, fetcher.data?.success]);
+
+  /* ------- helpers ------- */
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "high":   return "critical";
+      case "medium": return "warning";
+      default:       return "success";
+    }
+  };
+  const formatDate = (c) =>
+    c.createdAt ? new Date(c.createdAt).toLocaleString() : "";
+
+  const tabs = [
+    { id: "all",    content: `All Messages (${contacts.length})` },
+    { id: "unread", content: `Unread (${contacts.filter(c => !c.isRead).length})` },
+    { id: "read",   content: `Read (${contacts.filter(c =>  c.isRead).length})` },
+  ];
+  const filtered = selectedTab === 1
+    ? contacts.filter(c => !c.isRead)
+    : selectedTab === 2
+      ? contacts.filter(c =>  c.isRead)
+      : contacts;
 
 export default function Contact() {
   const { savedKey } = useLoaderData();

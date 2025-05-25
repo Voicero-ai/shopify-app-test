@@ -925,7 +925,7 @@ export const action: ActionFunction = async ({ request }) => {
                     order(id: $id) {
                       id
                       name
-                      fulfillments(first: 10) {
+                      fulfillments {
                         edges {
                           node {
                             id
@@ -1197,7 +1197,7 @@ export const action: ActionFunction = async ({ request }) => {
                   order(id: $id) {
                     id
                     name
-                    fulfillments(first: 10) {
+                    fulfillments {
                       edges {
                         node {
                           id
