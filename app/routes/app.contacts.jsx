@@ -24,7 +24,7 @@ import {
   RefreshIcon,
   ExternalIcon,
   EmailIcon,
-  ReplyIcon,
+  ReplayIcon,
   DeleteIcon,
   BookIcon,
 } from "@shopify/polaris-icons";
