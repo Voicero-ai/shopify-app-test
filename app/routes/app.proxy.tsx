@@ -817,6 +817,12 @@ export const action: ActionFunction = async ({ request }) => {
           data.action === "exchange" ||
           data.action === "return_order"
         ) {
+          // SIMPLEST FIX: If returnReason exists but reason doesn't, copy returnReason to reason
+          if (data.returnReason && !data.reason) {
+            data.reason = data.returnReason;
+            console.log("Copied returnReason to reason:", data.reason);
+          }
+
           // Special handling for return_order which is our comprehensive return flow
           let normalizedData = data; // Use a new variable instead of modifying data directly
 
