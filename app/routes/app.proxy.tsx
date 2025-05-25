@@ -813,19 +813,213 @@ export const action: ActionFunction = async ({ request }) => {
         // For return and exchange, we would typically create a new return in the system
         // This is more complex and often requires a return merchandise authorization (RMA) process
         // For now, we'll acknowledge the request and provide instructions
-        if (data.action === "return" || data.action === "exchange") {
-          // In a real implementation, you would initiate the return/exchange process in your system
-          const actionType = data.action === "return" ? "return" : "exchange";
+        if (
+          data.action === "return" ||
+          data.action === "exchange" ||
+          data.action === "return_order"
+        ) {
+          // Get the return details from the request
+          const orderNumber = data.order_number || data.order_id;
+          const email = data.order_email || data.email;
 
-          return json(
-            {
-              success: true,
-              message: `Your ${actionType} request for order ${order.name} has been received. Our customer service team will contact you shortly with next steps.`,
-              order_number: order.name,
-              status: "pending_approval",
-            },
-            addCorsHeaders(),
-          );
+          // For return_order action, expect more specific details
+          if (data.action === "return_order") {
+            // Extract return reason and note from action_context if available
+            const returnReason =
+              data.returnReason ||
+              (data.action_context && data.action_context.returnReason) ||
+              "CUSTOMER_CHANGE_OF_MIND"; // Default reason
+
+            const returnReasonNote =
+              data.returnReasonNote ||
+              (data.action_context && data.action_context.returnReasonNote) ||
+              "Customer initiated return";
+
+            console.log("Processing return request with details:", {
+              orderNumber,
+              email,
+              returnReason,
+              returnReasonNote,
+            });
+
+            try {
+              // First, get the order details including fulfillment information
+              const getOrderQuery = `
+                query getOrder($id: ID!) {
+                  order(id: $id) {
+                    id
+                    name
+                    fulfillments(first: 10) {
+                      edges {
+                        node {
+                          id
+                          status
+                          fulfillmentLineItems(first: 20) {
+                            edges {
+                              node {
+                                id
+                                lineItem {
+                                  id
+                                  name
+                                  quantity
+                                  fulfillableQuantity
+                                }
+                                quantity
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    lineItems(first: 20) {
+                      edges {
+                        node {
+                          id
+                          name
+                          quantity
+                          fulfillableQuantity
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const orderResponse = await admin.graphql(getOrderQuery, {
+                variables: { id: order.id },
+              });
+
+              const orderDetails = await orderResponse.json();
+              console.log("Order details for return:", orderDetails);
+
+              // Check if there are fulfillments
+              if (!orderDetails.data.order.fulfillments.edges.length) {
+                return json(
+                  {
+                    success: false,
+                    error:
+                      "This order doesn't have any fulfilled items that can be returned",
+                  },
+                  addCorsHeaders(),
+                );
+              }
+
+              // Get the fulfillment line items
+              const fulfillment =
+                orderDetails.data.order.fulfillments.edges[0].node;
+              const fulfillmentLineItems =
+                fulfillment.fulfillmentLineItems.edges.map(
+                  (edge: { node: any }) => edge.node,
+                );
+
+              // If no fulfillment line items, can't process return
+              if (fulfillmentLineItems.length === 0) {
+                return json(
+                  {
+                    success: false,
+                    error: "No items available to return in this order",
+                  },
+                  addCorsHeaders(),
+                );
+              }
+
+              // Create return input with all items in the fulfillment
+              const returnLineItems = fulfillmentLineItems.map((item: any) => ({
+                fulfillmentLineItemId: item.id,
+                quantity: item.quantity,
+                returnReason: returnReason,
+                returnReasonNote: returnReasonNote,
+              }));
+
+              // Execute the return create mutation
+              const returnCreateMutation = `
+                mutation returnCreate($input: ReturnInput!) {
+                  returnCreate(returnInput: $input) {
+                    return {
+                      id
+                      status
+                      returnLineItems(first: 10) {
+                        edges {
+                          node {
+                            id
+                            returnReason
+                            quantity
+                          }
+                        }
+                      }
+                    }
+                    userErrors {
+                      field
+                      message
+                    }
+                  }
+                }
+              `;
+
+              const returnResponse = await admin.graphql(returnCreateMutation, {
+                variables: {
+                  input: {
+                    orderId: order.id,
+                    returnLineItems: returnLineItems,
+                    notifyCustomer: true,
+                  },
+                },
+              });
+
+              const returnResult = await returnResponse.json();
+              console.log("Return creation result:", returnResult);
+
+              // Check for errors
+              if (returnResult.data?.returnCreate?.userErrors?.length > 0) {
+                const errors = returnResult.data.returnCreate.userErrors;
+                return json(
+                  {
+                    success: false,
+                    error: errors[0].message,
+                    details: errors,
+                  },
+                  addCorsHeaders(),
+                );
+              }
+
+              // Return success with return details
+              return json(
+                {
+                  success: true,
+                  message: `Return for order ${order.name} has been initiated successfully.`,
+                  return: returnResult.data?.returnCreate?.return,
+                  status: "approved",
+                },
+                addCorsHeaders(),
+              );
+            } catch (error) {
+              console.error("Error processing return request:", error);
+              return json(
+                {
+                  success: false,
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to process return request",
+                  errorStack: error instanceof Error ? error.stack : undefined,
+                },
+                addCorsHeaders({ status: 500 }),
+              );
+            }
+          } else {
+            // Original code for simple return/exchange acknowledgment
+            const actionType = data.action === "return" ? "return" : "exchange";
+
+            return json(
+              {
+                success: true,
+                message: `Your ${actionType} request for order ${order.name} has been received. Our customer service team will contact you shortly with next steps.`,
+                order_number: order.name,
+                status: "pending_approval",
+              },
+              addCorsHeaders(),
+            );
+          }
         }
 
         // If we reach here, the requested action wasn't supported
