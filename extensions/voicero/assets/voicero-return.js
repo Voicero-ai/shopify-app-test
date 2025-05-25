@@ -274,6 +274,53 @@ Would you like me to help you initiate a return request once you receive your or
       hasReturnReason,
     });
 
+    // If we have the return reason, directly process the return without fetching order details first
+    if (hasReturnReason) {
+      console.log(
+        "Return reason provided, directly processing return without order_details call",
+      );
+      const returnReason = context.reason || context.returnReason;
+      const returnReasonNote = context.returnReasonNote || "";
+
+      this.notifyUser(
+        `Processing your return for order #${orderIdentifier} with reason: ${returnReason}`,
+      );
+
+      try {
+        // Call the proxy with action 'return' or 'return_order' directly
+        const response = await this.callProxy("return", {
+          order_id: orderIdentifier,
+          email: email,
+          reason: returnReason,
+          returnReason: returnReason,
+          returnReasonNote: returnReasonNote,
+          items: context.items || [
+            { lineItemId: "item1", quantity: 1, reason: returnReason },
+          ],
+        });
+
+        console.log("Direct return response:", response);
+
+        if (response.success) {
+          this.notifyUser(
+            `✅ Your return for order #${orderIdentifier} has been processed successfully! You will receive confirmation via email shortly.`,
+          );
+        } else {
+          this.notifyUser(
+            "❌ There was a problem with your return: " +
+              (response.error || "Unknown error") +
+              "\n\nPlease contact customer support for assistance.",
+          );
+        }
+      } catch (error) {
+        console.error("Direct return processing error:", error);
+        this.notifyUser(
+          "There was a problem processing your return. Please contact customer support.",
+        );
+      }
+      return;
+    }
+
     // Let's get the actual order items if possible
     try {
       // First try to fetch order details to show items
@@ -294,6 +341,59 @@ Would you like me to help you initiate a return request once you receive your or
       );
 
       console.log("Order details for item listing:", orderDetailsResponse);
+
+      // Check if the server detected return info and wants us to process a return directly
+      if (orderDetailsResponse.should_process_return) {
+        console.log(
+          "🚨 Server indicated we should process return directly based on order_details response",
+        );
+        // Extract reason from the order_details response
+        const returnReason =
+          orderDetailsResponse.reason || orderDetailsResponse.returnReason;
+
+        if (returnReason) {
+          console.log(
+            "Processing return with reason from order_details response:",
+            returnReason,
+          );
+
+          try {
+            // Make a direct return call with the provided reason
+            const response = await this.callProxy("return", {
+              order_id: orderIdentifier,
+              email: email,
+              reason: returnReason,
+              returnReason: returnReason,
+              returnReasonNote: context.returnReasonNote || "",
+            });
+
+            console.log(
+              "Direct return response from order_details flow:",
+              response,
+            );
+
+            if (response.success) {
+              this.notifyUser(
+                `✅ Your return for order #${orderIdentifier} has been processed successfully! You will receive confirmation via email shortly.`,
+              );
+              return; // Exit early since we've completed the return
+            } else {
+              this.notifyUser(
+                "❌ There was a problem with your return: " +
+                  (response.error || "Unknown error") +
+                  "\n\nPlease contact customer support for assistance.",
+              );
+              return; // Exit early to avoid continuing with the normal flow
+            }
+          } catch (returnError) {
+            console.error(
+              "Error processing direct return from order_details:",
+              returnError,
+            );
+            // Continue with normal flow as fallback
+          }
+        }
+      }
 
       // Extract item information to show to the user
       let itemsList = "";

@@ -216,6 +216,17 @@ export const action: ActionFunction = async ({ request }) => {
     const data = await request.json();
     console.log("Received data:", data);
 
+    // Additional logging for return-related actions
+    if (data.action === "return" || data.returnReason || data.reason) {
+      console.log("🔄 RETURN ACTION DETECTED! Details:", {
+        action: data.action,
+        returnReason: data.returnReason,
+        reason: data.reason,
+        order_id: data.order_id,
+        email: data.email,
+      });
+    }
+
     // Handle customer update action
     if (data.action === "updateCustomer" && data.customer) {
       console.log("Processing customer update:", data.customer);
@@ -701,6 +712,16 @@ export const action: ActionFunction = async ({ request }) => {
               data.action_context.returnReason || data.action_context.reason;
           }
 
+          // Log if return info is detected in order_details call
+          if (includesReturnInfo) {
+            console.log("⚠️ DETECTED RETURN INFO IN ORDER_DETAILS CALL:", {
+              returnReason,
+              originalAction: data.action,
+              order_id: data.order_id,
+              email: data.email,
+            });
+          }
+
           // Format the order details in a user-friendly way
           const formattedOrder = {
             id: order.id,
@@ -732,6 +753,7 @@ export const action: ActionFunction = async ({ request }) => {
             order: typeof formattedOrder;
             reason?: string;
             returnReason?: string;
+            should_process_return?: boolean;
           } = {
             success: true,
             order: formattedOrder,
@@ -741,9 +763,12 @@ export const action: ActionFunction = async ({ request }) => {
           if (includesReturnInfo) {
             responseData.reason = returnReason;
             responseData.returnReason = returnReason;
+            // Add a flag to tell the client to process this as a return directly
+            responseData.should_process_return = true;
             console.log("Including return info in order_details response:", {
               reason: responseData.reason,
               returnReason: responseData.returnReason,
+              should_process_return: responseData.should_process_return,
             });
           }
 
