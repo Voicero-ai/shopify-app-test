@@ -729,9 +729,10 @@ export const action: ActionFunction = async ({ request }) => {
             refundable: order.refundable,
           });
 
-          // Updated condition: orders can be canceled if they're not already canceled
-          // We'll let Shopify's API determine if it's actually cancellable
-          const canCancel = !order.cancelledAt;
+          // Updated condition: orders can be canceled if they're not fulfilled and not already canceled
+          const canCancel =
+            order.displayFulfillmentStatus?.toUpperCase() !== "FULFILLED" &&
+            !order.cancelledAt;
 
           if (canCancel) {
             const cancelQuery = `
