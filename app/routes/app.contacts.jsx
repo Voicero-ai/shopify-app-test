@@ -260,7 +260,7 @@ const fetchContacts = async () => {
   try {
     const response = await fetch("/api/contacts");
     const data = await response.json();
-    
+
     if (data.success) {
       return data.contactsData || [];
     } else {
@@ -334,9 +334,11 @@ export default function Contact() {
   };
 
   const handleMarkAsRead = (contactId) => {
-    setContacts(contacts.map(contact => 
-      contact.id === contactId ? { ...contact, isRead: true } : contact
-    ));
+    setContacts(
+      contacts.map((contact) =>
+        contact.id === contactId ? { ...contact, isRead: true } : contact,
+      ),
+    );
   };
 
   const handleReply = (contact) => {
@@ -347,10 +349,10 @@ export default function Contact() {
 
   const handleSendReply = async () => {
     setIsReplying(true);
-    
+
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // Mark as read and close modal
     handleMarkAsRead(selectedContact.id);
     setIsReplyModalOpen(false);
@@ -360,7 +362,7 @@ export default function Contact() {
   };
 
   const handleDeleteContact = (contactId) => {
-    setContacts(contacts.filter(contact => contact.id !== contactId));
+    setContacts(contacts.filter((contact) => contact.id !== contactId));
   };
 
   const getFilteredContacts = () => {
@@ -368,9 +370,9 @@ export default function Contact() {
       case 0: // All
         return contacts;
       case 1: // Unread
-        return contacts.filter(contact => !contact.isRead);
+        return contacts.filter((contact) => !contact.isRead);
       case 2: // Read
-        return contacts.filter(contact => contact.isRead);
+        return contacts.filter((contact) => contact.isRead);
       default:
         return contacts;
     }
@@ -378,14 +380,14 @@ export default function Contact() {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high':
-        return 'critical';
-      case 'medium':
-        return 'warning';
-      case 'low':
-        return 'success';
+      case "high":
+        return "critical";
+      case "medium":
+        return "warning";
+      case "low":
+        return "success";
       default:
-        return 'info';
+        return "info";
     }
   };
 
@@ -395,7 +397,7 @@ export default function Contact() {
     return new Date(date).toLocaleString();
   };
 
-  const unreadCount = contacts.filter(contact => !contact.isRead).length;
+  const unreadCount = contacts.filter((contact) => !contact.isRead).length;
 
   return (
     <Page>
@@ -517,7 +519,8 @@ export default function Contact() {
                         <InlineStack gap="300" blockAlign="center">
                           <div
                             style={{
-                              backgroundColor: unreadCount > 0 ? "#FFF4E4" : "#E3F5E1",
+                              backgroundColor:
+                                unreadCount > 0 ? "#FFF4E4" : "#E3F5E1",
                               padding: "6px 16px",
                               borderRadius: "20px",
                             }}
@@ -555,7 +558,11 @@ export default function Contact() {
                           <Text variant="bodySm" color="subdued">
                             Unread
                           </Text>
-                          <Text variant="headingMd" fontWeight="semibold" tone="caution">
+                          <Text
+                            variant="headingMd"
+                            fontWeight="semibold"
+                            tone="caution"
+                          >
                             {unreadCount}
                           </Text>
                         </BlockStack>
@@ -563,15 +570,26 @@ export default function Contact() {
                           <Text variant="bodySm" color="subdued">
                             High Priority
                           </Text>
-                          <Text variant="headingMd" fontWeight="semibold" tone="critical">
-                            {contacts.filter(c => c.priority === 'high').length}
+                          <Text
+                            variant="headingMd"
+                            fontWeight="semibold"
+                            tone="critical"
+                          >
+                            {
+                              contacts.filter((c) => c.priority === "high")
+                                .length
+                            }
                           </Text>
                         </BlockStack>
                         <BlockStack gap="200">
                           <Text variant="bodySm" color="subdued">
                             Response Rate
                           </Text>
-                          <Text variant="headingMd" fontWeight="semibold" tone="success">
+                          <Text
+                            variant="headingMd"
+                            fontWeight="semibold"
+                            tone="success"
+                          >
                             98%
                           </Text>
                         </BlockStack>
@@ -610,9 +628,15 @@ export default function Contact() {
                       {/* Tabs */}
                       <Tabs
                         tabs={[
-                          { id: 'all', content: `All Messages (${contacts.length})` },
-                          { id: 'unread', content: `Unread (${unreadCount})` },
-                          { id: 'read', content: `Read (${contacts.length - unreadCount})` },
+                          {
+                            id: "all",
+                            content: `All Messages (${contacts.length})`,
+                          },
+                          { id: "unread", content: `Unread (${unreadCount})` },
+                          {
+                            id: "read",
+                            content: `Read (${contacts.length - unreadCount})`,
+                          },
                         ]}
                         selected={selectedTab}
                         onSelect={setSelectedTab}
@@ -638,118 +662,140 @@ export default function Contact() {
                         ) : (
                           <BlockStack gap="300">
                             {getFilteredContacts().map((contact) => (
-                            <div
-                              key={contact.id}
-                              style={{
-                                backgroundColor: "white",
-                                borderRadius: "8px",
-                                padding: "20px",
-                                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                border: contact.isRead ? "1px solid #E4E5E7" : "2px solid #5C6AC4",
-                              }}
-                            >
-                              <BlockStack gap="400">
-                                {/* Header */}
-                                <InlineStack align="space-between" blockAlign="start">
-                                  <InlineStack gap="300" blockAlign="center">
-                                    <div
-                                      style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        borderRadius: "50%",
-                                        backgroundColor: "#5C6AC4",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "white",
-                                        fontWeight: "bold",
-                                        fontSize: "14px",
-                                      }}
-                                    >
-                                      {contact.email.charAt(0).toUpperCase()}
-                                    </div>
-                                    <BlockStack gap="100">
-                                      <InlineStack gap="200" blockAlign="center">
-                                        <Text variant="bodyMd" fontWeight="semibold">
-                                          {contact.email}
+                              <div
+                                key={contact.id}
+                                style={{
+                                  backgroundColor: "white",
+                                  borderRadius: "8px",
+                                  padding: "20px",
+                                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                  border: contact.isRead
+                                    ? "1px solid #E4E5E7"
+                                    : "2px solid #5C6AC4",
+                                }}
+                              >
+                                <BlockStack gap="400">
+                                  {/* Header */}
+                                  <InlineStack
+                                    align="space-between"
+                                    blockAlign="start"
+                                  >
+                                    <InlineStack gap="300" blockAlign="center">
+                                      <div
+                                        style={{
+                                          width: "40px",
+                                          height: "40px",
+                                          borderRadius: "50%",
+                                          backgroundColor: "#5C6AC4",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          color: "white",
+                                          fontWeight: "bold",
+                                          fontSize: "14px",
+                                        }}
+                                      >
+                                        {contact.email.charAt(0).toUpperCase()}
+                                      </div>
+                                      <BlockStack gap="100">
+                                        <InlineStack
+                                          gap="200"
+                                          blockAlign="center"
+                                        >
+                                          <Text
+                                            variant="bodyMd"
+                                            fontWeight="semibold"
+                                          >
+                                            {contact.email}
+                                          </Text>
+                                          {!contact.isRead && (
+                                            <Badge status="info">New</Badge>
+                                          )}
+                                          <Badge
+                                            status={getPriorityColor(
+                                              contact.priority,
+                                            )}
+                                          >
+                                            {contact.priority.toUpperCase()}
+                                          </Badge>
+                                        </InlineStack>
+                                        <Text variant="bodySm" color="subdued">
+                                          {formatTimestamp(contact)}
                                         </Text>
-                                        {!contact.isRead && (
-                                          <Badge status="info">New</Badge>
-                                        )}
-                                        <Badge status={getPriorityColor(contact.priority)}>
-                                          {contact.priority.toUpperCase()}
-                                        </Badge>
-                                      </InlineStack>
-                                      <Text variant="bodySm" color="subdued">
-                                        {formatTimestamp(contact)}
-                                      </Text>
-                                    </BlockStack>
-                                  </InlineStack>
-                                  <InlineStack gap="200">
-                                    {!contact.isRead && (
+                                      </BlockStack>
+                                    </InlineStack>
+                                    <InlineStack gap="200">
+                                      {!contact.isRead && (
+                                        <Button
+                                          size="slim"
+                                          icon={MarkAsReadIcon}
+                                          onClick={() =>
+                                            handleMarkAsRead(contact.id)
+                                          }
+                                        >
+                                          Mark Read
+                                        </Button>
+                                      )}
                                       <Button
                                         size="slim"
-                                        icon={MarkAsReadIcon}
-                                        onClick={() => handleMarkAsRead(contact.id)}
+                                        primary
+                                        icon={ReplyIcon}
+                                        onClick={() => handleReply(contact)}
                                       >
-                                        Mark Read
+                                        Reply
                                       </Button>
-                                    )}
-                                    <Button
-                                      size="slim"
-                                      primary
-                                      icon={ReplyIcon}
-                                      onClick={() => handleReply(contact)}
-                                    >
-                                      Reply
-                                    </Button>
-                                    <Button
-                                      size="slim"
-                                      destructive
-                                      icon={DeleteIcon}
-                                      onClick={() => handleDeleteContact(contact.id)}
-                                    >
-                                      Delete
-                                    </Button>
+                                      <Button
+                                        size="slim"
+                                        destructive
+                                        icon={DeleteIcon}
+                                        onClick={() =>
+                                          handleDeleteContact(contact.id)
+                                        }
+                                      >
+                                        Delete
+                                      </Button>
+                                    </InlineStack>
                                   </InlineStack>
-                                </InlineStack>
 
-                                {/* Subject */}
-                                <Text variant="headingMd" fontWeight="semibold">
-                                  {contact.subject}
-                                </Text>
+                                  {/* Subject */}
+                                  <Text
+                                    variant="headingMd"
+                                    fontWeight="semibold"
+                                  >
+                                    {contact.subject}
+                                  </Text>
 
-                                {/* Message Preview */}
-                                <Text variant="bodyMd" color="subdued">
-                                  {contact.message.length > 200 
-                                    ? `${contact.message.substring(0, 200)}...` 
-                                    : contact.message
-                                  }
-                                </Text>
-                              </BlockStack>
-                            </div>
-                        ))}
-                        
+                                  {/* Message Preview */}
+                                  <Text variant="bodyMd" color="subdued">
+                                    {contact.message.length > 200
+                                      ? `${contact.message.substring(0, 200)}...`
+                                      : contact.message}
+                                  </Text>
+                                </BlockStack>
+                              </div>
+                            ))}
 
-                          {getFilteredContacts().length === 0 && (
-                            <div style={{ padding: "40px", textAlign: "center" }}>
-                              <BlockStack gap="300" align="center">
-                                <Icon source={EmailIcon} color="subdued" />
-                                <Text variant="headingMd" color="subdued">
-                                  No messages found
-                                </Text>
-                                <Text variant="bodyMd" color="subdued">
-                                  {selectedTab === 1 
-                                    ? "All messages have been read" 
-                                    : selectedTab === 2 
-                                    ? "No read messages yet"
-                                    : "No customer messages yet"
-                                  }
-                                </Text>
-                              </BlockStack>
-                            </div>
-                          )}
-                        </BlockStack>
+                            {getFilteredContacts().length === 0 && (
+                              <div
+                                style={{ padding: "40px", textAlign: "center" }}
+                              >
+                                <BlockStack gap="300" align="center">
+                                  <Icon source={EmailIcon} color="subdued" />
+                                  <Text variant="headingMd" color="subdued">
+                                    No messages found
+                                  </Text>
+                                  <Text variant="bodyMd" color="subdued">
+                                    {selectedTab === 1
+                                      ? "All messages have been read"
+                                      : selectedTab === 2
+                                        ? "No read messages yet"
+                                        : "No customer messages yet"}
+                                  </Text>
+                                </BlockStack>
+                              </div>
+                            )}
+                          </BlockStack>
+                        )}
                       </div>
                     </BlockStack>
                   </div>
@@ -789,7 +835,8 @@ export default function Contact() {
                       width: "80px",
                       height: "80px",
                       borderRadius: "50%",
-                      background: "linear-gradient(135deg, #5C6AC4 0%, #202E78 100%)",
+                      background:
+                        "linear-gradient(135deg, #5C6AC4 0%, #202E78 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -799,18 +846,19 @@ export default function Contact() {
                     <Icon source={EmailIcon} color="base" />
                   </div>
                   <BlockStack gap="200" align="center">
-                    <Text variant="headingXl" fontWeight="bold" alignment="center">
+                    <Text
+                      variant="headingXl"
+                      fontWeight="bold"
+                      alignment="center"
+                    >
                       Connect Your Account
                     </Text>
                     <Text variant="bodyLg" color="subdued" alignment="center">
-                      Please connect your Voicero AI assistant to view customer messages
+                      Please connect your Voicero AI assistant to view customer
+                      messages
                     </Text>
                   </BlockStack>
-                  <Button
-                    primary
-                    size="large"
-                    onClick={() => navigate("/app")}
-                  >
+                  <Button primary size="large" onClick={() => navigate("/app")}>
                     Go to Dashboard
                   </Button>
                 </BlockStack>
@@ -856,9 +904,7 @@ export default function Contact() {
                   <Text variant="bodySm" fontWeight="semibold">
                     Subject: {selectedContact.subject}
                   </Text>
-                  <Text variant="bodySm">
-                    {selectedContact.message}
-                  </Text>
+                  <Text variant="bodySm">{selectedContact.message}</Text>
                 </BlockStack>
               </div>
               <TextField
