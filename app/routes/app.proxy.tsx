@@ -921,44 +921,40 @@ export const action: ActionFunction = async ({ request }) => {
               try {
                 // First, get the order details including fulfillment information
                 const getOrderQuery = `
-                  query getOrder($id: ID!) {
-                    order(id: $id) {
+                query getOrder($id: ID!) {
+                  order(id: $id) {
+                    id
+                    name
+                    fulfillments {
                       id
-                      name
-                      fulfillments {
+                      status
+                      fulfillmentLineItems(first: 20) {
                         edges {
                           node {
                             id
-                            status
-                            fulfillmentLineItems(first: 20) {
-                              edges {
-                                node {
-                                  id
-                                  lineItem {
-                                    id
-                                    name
-                                    quantity
-                                    fulfillableQuantity
-                                  }
-                                  quantity
-                                }
-                              }
+                            quantity
+                            lineItem {
+                              id
+                              name
+                              quantity
                             }
                           }
                         }
                       }
-                      lineItems(first: 20) {
-                        edges {
-                          node {
-                            id
-                            name
-                            quantity
-                            fulfillableQuantity
-                          }
+                    }
+                    lineItems(first: 20) {
+                      edges {
+                        node {
+                          id
+                          name
+                          quantity
+                          refundableQuantity
                         }
                       }
                     }
                   }
+                }
+
                 `;
 
                 const orderResponse = await admin.graphql(getOrderQuery, {
@@ -969,7 +965,7 @@ export const action: ActionFunction = async ({ request }) => {
                 console.log("Order details for return:", orderDetails);
 
                 // Check if there are fulfillments
-                if (!orderDetails.data.order.fulfillments.edges.length) {
+                if (!orderDetails.data.order.fulfillments.length) {
                   return json(
                     {
                       success: false,
@@ -989,7 +985,7 @@ export const action: ActionFunction = async ({ request }) => {
 
                 // Get the fulfillment line items
                 const fulfillment =
-                  orderDetails.data.order.fulfillments.edges[0].node;
+                  orderDetails.data.order.fulfillments[0].node;
                 const fulfillmentLineItems =
                   fulfillment.fulfillmentLineItems.edges.map(
                     (edge: { node: any }) => edge.node,
@@ -1193,44 +1189,41 @@ export const action: ActionFunction = async ({ request }) => {
             try {
               // First, get the order details including fulfillment information
               const getOrderQuery = `
-                query getOrder($id: ID!) {
-                  order(id: $id) {
+                
+              query getOrder($id: ID!) {
+                order(id: $id) {
+                  id
+                  name
+                  fulfillments {
                     id
-                    name
-                    fulfillments {
+                    status
+                    fulfillmentLineItems(first: 20) {
                       edges {
                         node {
                           id
-                          status
-                          fulfillmentLineItems(first: 20) {
-                            edges {
-                              node {
-                                id
-                                lineItem {
-                                  id
-                                  name
-                                  quantity
-                                  fulfillableQuantity
-                                }
-                                quantity
-                              }
-                            }
+                          quantity
+                          lineItem {
+                            id
+                            name
+                            quantity
                           }
                         }
                       }
                     }
-                    lineItems(first: 20) {
-                      edges {
-                        node {
-                          id
-                          name
-                          quantity
-                          fulfillableQuantity
-                        }
+                  }
+                  lineItems(first: 20) {
+                    edges {
+                      node {
+                        id
+                        name
+                        quantity
+                        refundableQuantity
                       }
                     }
                   }
                 }
+              }
+
               `;
 
               const orderResponse = await admin.graphql(getOrderQuery, {
@@ -1241,7 +1234,7 @@ export const action: ActionFunction = async ({ request }) => {
               console.log("Order details for return:", orderDetails);
 
               // Check if there are fulfillments
-              if (!orderDetails.data.order.fulfillments.edges.length) {
+              if (!orderDetails.data.order.fulfillments.length) {
                 return json(
                   {
                     success: false,
@@ -1261,7 +1254,7 @@ export const action: ActionFunction = async ({ request }) => {
 
               // Get the fulfillment line items
               const fulfillment =
-                orderDetails.data.order.fulfillments.edges[0].node;
+                orderDetails.data.order.fulfillments[0].node;
               const fulfillmentLineItems =
                 fulfillment.fulfillmentLineItems.edges.map(
                   (edge: { node: any }) => edge.node,
