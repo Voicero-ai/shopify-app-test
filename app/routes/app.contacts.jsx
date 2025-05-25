@@ -21,29 +21,12 @@ import {
   TextContainer,
 } from "@shopify/polaris";
 import {
-  KeyIcon,
-  GlobeIcon,
-  PageIcon,
-  BlogIcon,
-  ProductIcon,
-  DiscountIcon,
-  ChatIcon,
   RefreshIcon,
-  SettingsIcon,
   ExternalIcon,
-  ToggleOnIcon,
-  ToggleOffIcon,
-  QuestionCircleIcon,
-  InfoIcon,
-  CalendarIcon,
-  DataPresentationIcon,
-  CheckIcon,
-  CollectionIcon,
   EmailIcon,
   ReplyIcon,
-  ViewIcon,
-  MarkAsReadIcon,
   DeleteIcon,
+  BookIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -728,7 +711,7 @@ export default function Contact() {
                                       {!contact.isRead && (
                                         <Button
                                           size="slim"
-                                          icon={MarkAsReadIcon}
+                                          icon={BookIcon}
                                           onClick={() =>
                                             handleMarkAsRead(contact.id)
                                           }
