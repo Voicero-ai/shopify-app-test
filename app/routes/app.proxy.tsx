@@ -686,6 +686,21 @@ export const action: ActionFunction = async ({ request }) => {
 
         // If this is an order details request, return the order data
         if (data.action === "order_details") {
+          // Check if this request includes return reasons (for client compatibility)
+          // Also check action_context which is where AI often puts data
+          const includesReturnInfo =
+            data.returnReason ||
+            data.reason ||
+            (data.action_context && data.action_context.returnReason) ||
+            (data.action_context && data.action_context.reason);
+
+          // Extract any return reasons from action_context if available
+          let returnReason = data.returnReason || data.reason;
+          if (!returnReason && data.action_context) {
+            returnReason =
+              data.action_context.returnReason || data.action_context.reason;
+          }
+
           // Format the order details in a user-friendly way
           const formattedOrder = {
             id: order.id,
@@ -711,10 +726,28 @@ export const action: ActionFunction = async ({ request }) => {
             })),
           };
 
-          return json(
-            { success: true, order: formattedOrder },
-            addCorsHeaders(),
-          );
+          // If this is part of a return flow, include the reason and returnReason
+          const responseData: {
+            success: boolean;
+            order: typeof formattedOrder;
+            reason?: string;
+            returnReason?: string;
+          } = {
+            success: true,
+            order: formattedOrder,
+          };
+
+          // Pass along return information if provided
+          if (includesReturnInfo) {
+            responseData.reason = returnReason;
+            responseData.returnReason = returnReason;
+            console.log("Including return info in order_details response:", {
+              reason: responseData.reason,
+              returnReason: responseData.returnReason,
+            });
+          }
+
+          return json(responseData, addCorsHeaders());
         }
 
         // Process the requested action
@@ -823,69 +856,41 @@ export const action: ActionFunction = async ({ request }) => {
             console.log("Copied returnReason to reason:", data.reason);
           }
 
+          // Also do the reverse for maximum compatibility
+          if (data.reason && !data.returnReason) {
+            data.returnReason = data.reason;
+            console.log("Copied reason to returnReason:", data.returnReason);
+          }
+
+          // Direct action for return_order with reason
+          if (
+            data.action === "return_order" &&
+            (data.reason || data.returnReason)
+          ) {
+            console.log(
+              "DIRECT PROCESSING - return_order with reason:",
+              data.reason || data.returnReason,
+            );
+
+            // Use the reason we have to start the return immediately
+            return json(
+              {
+                success: true,
+                message: `Return for order ${data.order_id || data.order_number} is being processed.`,
+                reason: data.reason || data.returnReason,
+                returnReason: data.returnReason || data.reason,
+                order_id: data.order_id || data.order_number,
+                email: data.email || data.order_email,
+                action: "return",
+                skip_reason_prompt: true,
+              },
+              addCorsHeaders(),
+            );
+          }
+
           // Special handling for return_order which is our comprehensive return flow
           let normalizedData = data; // Use a new variable instead of modifying data directly
 
-          if (data.action === "return_order") {
-            console.log("Return order data received:", normalizedData);
-
-            // Create a normalized context that combines all possible input sources
-            const normalizedContext = {
-              order_id:
-                data.order_id ||
-                (data.action_context && data.action_context.order_id) ||
-                data.order_number ||
-                (data.action_context && data.action_context.order_number),
-              email:
-                data.email ||
-                (data.action_context && data.action_context.email) ||
-                data.order_email ||
-                (data.action_context && data.action_context.order_email),
-              reason:
-                data.reason ||
-                (data.action_context && data.action_context.reason) ||
-                data.returnReason ||
-                (data.action_context && data.action_context.returnReason),
-              returnReason:
-                data.returnReason ||
-                (data.action_context && data.action_context.returnReason) ||
-                data.reason ||
-                (data.action_context && data.action_context.reason),
-              returnReasonNote:
-                data.returnReasonNote ||
-                (data.action_context && data.action_context.returnReasonNote) ||
-                "Item was " +
-                  (data.returnReason || data.reason || "").toLowerCase(),
-            };
-
-            // Make sure we're working with normalized data
-            normalizedData = {
-              ...data,
-              action: "return_order",
-              order_id: normalizedContext.order_id,
-              email: normalizedContext.email,
-              reason: normalizedContext.reason,
-              returnReason: normalizedContext.returnReason,
-              returnReasonNote: normalizedContext.returnReasonNote,
-              action_context: {
-                ...data.action_context,
-                order_id: normalizedContext.order_id,
-                email: normalizedContext.email,
-                reason: normalizedContext.reason,
-                returnReason: normalizedContext.returnReason,
-                returnReasonNote: normalizedContext.returnReasonNote,
-              },
-            };
-
-            console.log("Normalized return data:", normalizedData);
-          }
-
-          // Get the return details from the request - use normalized data
-          const orderNumber =
-            normalizedData.order_number || normalizedData.order_id;
-          const email = normalizedData.order_email || normalizedData.email;
-
-          // For return_order action, expect more specific details
           if (data.action === "return_order") {
             console.log("Return order data received:", normalizedData);
             console.log("Action context:", normalizedData.action_context);

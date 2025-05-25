@@ -266,13 +266,32 @@ Would you like me to help you initiate a return request once you receive your or
     // DIRECT PROCESS PATH - Works for ANY order number
     console.log(`🔥 Direct processing return for order #${orderIdentifier}`);
 
+    // IMPORTANT: Check if we already have a return reason (from AI)
+    const hasReturnReason = context.reason || context.returnReason;
+    console.log("Return reason check:", {
+      reason: context.reason,
+      returnReason: context.returnReason,
+      hasReturnReason,
+    });
+
     // Let's get the actual order items if possible
     try {
       // First try to fetch order details to show items
-      const orderDetailsResponse = await this.callProxy("order_details", {
+      // IMPORTANT: Pass along any existing reason/returnReason to the order_details call
+      const orderDetailsRequest = {
         order_id: orderIdentifier,
         email: email,
-      });
+      };
+
+      // Include any return reason information in the request
+      if (context.reason) orderDetailsRequest.reason = context.reason;
+      if (context.returnReason)
+        orderDetailsRequest.returnReason = context.returnReason;
+
+      const orderDetailsResponse = await this.callProxy(
+        "order_details",
+        orderDetailsRequest,
+      );
 
       console.log("Order details for item listing:", orderDetailsResponse);
 
@@ -308,8 +327,23 @@ Would you like me to help you initiate a return request once you receive your or
         ];
       }
 
+      // CRITICAL FIX: Check if the order_details response includes a reason
+      // This would happen if the server detected a return_order action with reason
+      if (
+        !hasReturnReason &&
+        (orderDetailsResponse.reason || orderDetailsResponse.returnReason)
+      ) {
+        console.log(
+          "Using reason from order_details response:",
+          orderDetailsResponse.reason || orderDetailsResponse.returnReason,
+        );
+        context.reason =
+          orderDetailsResponse.reason || orderDetailsResponse.returnReason;
+        hasReturnReason = true;
+      }
+
       // Ask for return reason if not provided
-      if (!context.reason) {
+      if (!hasReturnReason) {
         this.notifyUser(
           "What's the reason for your return?\n\n" +
             "1. Wrong size\n" +
@@ -338,21 +372,22 @@ Would you like me to help you initiate a return request once you receive your or
       } else {
         // If reason provided, directly process the return
         this.notifyUser(
-          `Processing your return for order #${orderIdentifier} with reason: ${context.reason}\n\n${itemsList}`,
+          `Processing your return for order #${orderIdentifier} with reason: ${context.reason || context.returnReason}\n\n${itemsList}`,
         );
 
         // Use the real items if we have them, otherwise use dummy items
         const returnItems = orderItems.map((item) => ({
           lineItemId: item.id,
           quantity: item.quantity || 1,
-          reason: context.reason,
+          reason: context.reason || context.returnReason,
         }));
 
         // Process the return with real items
         const response = await this.callProxy("return", {
           order_id: orderIdentifier,
           email: email,
-          reason: context.reason,
+          reason: context.reason || context.returnReason,
+          returnReason: context.returnReason || context.reason,
           items:
             returnItems.length > 0
               ? returnItems
@@ -360,7 +395,7 @@ Would you like me to help you initiate a return request once you receive your or
                   {
                     lineItemId: "item1",
                     quantity: 1,
-                    reason: context.reason,
+                    reason: context.reason || context.returnReason,
                   },
                 ],
         });
@@ -383,7 +418,7 @@ Would you like me to help you initiate a return request once you receive your or
       console.error("Error handling direct return process:", error);
 
       // Fallback to simpler flow if the detailed approach fails
-      if (!context.reason) {
+      if (!context.reason && !context.returnReason) {
         this.notifyUser(
           `I found your order #${orderIdentifier}. What's the reason for your return?\n\n` +
             "1. Wrong size\n" +
@@ -407,17 +442,19 @@ Would you like me to help you initiate a return request once you receive your or
           console.error("Error saving pending direct return", e);
         }
       } else {
+        const returnReason = context.reason || context.returnReason;
         this.notifyUser(
-          `Processing your return for order #${orderIdentifier} with reason: ${context.reason}`,
+          `Processing your return for order #${orderIdentifier} with reason: ${returnReason}`,
         );
 
         try {
           const response = await this.callProxy("return", {
             order_id: orderIdentifier,
             email: email,
-            reason: context.reason,
+            reason: returnReason,
+            returnReason: context.returnReason || context.reason,
             items: items || [
-              { lineItemId: "item1", quantity: 1, reason: context.reason },
+              { lineItemId: "item1", quantity: 1, reason: returnReason },
             ],
           });
 
@@ -914,6 +951,15 @@ window.addEventListener("message", function (event) {
       if (data && data.action === "return_order" && data.action_context) {
         console.log("Return order postMessage intercepted:", data);
 
+        // Get the return reason from any possible location
+        const returnReason =
+          data.returnReason ||
+          data.reason ||
+          (data.action_context && data.action_context.returnReason) ||
+          (data.action_context && data.action_context.reason);
+
+        console.log("Return reason from message:", returnReason);
+
         // Wait for VoiceroReturnHandler to be ready
         setTimeout(function () {
           if (window.VoiceroReturnHandler) {
@@ -921,8 +967,8 @@ window.addEventListener("message", function (event) {
               order_id: data.action_context.order_id,
               email:
                 data.action_context.order_email || data.action_context.email,
-              reason:
-                data.action_context.reason || data.reason || "Customer request",
+              reason: returnReason || "Customer request",
+              returnReason: returnReason || "Customer request",
             });
           }
         }, 500);
@@ -937,6 +983,18 @@ window.addEventListener("message", function (event) {
       ) {
         console.log("Formatted return order intercepted:", data.formatted);
 
+        // Get return reason from any possible location
+        const returnReason =
+          data.formatted.reason ||
+          data.formatted.returnReason ||
+          (data.formatted.action_context &&
+            data.formatted.action_context.reason) ||
+          (data.formatted.action_context &&
+            data.formatted.action_context.returnReason) ||
+          "Customer request";
+
+        console.log("Return reason from formatted message:", returnReason);
+
         setTimeout(function () {
           if (window.VoiceroReturnHandler) {
             window.VoiceroReturnHandler.handleReturn({
@@ -944,10 +1002,8 @@ window.addEventListener("message", function (event) {
               email:
                 data.formatted.action_context.order_email ||
                 data.formatted.action_context.email,
-              reason:
-                data.formatted.reason ||
-                data.formatted.returnReason ||
-                "Customer request",
+              reason: returnReason,
+              returnReason: returnReason,
             });
           }
         }, 500);
@@ -1086,6 +1142,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 order_id: pendingDirectReturn.order_id,
                 email: pendingDirectReturn.email,
                 reason: reason,
+                returnReason: reason, // Add returnReason for consistency
                 items: returnItems,
               });
             }
@@ -1131,16 +1188,24 @@ document.addEventListener("DOMContentLoaded", function () {
           response.action_context,
         );
 
+        // Extract return reason from any possible location
+        const returnReason =
+          response.reason ||
+          response.returnReason ||
+          (response.action_context && response.action_context.reason) ||
+          (response.action_context && response.action_context.returnReason) ||
+          "Customer request";
+
+        console.log("Return reason from AI response:", returnReason);
+
         // Map action_context to the format expected by handleReturn
         const returnContext = {
           order_id: response.action_context.order_id,
           email:
             response.action_context.order_email ||
             response.action_context.email,
-          reason:
-            response.action_context.reason ||
-            response.action_context.returnReason ||
-            "Customer request",
+          reason: returnReason,
+          returnReason: returnReason,
         };
 
         // Call the return handler
@@ -1158,15 +1223,23 @@ document.addEventListener("DOMContentLoaded", function () {
       ) {
         console.log("Return order action detected from formatted response");
 
+        // Extract return reason from any possible location
+        const returnReason =
+          response.reason ||
+          response.returnReason ||
+          (response.action_context && response.action_context.reason) ||
+          (response.action_context && response.action_context.returnReason) ||
+          "Customer request";
+
+        console.log("Return reason from formatted response:", returnReason);
+
         const returnContext = {
           order_id: response.action_context.order_id,
           email:
             response.action_context.order_email ||
             response.action_context.email,
-          reason:
-            response.action_context.reason ||
-            response.action_context.returnReason ||
-            "Customer request",
+          reason: returnReason,
+          returnReason: returnReason,
         };
 
         window.VoiceroReturnHandler.handleReturn(returnContext);
