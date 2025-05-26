@@ -1135,6 +1135,45 @@ export default function Index() {
   const app = useAppBridge();
   const isLoading = fetcher.state === "submitting";
 
+  // Add this state for contacts data
+  const [contactsData, setContactsData] = useState([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [contactsError, setContactsError] = useState(null);
+
+  // Add function to fetch contacts data
+  const fetchContacts = async () => {
+    if (!accessKey) return;
+
+    try {
+      setIsLoadingContacts(true);
+      setContactsError(null);
+
+      const response = await fetch("/api/contacts");
+      const data = await response.json();
+
+      if (data.success && data.contactsData) {
+        setContactsData(data.contactsData);
+      } else {
+        setContactsError(data.error || "Failed to fetch contacts");
+      }
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      setContactsError("Failed to fetch contacts");
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  // Add useEffect to fetch contacts when component mounts or accessKey changes
+  useEffect(() => {
+    if (accessKey && fetcher.data?.success) {
+      fetchContacts();
+    }
+  }, [accessKey, fetcher.data?.success]);
+
+  // Calculate unread contacts
+  const unreadContacts = contactsData.filter((contact) => !contact.read).length;
+
   // Add function to fetch extended website data
   const fetchExtendedWebsiteData = async () => {
     try {
@@ -2461,6 +2500,70 @@ export default function Index() {
                     </div>
                   )}
 
+                  {/* NEW: Contacts Card - Add this before the Content Overview section */}
+                  {accessKey && fetcher.data?.success && (
+                    <div
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: "12px",
+                        padding: "24px",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="200">
+                          <Text variant="headingLg" fontWeight="semibold">
+                            Customer Contacts
+                          </Text>
+                          <Text variant="bodyMd" color="subdued">
+                            Messages from your store visitors
+                          </Text>
+                        </BlockStack>
+
+                        <InlineStack gap="400" blockAlign="center">
+                          {isLoadingContacts ? (
+                            <Spinner size="small" />
+                          ) : contactsError ? (
+                            <Text variant="bodyMd" color="critical">
+                              Error loading contacts
+                            </Text>
+                          ) : (
+                            <>
+                              {unreadContacts > 0 && (
+                                <div
+                                  style={{
+                                    backgroundColor: "#FCF1CD",
+                                    borderRadius: "20px",
+                                    padding: "4px 12px",
+                                    border: "1px solid #EEC200",
+                                  }}
+                                >
+                                  <Text
+                                    variant="bodySm"
+                                    fontWeight="semibold"
+                                    tone="warning"
+                                  >
+                                    {unreadContacts} unread message
+                                    {unreadContacts !== 1 ? "s" : ""}
+                                  </Text>
+                                </div>
+                              )}
+                              <Link url="/app/contacts">
+                                <Button
+                                  primary={unreadContacts > 0}
+                                  icon={ChatIcon}
+                                >
+                                  View Contacts
+                                </Button>
+                              </Link>
+                            </>
+                          )}
+                        </InlineStack>
+                      </InlineStack>
+                    </div>
+                  )}
+
                   {/* Content Overview Card - REDESIGNED for better display */}
                   <div
                     style={{
@@ -2710,7 +2813,15 @@ export default function Index() {
                                         </Text>
                                       </InlineStack>
 
-                                      {item.description && (
+                                      {/* Show description for products and collections, content for pages and blog posts */}
+                                      {((contentType === "products" &&
+                                        item.description) ||
+                                        (contentType === "collections" &&
+                                          item.description) ||
+                                        (contentType === "pages" &&
+                                          item.content) ||
+                                        (contentType === "blogPosts" &&
+                                          item.content)) && (
                                         <div
                                           style={{
                                             paddingLeft: "4px",
@@ -2721,9 +2832,22 @@ export default function Index() {
                                             variant="bodyMd"
                                             color="subdued"
                                           >
-                                            {item.description.length > 100
-                                              ? `${item.description.substring(0, 100)}...`
-                                              : item.description}
+                                            {contentType === "products" ||
+                                            contentType === "collections"
+                                              ? item.description.length > 100
+                                                ? `${item.description.substring(0, 100)}...`
+                                                : item.description
+                                              : item.content
+                                                ? item.content.replace(
+                                                    /<[^>]*>/g,
+                                                    "",
+                                                  ).length > 100
+                                                  ? `${item.content.replace(/<[^>]*>/g, "").substring(0, 100)}...`
+                                                  : item.content.replace(
+                                                      /<[^>]*>/g,
+                                                      "",
+                                                    )
+                                                : ""}
                                           </Text>
                                         </div>
                                       )}
@@ -2746,23 +2870,6 @@ export default function Index() {
                                                 color="subdued"
                                               >
                                                 {item.handle}
-                                              </Text>
-                                            </div>
-                                          )}
-
-                                          {item.shopifyId && (
-                                            <div
-                                              style={{
-                                                backgroundColor: "#F4F5F7",
-                                                padding: "4px 8px",
-                                                borderRadius: "4px",
-                                              }}
-                                            >
-                                              <Text
-                                                variant="bodySm"
-                                                color="subdued"
-                                              >
-                                                ID: {item.shopifyId}
                                               </Text>
                                             </div>
                                           )}
