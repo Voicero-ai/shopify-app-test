@@ -151,7 +151,14 @@ export async function loader({ request }) {
 
     const contactsData = await contactsResponse.json();
 
-    return json({ success: true, contactsData });
+    // Ensure contactsData is an array before returning
+    const formattedContacts = Array.isArray(contactsData)
+      ? contactsData
+      : Array.isArray(contactsData.contacts)
+        ? contactsData.contacts
+        : [];
+
+    return json({ success: true, contactsData: formattedContacts });
   } catch (error) {
     console.error("API contacts get error:", error);
     return json(

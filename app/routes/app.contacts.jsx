@@ -308,7 +308,7 @@ export default function Contact() {
       setIsLoadingContacts(true);
       setError(null);
       const contactsData = await fetchContacts();
-      setContacts(contactsData);
+      setContacts(Array.isArray(contactsData) ? contactsData : []);
     } catch (error) {
       console.error("Error loading contacts:", error);
       setError(`Failed to load contacts: ${error.message}`);
@@ -723,7 +723,7 @@ export default function Contact() {
                                       <Button
                                         size="slim"
                                         primary
-                                        icon={ReplyIcon}
+                                        icon={ReplayIcon}
                                         onClick={() => handleReply(contact)}
                                       >
                                         Reply
