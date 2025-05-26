@@ -2389,7 +2389,7 @@ export default function Index() {
                               borderRadius: "12px",
                               padding: "20px",
                               display: "grid",
-                              gridTemplateColumns: "repeat(3, 1fr)",
+                              gridTemplateColumns: "repeat(4, 1fr)",
                               gap: "20px",
                             }}
                           >
@@ -2461,7 +2461,7 @@ export default function Index() {
                     </div>
                   )}
 
-                  {/* Content Overview Card - UPDATED to show content details */}
+                  {/* Content Overview Card - REDESIGNED for better display */}
                   <div
                     style={{
                       backgroundColor: "white",
@@ -2470,7 +2470,8 @@ export default function Index() {
                       boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
                     }}
                   >
-                    <BlockStack gap="600">
+                    <BlockStack gap="500">
+                      {/* Header */}
                       <InlineStack align="space-between" blockAlign="center">
                         <BlockStack gap="200">
                           <Text variant="headingLg" fontWeight="semibold">
@@ -2485,141 +2486,150 @@ export default function Index() {
                           loading={isSyncing}
                           icon={RefreshIcon}
                           primary={
-                            !fetcher.data.websiteData.lastSyncedAt ||
-                            fetcher.data.websiteData.lastSyncedAt === "Never"
+                            !fetcher.data?.websiteData?.lastSyncedAt ||
+                            fetcher.data?.websiteData?.lastSyncedAt === "Never"
                           }
                         >
                           {isSyncing ? "Syncing..." : "Sync Content"}
                         </Button>
                       </InlineStack>
 
-                      {/* Content type stats */}
+                      {/* Content Type Stats */}
                       <div
                         style={{
                           backgroundColor: "#F9FAFB",
                           borderRadius: "12px",
-                          padding: "20px",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(5, 1fr)",
-                          gap: "20px",
+                          padding: "24px",
                         }}
                       >
-                        {[
-                          {
-                            icon: ProductIcon,
-                            count:
-                              fetcher.data.websiteData._count?.products ||
-                              extendedWebsiteData?.content?.products?.length ||
-                              0,
-                            label: "Products",
-                          },
-                          {
-                            icon: PageIcon,
-                            count:
-                              fetcher.data.websiteData._count?.pages ||
-                              extendedWebsiteData?.content?.pages?.length ||
-                              0,
-                            label: "Pages",
-                          },
-                          {
-                            icon: BlogIcon,
-                            count:
-                              fetcher.data.websiteData._count?.posts ||
-                              extendedWebsiteData?.content?.blogPosts?.length ||
-                              0,
-                            label: "Blog Posts",
-                          },
-                          {
-                            icon: CollectionIcon,
-                            count:
-                              fetcher.data.websiteData._count?.collections ||
-                              extendedWebsiteData?.content?.collections
-                                ?.length ||
-                              0,
-                            label: "Collections",
-                          },
-                          {
-                            icon: DiscountIcon,
-                            count:
-                              fetcher.data.websiteData._count?.discounts || 0,
-                            label: "Discounts",
-                          },
-                        ].map((item, index) => (
-                          <div key={index} style={{ textAlign: "center" }}>
-                            <BlockStack gap="300" align="center">
-                              <div
-                                style={{
-                                  width: "48px",
-                                  height: "48px",
-                                  backgroundColor: "white",
-                                  borderRadius: "12px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  margin: "0 auto",
-                                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                }}
-                              >
-                                <Icon source={item.icon} color="base" />
-                              </div>
-                              <Text variant="heading2xl" fontWeight="bold">
-                                {item.count}
-                              </Text>
-                              <Text variant="bodySm" color="subdued">
-                                {item.label}
-                              </Text>
-                            </BlockStack>
-                          </div>
-                        ))}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(5, 1fr)",
+                            gap: "16px",
+                          }}
+                        >
+                          {[
+                            {
+                              icon: ProductIcon,
+                              count:
+                                extendedWebsiteData?.content?.products
+                                  ?.length || 0,
+                              label: "Products",
+                              id: "products",
+                            },
+                            {
+                              icon: PageIcon,
+                              count:
+                                extendedWebsiteData?.content?.pages?.length ||
+                                0,
+                              label: "Pages",
+                              id: "pages",
+                            },
+                            {
+                              icon: BlogIcon,
+                              count:
+                                extendedWebsiteData?.content?.blogPosts
+                                  ?.length || 0,
+                              label: "Blog Posts",
+                              id: "blogPosts",
+                            },
+                            {
+                              icon: CollectionIcon,
+                              count:
+                                extendedWebsiteData?.content?.collections
+                                  ?.length || 0,
+                              label: "Collections",
+                              id: "collections",
+                            },
+                            {
+                              icon: DiscountIcon,
+                              count: 0, // No discounts in the API data
+                              label: "Discounts",
+                              id: "discounts",
+                            },
+                          ].map((item, index) => (
+                            <div
+                              key={index}
+                              style={{
+                                backgroundColor:
+                                  selectedContentTab === index
+                                    ? "#EBF5FF"
+                                    : "white",
+                                borderRadius: "8px",
+                                padding: "16px",
+                                cursor: "pointer",
+                                border:
+                                  selectedContentTab === index
+                                    ? "1px solid #B3D7FF"
+                                    : "1px solid #E4E5E7",
+                                transition: "all 0.2s ease",
+                              }}
+                              onClick={() => setSelectedContentTab(index)}
+                            >
+                              <BlockStack gap="300" align="center">
+                                <div
+                                  style={{
+                                    width: "40px",
+                                    height: "40px",
+                                    backgroundColor:
+                                      selectedContentTab === index
+                                        ? "#DEEBFF"
+                                        : "#F4F5F7",
+                                    borderRadius: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Icon
+                                    source={item.icon}
+                                    color={
+                                      selectedContentTab === index
+                                        ? "highlight"
+                                        : "base"
+                                    }
+                                  />
+                                </div>
+                                <Text variant="heading2xl" fontWeight="bold">
+                                  {item.count}
+                                </Text>
+                                <Text
+                                  variant="bodySm"
+                                  color={
+                                    selectedContentTab === index
+                                      ? "highlight"
+                                      : "subdued"
+                                  }
+                                >
+                                  {item.label}
+                                </Text>
+                              </BlockStack>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Content details tabs */}
+                      {/* Content Details */}
                       {extendedWebsiteData?.content && (
-                        <Tabs
-                          tabs={[
-                            {
-                              id: "products",
-                              content: (
-                                <span>
-                                  Products <Icon source={ProductIcon} />
-                                </span>
-                              ),
-                            },
-                            {
-                              id: "collections",
-                              content: (
-                                <span>
-                                  Collections <Icon source={CollectionIcon} />
-                                </span>
-                              ),
-                            },
-                            {
-                              id: "blogPosts",
-                              content: (
-                                <span>
-                                  Blog Posts <Icon source={BlogIcon} />
-                                </span>
-                              ),
-                            },
-                            {
-                              id: "pages",
-                              content: (
-                                <span>
-                                  Pages <Icon source={PageIcon} />
-                                </span>
-                              ),
-                            },
-                          ]}
-                          selected={selectedContentTab}
-                          onSelect={setSelectedContentTab}
+                        <div
+                          style={{
+                            backgroundColor: "#F9FAFB",
+                            borderRadius: "12px",
+                            padding: "20px",
+                          }}
                         >
-                          {(selected) => {
-                            const contentType = [
+                          {(() => {
+                            // Content rendering function
+                            const contentTypes = [
                               "products",
-                              "collections",
-                              "blogPosts",
                               "pages",
-                            ][selected];
+                              "blogPosts",
+                              "collections",
+                              "discounts",
+                            ];
+                            const contentType =
+                              contentTypes[selectedContentTab];
                             const contentItems =
                               extendedWebsiteData.content[contentType] || [];
 
@@ -2627,87 +2637,149 @@ export default function Index() {
                               return (
                                 <div
                                   style={{
-                                    padding: "16px",
+                                    padding: "32px",
                                     textAlign: "center",
+                                    backgroundColor: "white",
+                                    borderRadius: "8px",
                                   }}
                                 >
-                                  <Text variant="bodyMd" color="subdued">
-                                    No {contentType} data available
-                                  </Text>
+                                  <BlockStack gap="300" align="center">
+                                    <Icon source={InfoIcon} color="subdued" />
+                                    <Text variant="bodyMd" color="subdued">
+                                      No {contentType} data available
+                                    </Text>
+                                    {contentType === "discounts" && (
+                                      <Text variant="bodySm" color="subdued">
+                                        Create discounts in your Shopify admin
+                                        to make them available to your AI
+                                        assistant
+                                      </Text>
+                                    )}
+                                  </BlockStack>
                                 </div>
                               );
                             }
 
                             return (
-                              <div
-                                style={{
-                                  marginTop: "16px",
-                                  backgroundColor: "#F9FAFB",
-                                  borderRadius: "12px",
-                                  padding: "16px",
-                                }}
-                              >
+                              <div style={{ display: "grid", gridGap: "16px" }}>
                                 {contentItems.map((item, index) => (
                                   <div
                                     key={index}
                                     style={{
-                                      padding: "16px",
-                                      marginBottom: "12px",
                                       backgroundColor: "white",
                                       borderRadius: "8px",
+                                      padding: "16px",
                                       boxShadow:
                                         "0 1px 2px rgba(0, 0, 0, 0.05)",
                                     }}
                                   >
                                     <BlockStack gap="300">
-                                      <Text
-                                        variant="headingMd"
-                                        fontWeight="semibold"
+                                      <InlineStack
+                                        gap="200"
+                                        blockAlign="center"
                                       >
-                                        {item.title}
-                                      </Text>
-                                      {item.description && (
-                                        <Text variant="bodyMd" color="subdued">
-                                          {item.description.length > 120
-                                            ? `${item.description.substring(0, 120)}...`
-                                            : item.description}
+                                        {contentType === "products" && (
+                                          <Icon
+                                            source={ProductIcon}
+                                            color="subdued"
+                                          />
+                                        )}
+                                        {contentType === "pages" && (
+                                          <Icon
+                                            source={PageIcon}
+                                            color="subdued"
+                                          />
+                                        )}
+                                        {contentType === "blogPosts" && (
+                                          <Icon
+                                            source={BlogIcon}
+                                            color="subdued"
+                                          />
+                                        )}
+                                        {contentType === "collections" && (
+                                          <Icon
+                                            source={CollectionIcon}
+                                            color="subdued"
+                                          />
+                                        )}
+                                        <Text
+                                          variant="headingMd"
+                                          fontWeight="semibold"
+                                        >
+                                          {item.title}
                                         </Text>
+                                      </InlineStack>
+
+                                      {item.description && (
+                                        <div
+                                          style={{
+                                            paddingLeft: "4px",
+                                            borderLeft: "3px solid #F4F5F7",
+                                          }}
+                                        >
+                                          <Text
+                                            variant="bodyMd"
+                                            color="subdued"
+                                          >
+                                            {item.description.length > 100
+                                              ? `${item.description.substring(0, 100)}...`
+                                              : item.description}
+                                          </Text>
+                                        </div>
                                       )}
+
                                       <InlineStack
                                         align="space-between"
                                         blockAlign="center"
                                       >
-                                        <Link
-                                          url={`https://${fetcher.data.websiteData.domain}${item.url}`}
-                                          external
-                                          monochrome
-                                        >
-                                          <InlineStack
-                                            gap="200"
-                                            blockAlign="center"
-                                          >
-                                            <Icon
-                                              source={ExternalIcon}
-                                              color="subdued"
-                                            />
-                                            <Text
-                                              variant="bodySm"
-                                              color="subdued"
+                                        <InlineStack gap="300">
+                                          {item.handle && (
+                                            <div
+                                              style={{
+                                                backgroundColor: "#F4F5F7",
+                                                padding: "4px 8px",
+                                                borderRadius: "4px",
+                                              }}
                                             >
-                                              View content
-                                            </Text>
-                                          </InlineStack>
-                                        </Link>
-                                        {item.lastUpdated && (
-                                          <Text
-                                            variant="bodySm"
-                                            color="subdued"
+                                              <Text
+                                                variant="bodySm"
+                                                color="subdued"
+                                              >
+                                                {item.handle}
+                                              </Text>
+                                            </div>
+                                          )}
+
+                                          {item.shopifyId && (
+                                            <div
+                                              style={{
+                                                backgroundColor: "#F4F5F7",
+                                                padding: "4px 8px",
+                                                borderRadius: "4px",
+                                              }}
+                                            >
+                                              <Text
+                                                variant="bodySm"
+                                                color="subdued"
+                                              >
+                                                ID: {item.shopifyId}
+                                              </Text>
+                                            </div>
+                                          )}
+                                        </InlineStack>
+
+                                        {item.url && (
+                                          <Link
+                                            url={`https://${fetcher.data?.websiteData?.domain || ""}${item.url}`}
+                                            external
                                           >
-                                            Updated:{" "}
-                                            {new Date(
-                                              item.lastUpdated,
-                                            ).toLocaleDateString()}
-                                          </Text>
+                                            <Button
+                                              size="slim"
+                                              icon={ExternalIcon}
+                                            >
+                                              View
+                                            </Button>
+                                          </Link>
                                         )}
                                       </InlineStack>
                                     </BlockStack>
@@ -2715,8 +2787,8 @@ export default function Index() {
                                 ))}
                               </div>
                             );
-                          }}
-                        </Tabs>
+                          })()}
+                        </div>
                       )}
                     </BlockStack>
                   </div>

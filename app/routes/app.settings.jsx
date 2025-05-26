@@ -522,6 +522,39 @@ export default function SettingsPage() {
     }
   }, [fetcher.data, navigate]);
 
+  const handleSaveUserSettings = async () => {
+    try {
+      setIsEditingUser(false);
+
+      const response = await fetch("/api/updateUserSettings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: userData.name,
+          username: userData.username,
+          email: userData.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowToast(true);
+        setToastMessage("User settings updated successfully!");
+        setToastType("success");
+      } else {
+        throw new Error(data.error || "Failed to update user settings");
+      }
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      setShowToast(true);
+      setToastMessage(error.message || "Failed to update user settings");
+      setToastType("critical");
+    }
+  };
+
   if (disconnected) {
     return null; // Don't render anything while redirecting
   }
@@ -684,15 +717,7 @@ export default function SettingsPage() {
               >
                 Cancel
               </button>
-              <button
-                style={styles.button}
-                onClick={() => {
-                  setIsEditingUser(false);
-                  setShowToast(true);
-                  setToastMessage("User settings updated successfully!");
-                  setToastType("success");
-                }}
-              >
+              <button style={styles.button} onClick={handleSaveUserSettings}>
                 Save Changes
               </button>
             </div>
