@@ -320,7 +320,7 @@ export default function Contact() {
   const handleMarkAsRead = (contactId) => {
     setContacts(
       contacts.map((contact) =>
-        contact.id === contactId ? { ...contact, isRead: true } : contact,
+        contact.id === contactId ? { ...contact, read: true } : contact,
       ),
     );
   };
@@ -354,15 +354,16 @@ export default function Contact() {
       case 0: // All
         return contacts;
       case 1: // Unread
-        return contacts.filter((contact) => !contact.isRead);
+        return contacts.filter((contact) => !contact.read);
       case 2: // Read
-        return contacts.filter((contact) => contact.isRead);
+        return contacts.filter((contact) => contact.read);
       default:
         return contacts;
     }
   };
 
   const getPriorityColor = (priority) => {
+    if (!priority) return "info";
     switch (priority) {
       case "high":
         return "critical";
@@ -381,7 +382,7 @@ export default function Contact() {
     return new Date(date).toLocaleString();
   };
 
-  const unreadCount = contacts.filter((contact) => !contact.isRead).length;
+  const unreadCount = contacts.filter((contact) => !contact.read).length;
 
   return (
     <Page>
@@ -574,7 +575,13 @@ export default function Contact() {
                             fontWeight="semibold"
                             tone="success"
                           >
-                            98%
+                            {contacts.filter((c) => c.replied).length > 0
+                              ? Math.round(
+                                  (contacts.filter((c) => c.replied).length /
+                                    contacts.length) *
+                                    100,
+                                ) + "%"
+                              : "0%"}
                           </Text>
                         </BlockStack>
                       </div>
@@ -653,7 +660,7 @@ export default function Contact() {
                                   borderRadius: "8px",
                                   padding: "20px",
                                   boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                  border: contact.isRead
+                                  border: contact.read
                                     ? "1px solid #E4E5E7"
                                     : "2px solid #5C6AC4",
                                 }}
@@ -679,7 +686,8 @@ export default function Contact() {
                                           fontSize: "14px",
                                         }}
                                       >
-                                        {contact.email.charAt(0).toUpperCase()}
+                                        {contact.email &&
+                                          contact.email.charAt(0).toUpperCase()}
                                       </div>
                                       <BlockStack gap="100">
                                         <InlineStack
@@ -690,18 +698,25 @@ export default function Contact() {
                                             variant="bodyMd"
                                             fontWeight="semibold"
                                           >
-                                            {contact.email}
+                                            {contact.email ||
+                                              (contact.user &&
+                                                contact.user.email) ||
+                                              "Unknown"}
                                           </Text>
-                                          {!contact.isRead && (
+                                          {!contact.read && (
                                             <Badge status="info">New</Badge>
                                           )}
-                                          <Badge
-                                            status={getPriorityColor(
-                                              contact.priority,
-                                            )}
-                                          >
-                                            {contact.priority.toUpperCase()}
-                                          </Badge>
+                                          {contact.priority && (
+                                            <Badge
+                                              status={getPriorityColor(
+                                                contact.priority,
+                                              )}
+                                            >
+                                              {(
+                                                contact.priority || "NORMAL"
+                                              ).toUpperCase()}
+                                            </Badge>
+                                          )}
                                         </InlineStack>
                                         <Text variant="bodySm" color="subdued">
                                           {formatTimestamp(contact)}
@@ -709,7 +724,7 @@ export default function Contact() {
                                       </BlockStack>
                                     </InlineStack>
                                     <InlineStack gap="200">
-                                      {!contact.isRead && (
+                                      {!contact.read && (
                                         <Button
                                           size="slim"
                                           icon={BookIcon}
@@ -742,18 +757,21 @@ export default function Contact() {
                                   </InlineStack>
 
                                   {/* Subject */}
-                                  <Text
-                                    variant="headingMd"
-                                    fontWeight="semibold"
-                                  >
-                                    {contact.subject}
-                                  </Text>
+                                  {contact.subject && (
+                                    <Text
+                                      variant="headingMd"
+                                      fontWeight="semibold"
+                                    >
+                                      {contact.subject}
+                                    </Text>
+                                  )}
 
                                   {/* Message Preview */}
                                   <Text variant="bodyMd" color="subdued">
-                                    {contact.message.length > 200
+                                    {contact.message &&
+                                    contact.message.length > 200
                                       ? `${contact.message.substring(0, 200)}...`
-                                      : contact.message}
+                                      : contact.message || "No message content"}
                                   </Text>
                                 </BlockStack>
                               </div>
@@ -857,7 +875,7 @@ export default function Contact() {
         <Modal
           open={isReplyModalOpen}
           onClose={() => setIsReplyModalOpen(false)}
-          title={`Reply to ${selectedContact.email}`}
+          title={`Reply to ${selectedContact.email || (selectedContact.user && selectedContact.user.email) || "Customer"}`}
           primaryAction={{
             content: "Send Reply",
             onAction: handleSendReply,
@@ -885,10 +903,14 @@ export default function Contact() {
                   <Text variant="bodyMd" fontWeight="semibold">
                     Original Message:
                   </Text>
-                  <Text variant="bodySm" fontWeight="semibold">
-                    Subject: {selectedContact.subject}
+                  {selectedContact.subject && (
+                    <Text variant="bodySm" fontWeight="semibold">
+                      Subject: {selectedContact.subject}
+                    </Text>
+                  )}
+                  <Text variant="bodySm">
+                    {selectedContact.message || "No message content"}
                   </Text>
-                  <Text variant="bodySm">{selectedContact.message}</Text>
                 </BlockStack>
               </div>
               <TextField
