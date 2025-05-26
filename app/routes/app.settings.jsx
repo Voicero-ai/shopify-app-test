@@ -426,33 +426,9 @@ export default function SettingsPage() {
     featureToggle: {
       marginLeft: "16px",
     },
-    switch: {
-      position: "relative",
-      display: "inline-block",
-      width: "44px",
-      height: "24px",
-    },
-    slider: {
-      position: "absolute",
+    checkbox: {
+      transform: "scale(1.2)",
       cursor: "pointer",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "#ccc",
-      transition: "0.4s",
-      borderRadius: "34px",
-      ":before": {
-        position: "absolute",
-        content: '""',
-        height: "16px",
-        width: "16px",
-        left: "4px",
-        bottom: "4px",
-        backgroundColor: "white",
-        transition: "0.4s",
-        borderRadius: "50%",
-      },
     },
   };
 
@@ -955,15 +931,13 @@ export default function SettingsPage() {
             </span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoRedirect}
-                onChange={() => toggleAutoFeature("allowAutoRedirect")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoRedirect}
+              onChange={() => toggleAutoFeature("allowAutoRedirect")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -972,15 +946,13 @@ export default function SettingsPage() {
             <span>Allow AI to scroll to relevant sections on the page</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoScroll}
-                onChange={() => toggleAutoFeature("allowAutoScroll")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoScroll}
+              onChange={() => toggleAutoFeature("allowAutoScroll")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -989,15 +961,13 @@ export default function SettingsPage() {
             <span>Allow AI to highlight important elements on the page</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoHighlight}
-                onChange={() => toggleAutoFeature("allowAutoHighlight")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoHighlight}
+              onChange={() => toggleAutoFeature("allowAutoHighlight")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -1006,15 +976,13 @@ export default function SettingsPage() {
             <span>Allow AI to click buttons and links on behalf of users</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoClick}
-                onChange={() => toggleAutoFeature("allowAutoClick")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoClick}
+              onChange={() => toggleAutoFeature("allowAutoClick")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -1029,15 +997,13 @@ export default function SettingsPage() {
             <span>Allow AI to help users cancel orders</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoCancel}
-                onChange={() => toggleAutoFeature("allowAutoCancel")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoCancel}
+              onChange={() => toggleAutoFeature("allowAutoCancel")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -1046,15 +1012,13 @@ export default function SettingsPage() {
             <span>Allow AI to help users return products</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoReturn}
-                onChange={() => toggleAutoFeature("allowAutoReturn")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoReturn}
+              onChange={() => toggleAutoFeature("allowAutoReturn")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -1063,15 +1027,13 @@ export default function SettingsPage() {
             <span>Allow AI to help users exchange products</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoExchange}
-                onChange={() => toggleAutoFeature("allowAutoExchange")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoExchange}
+              onChange={() => toggleAutoFeature("allowAutoExchange")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -1086,15 +1048,13 @@ export default function SettingsPage() {
             <span>Allow AI to fetch and display user order history</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoGetUserOrders}
-                onChange={() => toggleAutoFeature("allowAutoGetUserOrders")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoGetUserOrders}
+              onChange={() => toggleAutoFeature("allowAutoGetUserOrders")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
 
@@ -1103,15 +1063,13 @@ export default function SettingsPage() {
             <span>Allow AI to help users update their account information</span>
           </div>
           <div style={styles.featureToggle}>
-            <label style={styles.switch}>
-              <input
-                type="checkbox"
-                checked={autoFeatures.allowAutoUpdateUserInfo}
-                onChange={() => toggleAutoFeature("allowAutoUpdateUserInfo")}
-                disabled={!isEditingAuto}
-              />
-              <span style={styles.slider}></span>
-            </label>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoUpdateUserInfo}
+              onChange={() => toggleAutoFeature("allowAutoUpdateUserInfo")}
+              disabled={!isEditingAuto}
+            />
           </div>
         </div>
       </div>
@@ -1208,22 +1166,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-
-      {/* Add this style tag in the return statement, just before the closing div */}
-      <style>{`
-        input:checked + span {
-          background-color: #5C6AC4;
-        }
-        
-        input:checked + span:before {
-          transform: translateX(20px);
-        }
-        
-        input:disabled + span {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      `}</style>
     </div>
   );
 }
