@@ -35,7 +35,7 @@ export async function action({ request }) {
     }
 
     // Call the API to mark contact as read
-    const response = await fetch(`${urls.voiceroApi}/api/setReadContacts`, {
+    const response = await fetch(`${urls.voiceroApi}/api/shopify/setReadContacts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

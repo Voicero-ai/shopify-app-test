@@ -2409,20 +2409,6 @@ export default function Index() {
                                 label: "Purchases",
                               },
                               {
-                                icon: ChatIcon,
-                                count:
-                                  extendedWebsiteData.globalStats
-                                    ?.totalTextChats || 0,
-                                label: "Text Chats",
-                              },
-                              {
-                                icon: ToggleOnIcon,
-                                count:
-                                  extendedWebsiteData.globalStats
-                                    ?.totalVoiceChats || 0,
-                                label: "Voice Chats",
-                              },
-                              {
                                 icon: InfoIcon,
                                 count:
                                   extendedWebsiteData.globalStats

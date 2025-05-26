@@ -35,7 +35,7 @@ export async function action({ request }) {
     }
 
     // Call the API to set reply status
-    const response = await fetch(`${urls.voiceroApi}/api/setReplyContacts`, {
+    const response = await fetch(`${urls.voiceroApi}/api/shopify/setReplyContacts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

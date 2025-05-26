@@ -35,7 +35,7 @@ export async function action({ request }) {
     }
 
     // Call the API to delete contact
-    const response = await fetch(`${urls.voiceroApi}/api/deleteContacts`, {
+    const response = await fetch(`${urls.voiceroApi}/api/shopify/deleteContacts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
