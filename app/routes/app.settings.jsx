@@ -193,6 +193,11 @@ export default function SettingsPage() {
     allowAutoExchange: websiteData?.allowAutoExchange || false,
     allowAutoGetUserOrders: websiteData?.allowAutoGetUserOrders || false,
     allowAutoUpdateUserInfo: websiteData?.allowAutoUpdateUserInfo || false,
+    allowAutoFillForm: websiteData?.allowAutoFillForm || true,
+    allowAutoTrackOrder: websiteData?.allowAutoTrackOrder || true,
+    allowAutoLogout: websiteData?.allowAutoLogout || true,
+    allowAutoLogin: websiteData?.allowAutoLogin || true,
+    allowAutoGenerateImage: websiteData?.allowAutoGenerateImage || true,
   });
 
   // User data state
@@ -1010,14 +1015,30 @@ export default function SettingsPage() {
         <div style={styles.featureRow}>
           <div style={styles.featureLabel}>
             <span>Allow AI to help users return products</span>
+            <span
+              style={{
+                marginLeft: "8px",
+                padding: "2px 6px",
+                backgroundColor: "#f1f1f1",
+                color: "#637381",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+            >
+              Coming Soon
+            </span>
           </div>
           <div style={styles.featureToggle}>
             <input
               type="checkbox"
-              style={styles.checkbox}
-              checked={autoFeatures.allowAutoReturn}
-              onChange={() => toggleAutoFeature("allowAutoReturn")}
-              disabled={!isEditingAuto}
+              style={{
+                ...styles.checkbox,
+                opacity: 0.5,
+                cursor: "not-allowed",
+              }}
+              checked={false}
+              disabled={true}
             />
           </div>
         </div>
@@ -1025,14 +1046,30 @@ export default function SettingsPage() {
         <div style={styles.featureRow}>
           <div style={styles.featureLabel}>
             <span>Allow AI to help users exchange products</span>
+            <span
+              style={{
+                marginLeft: "8px",
+                padding: "2px 6px",
+                backgroundColor: "#f1f1f1",
+                color: "#637381",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+            >
+              Coming Soon
+            </span>
           </div>
           <div style={styles.featureToggle}>
             <input
               type="checkbox"
-              style={styles.checkbox}
-              checked={autoFeatures.allowAutoExchange}
-              onChange={() => toggleAutoFeature("allowAutoExchange")}
-              disabled={!isEditingAuto}
+              style={{
+                ...styles.checkbox,
+                opacity: 0.5,
+                cursor: "not-allowed",
+              }}
+              checked={false}
+              disabled={true}
             />
           </div>
         </div>
@@ -1069,6 +1106,109 @@ export default function SettingsPage() {
               checked={autoFeatures.allowAutoUpdateUserInfo}
               onChange={() => toggleAutoFeature("allowAutoUpdateUserInfo")}
               disabled={!isEditingAuto}
+            />
+          </div>
+        </div>
+
+        <h3
+          style={{ fontSize: "16px", fontWeight: "600", margin: "24px 0 16px" }}
+        >
+          Form & Authentication Features
+        </h3>
+
+        <div style={styles.featureRow}>
+          <div style={styles.featureLabel}>
+            <span>Allow AI to automatically fill forms for users</span>
+          </div>
+          <div style={styles.featureToggle}>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoFillForm}
+              onChange={() => toggleAutoFeature("allowAutoFillForm")}
+              disabled={!isEditingAuto}
+            />
+          </div>
+        </div>
+
+        <div style={styles.featureRow}>
+          <div style={styles.featureLabel}>
+            <span>Allow AI to help users track their orders</span>
+          </div>
+          <div style={styles.featureToggle}>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoTrackOrder}
+              onChange={() => toggleAutoFeature("allowAutoTrackOrder")}
+              disabled={!isEditingAuto}
+            />
+          </div>
+        </div>
+
+        <div style={styles.featureRow}>
+          <div style={styles.featureLabel}>
+            <span>Allow AI to help users log out</span>
+          </div>
+          <div style={styles.featureToggle}>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoLogout}
+              onChange={() => toggleAutoFeature("allowAutoLogout")}
+              disabled={!isEditingAuto}
+            />
+          </div>
+        </div>
+
+        <div style={styles.featureRow}>
+          <div style={styles.featureLabel}>
+            <span>Allow AI to help users log in</span>
+          </div>
+          <div style={styles.featureToggle}>
+            <input
+              type="checkbox"
+              style={styles.checkbox}
+              checked={autoFeatures.allowAutoLogin}
+              onChange={() => toggleAutoFeature("allowAutoLogin")}
+              disabled={!isEditingAuto}
+            />
+          </div>
+        </div>
+
+        <h3
+          style={{ fontSize: "16px", fontWeight: "600", margin: "24px 0 16px" }}
+        >
+          Content Generation Features
+        </h3>
+
+        <div style={styles.featureRow}>
+          <div style={styles.featureLabel}>
+            <span>Allow AI to generate images for users</span>
+            <span
+              style={{
+                marginLeft: "8px",
+                padding: "2px 6px",
+                backgroundColor: "#f1f1f1",
+                color: "#637381",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+            >
+              Coming Soon
+            </span>
+          </div>
+          <div style={styles.featureToggle}>
+            <input
+              type="checkbox"
+              style={{
+                ...styles.checkbox,
+                opacity: 0.5,
+                cursor: "not-allowed",
+              }}
+              checked={false}
+              disabled={true}
             />
           </div>
         </div>

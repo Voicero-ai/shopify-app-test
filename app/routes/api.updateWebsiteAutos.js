@@ -20,6 +20,12 @@ export async function action({ request }) {
       allowAutoExchange,
       allowAutoGetUserOrders,
       allowAutoUpdateUserInfo,
+      // New features
+      allowAutoFillForm,
+      allowAutoTrackOrder,
+      allowAutoLogout,
+      allowAutoLogin,
+      allowAutoGenerateImage,
     } = body;
 
     // Get access key from metafields
@@ -79,6 +85,12 @@ export async function action({ request }) {
           allowAutoExchange,
           allowAutoGetUserOrders,
           allowAutoUpdateUserInfo,
+          // New features
+          allowAutoFillForm,
+          allowAutoTrackOrder,
+          allowAutoLogout,
+          allowAutoLogin,
+          allowAutoGenerateImage,
         }),
       },
     );
