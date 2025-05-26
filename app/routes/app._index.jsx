@@ -2067,8 +2067,129 @@ export default function Index() {
             </Box>
           )}
 
+          {/* NEW: Contacts Card - Add this before the Content Overview section */}
+          {accessKey && fetcher.data?.success && (
+            <div
+              style={{
+                backgroundColor: "white",
+                borderRadius: "12px",
+                padding: "24px",
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                marginBottom: "16px",
+              }}
+            >
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="200">
+                  <Text variant="headingLg" fontWeight="semibold">
+                    Customer Contacts
+                  </Text>
+                  <Text variant="bodyMd" color="subdued">
+                    Messages from your store visitors
+                  </Text>
+                </BlockStack>
+
+                <InlineStack gap="400" blockAlign="center">
+                  {isLoadingContacts ? (
+                    <Spinner size="small" />
+                  ) : contactsError ? (
+                    <Text variant="bodyMd" color="critical">
+                      Error loading contacts
+                    </Text>
+                  ) : (
+                    <>
+                      {unreadContacts > 0 && (
+                        <div
+                          style={{
+                            backgroundColor: "#FCF1CD",
+                            borderRadius: "20px",
+                            padding: "4px 12px",
+                            border: "1px solid #EEC200",
+                          }}
+                        >
+                          <Text
+                            variant="bodySm"
+                            fontWeight="semibold"
+                            tone="warning"
+                          >
+                            {unreadContacts} unread message
+                            {unreadContacts !== 1 ? "s" : ""}
+                          </Text>
+                        </div>
+                      )}
+                      <Link url="/app/contacts">
+                        <Button primary={unreadContacts > 0} icon={ChatIcon}>
+                          View Contacts
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </InlineStack>
+              </InlineStack>
+            </div>
+          )}
+
           {/* Main Content */}
           <BlockStack gap="600">
+            {/* NEW: Contacts Card - Add this before the Content Overview section */}
+            {accessKey && fetcher.data?.success && (
+              <div
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                  marginBottom: "16px",
+                }}
+              >
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="200">
+                    <Text variant="headingLg" fontWeight="semibold">
+                      Customer Contacts
+                    </Text>
+                    <Text variant="bodyMd" color="subdued">
+                      Messages from your store visitors
+                    </Text>
+                  </BlockStack>
+
+                  <InlineStack gap="400" blockAlign="center">
+                    {isLoadingContacts ? (
+                      <Spinner size="small" />
+                    ) : contactsError ? (
+                      <Text variant="bodyMd" color="critical">
+                        Error loading contacts
+                      </Text>
+                    ) : (
+                      <>
+                        {unreadContacts > 0 && (
+                          <div
+                            style={{
+                              backgroundColor: "#FCF1CD",
+                              borderRadius: "20px",
+                              padding: "4px 12px",
+                              border: "1px solid #EEC200",
+                            }}
+                          >
+                            <Text
+                              variant="bodySm"
+                              fontWeight="semibold"
+                              tone="warning"
+                            >
+                              {unreadContacts} unread message
+                              {unreadContacts !== 1 ? "s" : ""}
+                            </Text>
+                          </div>
+                        )}
+                        <Link url="/app/contacts">
+                          <Button primary={unreadContacts > 0} icon={ChatIcon}>
+                            View Contacts
+                          </Button>
+                        </Link>
+                      </>
+                    )}
+                  </InlineStack>
+                </InlineStack>
+              </div>
+            )}
             {accessKey ? (
               isDataLoading ? (
                 /* Loading State */
@@ -2497,70 +2618,6 @@ export default function Index() {
                           </div>
                         )}
                       </BlockStack>
-                    </div>
-                  )}
-
-                  {/* NEW: Contacts Card - Add this before the Content Overview section */}
-                  {accessKey && fetcher.data?.success && (
-                    <div
-                      style={{
-                        backgroundColor: "white",
-                        borderRadius: "12px",
-                        padding: "24px",
-                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                        marginBottom: "16px",
-                      }}
-                    >
-                      <InlineStack align="space-between" blockAlign="center">
-                        <BlockStack gap="200">
-                          <Text variant="headingLg" fontWeight="semibold">
-                            Customer Contacts
-                          </Text>
-                          <Text variant="bodyMd" color="subdued">
-                            Messages from your store visitors
-                          </Text>
-                        </BlockStack>
-
-                        <InlineStack gap="400" blockAlign="center">
-                          {isLoadingContacts ? (
-                            <Spinner size="small" />
-                          ) : contactsError ? (
-                            <Text variant="bodyMd" color="critical">
-                              Error loading contacts
-                            </Text>
-                          ) : (
-                            <>
-                              {unreadContacts > 0 && (
-                                <div
-                                  style={{
-                                    backgroundColor: "#FCF1CD",
-                                    borderRadius: "20px",
-                                    padding: "4px 12px",
-                                    border: "1px solid #EEC200",
-                                  }}
-                                >
-                                  <Text
-                                    variant="bodySm"
-                                    fontWeight="semibold"
-                                    tone="warning"
-                                  >
-                                    {unreadContacts} unread message
-                                    {unreadContacts !== 1 ? "s" : ""}
-                                  </Text>
-                                </div>
-                              )}
-                              <Link url="/app/contacts">
-                                <Button
-                                  primary={unreadContacts > 0}
-                                  icon={ChatIcon}
-                                >
-                                  View Contacts
-                                </Button>
-                              </Link>
-                            </>
-                          )}
-                        </InlineStack>
-                      </InlineStack>
                     </div>
                   )}
 
