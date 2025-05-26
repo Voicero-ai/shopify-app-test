@@ -2353,7 +2353,7 @@ export default function Index() {
                     </div>
                   )}
 
-                  {/* NEW: Top Content Card */}
+                  {/* NEW: Top Content Card - REPLACING with Action Statistics */}
                   {accessKey && fetcher.data?.success && (
                     <div
                       style={{
@@ -2366,11 +2366,10 @@ export default function Index() {
                       <BlockStack gap="600">
                         <BlockStack gap="200">
                           <Text variant="headingLg" fontWeight="semibold">
-                            Top Redirected Content
+                            Action Statistics
                           </Text>
                           <Text variant="bodyMd" color="subdued">
-                            Most popular pages that customers are directed to by
-                            your AI assistant
+                            How customers are interacting with your AI assistant
                           </Text>
                         </BlockStack>
 
@@ -2379,155 +2378,96 @@ export default function Index() {
                             <BlockStack gap="400" align="center">
                               <Spinner size="large" />
                               <Text variant="bodyMd" color="subdued">
-                                Loading content data...
+                                Loading action data...
                               </Text>
                             </BlockStack>
                           </div>
-                        ) : extendedWebsiteData?.content ? (
+                        ) : extendedWebsiteData?.globalStats ? (
                           <div
                             style={{
                               backgroundColor: "#F9FAFB",
                               borderRadius: "12px",
                               padding: "20px",
+                              display: "grid",
+                              gridTemplateColumns: "repeat(3, 1fr)",
+                              gap: "20px",
                             }}
                           >
-                            {/* Rest of the tabs content */}
-                            <Tabs
-                              tabs={[
-                                {
-                                  id: "products",
-                                  content: (
-                                    <span>
-                                      Products <Icon source={ProductIcon} />
-                                    </span>
-                                  ),
-                                },
-                                {
-                                  id: "collections",
-                                  content: (
-                                    <span>
-                                      Collections{" "}
-                                      <Icon source={CollectionIcon} />
-                                    </span>
-                                  ),
-                                },
-                                {
-                                  id: "blogPosts",
-                                  content: (
-                                    <span>
-                                      Blog Posts <Icon source={BlogIcon} />
-                                    </span>
-                                  ),
-                                },
-                                {
-                                  id: "pages",
-                                  content: (
-                                    <span>
-                                      Pages <Icon source={PageIcon} />
-                                    </span>
-                                  ),
-                                },
-                              ]}
-                              selected={selectedContentTab}
-                              onSelect={setSelectedContentTab}
-                            >
-                              {(selected) => {
-                                const contentType = [
-                                  "products",
-                                  "collections",
-                                  "blogPosts",
-                                  "pages",
-                                ][selected];
-                                const contentItems =
-                                  extendedWebsiteData.content[contentType] ||
-                                  [];
-
-                                // Sort by redirect count (highest first)
-                                const sortedItems = [...contentItems]
-                                  .sort(
-                                    (a, b) =>
-                                      (b.aiRedirects || 0) -
-                                      (a.aiRedirects || 0),
-                                  )
-                                  .slice(0, 5); // Top 5 items
-
-                                if (sortedItems.length === 0) {
-                                  return (
-                                    <div
-                                      style={{
-                                        padding: "16px",
-                                        textAlign: "center",
-                                      }}
-                                    >
-                                      <Text variant="bodyMd" color="subdued">
-                                        No {contentType} data available
-                                      </Text>
-                                    </div>
-                                  );
-                                }
-
-                                return (
-                                  <div style={{ marginTop: "16px" }}>
-                                    {sortedItems.map((item, index) => (
-                                      <div
-                                        key={index}
-                                        style={{
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                          padding: "12px",
-                                          borderBottom:
-                                            index < sortedItems.length - 1
-                                              ? "1px solid #E4E5E7"
-                                              : "none",
-                                        }}
-                                      >
-                                        <BlockStack gap="100">
-                                          <Text
-                                            variant="bodyMd"
-                                            fontWeight="semibold"
-                                          >
-                                            {item.title}
-                                          </Text>
-                                          <Link
-                                            url={`https://${fetcher.data.websiteData.url}${item.url}`}
-                                            external
-                                            monochrome
-                                          >
-                                            <Text
-                                              variant="bodySm"
-                                              color="subdued"
-                                            >
-                                              {item.url}
-                                            </Text>
-                                          </Link>
-                                        </BlockStack>
-                                        <div
-                                          style={{
-                                            backgroundColor: "#E3F5E1",
-                                            padding: "6px 12px",
-                                            borderRadius: "20px",
-                                          }}
-                                        >
-                                          <Text
-                                            variant="bodySm"
-                                            fontWeight="semibold"
-                                            tone="success"
-                                          >
-                                            {item.aiRedirects || 0} redirects
-                                          </Text>
-                                        </div>
-                                      </div>
-                                    ))}
+                            {[
+                              {
+                                icon: DataPresentationIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalAiRedirects || 0,
+                                label: "Redirects",
+                              },
+                              {
+                                icon: CheckIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalAiPurchases || 0,
+                                label: "Purchases",
+                              },
+                              {
+                                icon: ChatIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalTextChats || 0,
+                                label: "Text Chats",
+                              },
+                              {
+                                icon: ToggleOnIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalVoiceChats || 0,
+                                label: "Voice Chats",
+                              },
+                              {
+                                icon: InfoIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalAiClicks || 0,
+                                label: "Clicks",
+                              },
+                              {
+                                icon: RefreshIcon,
+                                count:
+                                  extendedWebsiteData.globalStats
+                                    ?.totalAiScrolls || 0,
+                                label: "Scrolls",
+                              },
+                            ].map((item, index) => (
+                              <div key={index} style={{ textAlign: "center" }}>
+                                <BlockStack gap="300" align="center">
+                                  <div
+                                    style={{
+                                      width: "48px",
+                                      height: "48px",
+                                      backgroundColor: "white",
+                                      borderRadius: "12px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      margin: "0 auto",
+                                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                    }}
+                                  >
+                                    <Icon source={item.icon} color="base" />
                                   </div>
-                                );
-                              }}
-                            </Tabs>
+                                  <Text variant="heading2xl" fontWeight="bold">
+                                    {item.count}
+                                  </Text>
+                                  <Text variant="bodySm" color="subdued">
+                                    {item.label}
+                                  </Text>
+                                </BlockStack>
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <div style={{ padding: "32px", textAlign: "center" }}>
                             <Text variant="bodyMd" color="subdued">
-                              No content data available
+                              No action data available
                             </Text>
                           </div>
                         )}
@@ -2535,7 +2475,7 @@ export default function Index() {
                     </div>
                   )}
 
-                  {/* Content Overview Card */}
+                  {/* Content Overview Card - UPDATED to show content details */}
                   <div
                     style={{
                       backgroundColor: "white",
@@ -2567,6 +2507,7 @@ export default function Index() {
                         </Button>
                       </InlineStack>
 
+                      {/* Content type stats */}
                       <div
                         style={{
                           backgroundColor: "#F9FAFB",
@@ -2580,28 +2521,41 @@ export default function Index() {
                         {[
                           {
                             icon: ProductIcon,
-                            count: fetcher.data.websiteData._count.products,
+                            count:
+                              fetcher.data.websiteData._count?.products ||
+                              extendedWebsiteData?.content?.products?.length ||
+                              0,
                             label: "Products",
                           },
                           {
                             icon: PageIcon,
-                            count: fetcher.data.websiteData._count.pages,
+                            count:
+                              fetcher.data.websiteData._count?.pages ||
+                              extendedWebsiteData?.content?.pages?.length ||
+                              0,
                             label: "Pages",
                           },
                           {
                             icon: BlogIcon,
-                            count: fetcher.data.websiteData._count.posts,
+                            count:
+                              fetcher.data.websiteData._count?.posts ||
+                              extendedWebsiteData?.content?.blogPosts?.length ||
+                              0,
                             label: "Blog Posts",
                           },
                           {
                             icon: CollectionIcon,
                             count:
-                              fetcher.data.websiteData._count.collections || 0,
+                              fetcher.data.websiteData._count?.collections ||
+                              extendedWebsiteData?.content?.collections
+                                ?.length ||
+                              0,
                             label: "Collections",
                           },
                           {
                             icon: DiscountIcon,
-                            count: fetcher.data.websiteData._count.discounts,
+                            count:
+                              fetcher.data.websiteData._count?.discounts || 0,
                             label: "Discounts",
                           },
                         ].map((item, index) => (
@@ -2632,6 +2586,152 @@ export default function Index() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Content details tabs */}
+                      {extendedWebsiteData?.content && (
+                        <Tabs
+                          tabs={[
+                            {
+                              id: "products",
+                              content: (
+                                <span>
+                                  Products <Icon source={ProductIcon} />
+                                </span>
+                              ),
+                            },
+                            {
+                              id: "collections",
+                              content: (
+                                <span>
+                                  Collections <Icon source={CollectionIcon} />
+                                </span>
+                              ),
+                            },
+                            {
+                              id: "blogPosts",
+                              content: (
+                                <span>
+                                  Blog Posts <Icon source={BlogIcon} />
+                                </span>
+                              ),
+                            },
+                            {
+                              id: "pages",
+                              content: (
+                                <span>
+                                  Pages <Icon source={PageIcon} />
+                                </span>
+                              ),
+                            },
+                          ]}
+                          selected={selectedContentTab}
+                          onSelect={setSelectedContentTab}
+                        >
+                          {(selected) => {
+                            const contentType = [
+                              "products",
+                              "collections",
+                              "blogPosts",
+                              "pages",
+                            ][selected];
+                            const contentItems =
+                              extendedWebsiteData.content[contentType] || [];
+
+                            if (contentItems.length === 0) {
+                              return (
+                                <div
+                                  style={{
+                                    padding: "16px",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  <Text variant="bodyMd" color="subdued">
+                                    No {contentType} data available
+                                  </Text>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                style={{
+                                  marginTop: "16px",
+                                  backgroundColor: "#F9FAFB",
+                                  borderRadius: "12px",
+                                  padding: "16px",
+                                }}
+                              >
+                                {contentItems.map((item, index) => (
+                                  <div
+                                    key={index}
+                                    style={{
+                                      padding: "16px",
+                                      marginBottom: "12px",
+                                      backgroundColor: "white",
+                                      borderRadius: "8px",
+                                      boxShadow:
+                                        "0 1px 2px rgba(0, 0, 0, 0.05)",
+                                    }}
+                                  >
+                                    <BlockStack gap="300">
+                                      <Text
+                                        variant="headingMd"
+                                        fontWeight="semibold"
+                                      >
+                                        {item.title}
+                                      </Text>
+                                      {item.description && (
+                                        <Text variant="bodyMd" color="subdued">
+                                          {item.description.length > 120
+                                            ? `${item.description.substring(0, 120)}...`
+                                            : item.description}
+                                        </Text>
+                                      )}
+                                      <InlineStack
+                                        align="space-between"
+                                        blockAlign="center"
+                                      >
+                                        <Link
+                                          url={`https://${fetcher.data.websiteData.domain}${item.url}`}
+                                          external
+                                          monochrome
+                                        >
+                                          <InlineStack
+                                            gap="200"
+                                            blockAlign="center"
+                                          >
+                                            <Icon
+                                              source={ExternalIcon}
+                                              color="subdued"
+                                            />
+                                            <Text
+                                              variant="bodySm"
+                                              color="subdued"
+                                            >
+                                              View content
+                                            </Text>
+                                          </InlineStack>
+                                        </Link>
+                                        {item.lastUpdated && (
+                                          <Text
+                                            variant="bodySm"
+                                            color="subdued"
+                                          >
+                                            Updated:{" "}
+                                            {new Date(
+                                              item.lastUpdated,
+                                            ).toLocaleDateString()}
+                                          </Text>
+                                        )}
+                                      </InlineStack>
+                                    </BlockStack>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }}
+                        </Tabs>
+                      )}
                     </BlockStack>
                   </div>
                 </BlockStack>

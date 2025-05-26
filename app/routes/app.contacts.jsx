@@ -267,10 +267,6 @@ export default function Contact() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
-  const [selectedContact, setSelectedContact] = useState(null);
-  const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
-  const [replyMessage, setReplyMessage] = useState("");
-  const [isReplying, setIsReplying] = useState(false);
   const [selectedTab, setSelectedTab] = useState(0);
 
   const fetcher = useFetcher();
@@ -317,36 +313,97 @@ export default function Contact() {
     }
   };
 
-  const handleMarkAsRead = (contactId) => {
-    setContacts(
-      contacts.map((contact) =>
-        contact.id === contactId ? { ...contact, read: true } : contact,
-      ),
-    );
+  const handleMarkAsRead = async (contactId) => {
+    try {
+      const response = await fetch("/api/setReadContacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: contactId }),
+      });
+
+      if (response.ok) {
+        // Update local state to reflect change
+        setContacts(
+          contacts.map((contact) =>
+            contact.id === contactId ? { ...contact, read: true } : contact,
+          ),
+        );
+      } else {
+        console.error("Failed to mark contact as read");
+        setError("Failed to mark contact as read");
+      }
+    } catch (error) {
+      console.error("Error marking contact as read:", error);
+      setError(`Error: ${error.message}`);
+    }
   };
 
-  const handleReply = (contact) => {
-    setSelectedContact(contact);
-    setIsReplyModalOpen(true);
-    setReplyMessage("");
+  const handleReply = async (contact) => {
+    try {
+      // Mark as replied in the API
+      const response = await fetch("/api/setReplyContacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: contact.id }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setContacts(
+          contacts.map((c) =>
+            c.id === contact.id ? { ...c, replied: true } : c,
+          ),
+        );
+
+        // Get the email address (either directly from contact or from user object)
+        const emailAddress =
+          contact.email || (contact.user && contact.user.email);
+
+        if (emailAddress) {
+          // Open email client with pre-filled details
+          const subject = contact.subject
+            ? `Re: ${contact.subject}`
+            : "Re: Your message";
+          const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}`;
+          window.open(mailtoLink);
+        } else {
+          setError("No email address found for this contact");
+        }
+      } else {
+        console.error("Failed to mark contact as replied");
+        setError("Failed to mark contact as replied");
+      }
+    } catch (error) {
+      console.error("Error handling reply:", error);
+      setError(`Error: ${error.message}`);
+    }
   };
 
-  const handleSendReply = async () => {
-    setIsReplying(true);
+  const handleDeleteContact = async (contactId) => {
+    try {
+      const response = await fetch("/api/deleteContacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: contactId }),
+      });
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Mark as read and close modal
-    handleMarkAsRead(selectedContact.id);
-    setIsReplyModalOpen(false);
-    setReplyMessage("");
-    setIsReplying(false);
-    setSelectedContact(null);
-  };
-
-  const handleDeleteContact = (contactId) => {
-    setContacts(contacts.filter((contact) => contact.id !== contactId));
+      if (response.ok) {
+        // Remove from local state
+        setContacts(contacts.filter((contact) => contact.id !== contactId));
+      } else {
+        console.error("Failed to delete contact");
+        setError("Failed to delete contact");
+      }
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      setError(`Error: ${error.message}`);
+    }
   };
 
   const getFilteredContacts = () => {
@@ -869,62 +926,6 @@ export default function Contact() {
           </BlockStack>
         </Layout.Section>
       </Layout>
-
-      {/* Reply Modal */}
-      {isReplyModalOpen && selectedContact && (
-        <Modal
-          open={isReplyModalOpen}
-          onClose={() => setIsReplyModalOpen(false)}
-          title={`Reply to ${selectedContact.email || (selectedContact.user && selectedContact.user.email) || "Customer"}`}
-          primaryAction={{
-            content: "Send Reply",
-            onAction: handleSendReply,
-            loading: isReplying,
-            disabled: !replyMessage.trim(),
-          }}
-          secondaryActions={[
-            {
-              content: "Cancel",
-              onAction: () => setIsReplyModalOpen(false),
-            },
-          ]}
-        >
-          <Modal.Section>
-            <BlockStack gap="400">
-              <div
-                style={{
-                  backgroundColor: "#F9FAFB",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  border: "1px solid #E4E5E7",
-                }}
-              >
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold">
-                    Original Message:
-                  </Text>
-                  {selectedContact.subject && (
-                    <Text variant="bodySm" fontWeight="semibold">
-                      Subject: {selectedContact.subject}
-                    </Text>
-                  )}
-                  <Text variant="bodySm">
-                    {selectedContact.message || "No message content"}
-                  </Text>
-                </BlockStack>
-              </div>
-              <TextField
-                label="Your Reply"
-                value={replyMessage}
-                onChange={setReplyMessage}
-                multiline={6}
-                placeholder="Type your reply here..."
-                autoComplete="off"
-              />
-            </BlockStack>
-          </Modal.Section>
-        </Modal>
-      )}
     </Page>
   );
 }
