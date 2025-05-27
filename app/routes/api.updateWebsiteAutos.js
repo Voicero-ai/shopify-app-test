@@ -66,7 +66,7 @@ export async function action({ request }) {
 
     // Call the API to update auto features
     const response = await fetch(
-      `http://localhost:3000/api/shopify/updateWebsiteAutos`,
+      `${urls.voiceroApi}/api/shopify/updateWebsiteAutos`,
       {
         method: "POST",
         headers: {
