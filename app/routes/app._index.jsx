@@ -2118,7 +2118,7 @@ export default function Index() {
                             </Text>
                           </div>
                         )}
-                        <Link url="/app/contacts">
+                        <Link url="https://www.voicero.ai/app/contacts">
                           <Button primary={unreadContacts > 0} icon={ChatIcon}>
                             View Contacts
                           </Button>
